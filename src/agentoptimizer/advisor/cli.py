@@ -1,16 +1,26 @@
 """Command line for advisor mode: scripts/opt_run.py <command> <campaign folder>.
 
-    init     write a problem.toml template to fill in
-    check    validate problem.toml and data.csv
+    init       write a problem.toml template to fill in
+    check      validate problem.toml and data.csv
+    summarize  print the data summary the advisor reads (--json for the raw form)
 """
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import sys
 
-from .data import DataError, check_table, read_table
+from .data import DataError, check_table, parse_table, read_table
 from .problem import TEMPLATE, ProblemError, load_problem
+from .summary import format_summary, summarize
+
+
+def load(folder):
+    """The campaign's problem, table and parsed data; raises on any error."""
+    problem = load_problem(folder)
+    table = read_table(folder, problem)
+    return problem, table, parse_table(problem, table)
 
 
 def init(args):
@@ -51,15 +61,28 @@ def check(args):
     return 1 if any(issue.level == 'error' for issue in issues) else 0
 
 
+def summary(args):
+    problem, _, data = load(args.campaign)
+    result = summarize(problem, data)
+    print(json.dumps(result, indent=2) if args.json else format_summary(result))
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='opt_run.py', description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest='command', required=True)
-    for name, function, text in [('init', init, 'write a problem.toml template'),
-                                 ('check', check, 'validate the campaign')]:
-        command = commands.add_parser(name, help=text)
-        command.add_argument('campaign', type=Path, help='campaign folder')
-        command.set_defaults(function=function)
+
+    def command(name, function, text):
+        sub = commands.add_parser(name, help=text)
+        sub.add_argument('campaign', type=Path, help='campaign folder')
+        sub.set_defaults(function=function)
+        return sub
+
+    command('init', init, 'write a problem.toml template')
+    command('check', check, 'validate the campaign')
+    command('summarize', summary, 'print the data summary').add_argument(
+        '--json', action='store_true', help='print the summary as JSON')
     args = parser.parse_args(argv)
     try:
         return args.function(args)
