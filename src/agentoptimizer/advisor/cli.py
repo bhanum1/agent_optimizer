@@ -1,7 +1,7 @@
 """Command line for advisor mode: scripts/opt_run.py <command> <campaign folder>.
 
     init     write a problem.toml template to fill in
-    check    validate problem.toml
+    check    validate problem.toml and data.csv
 """
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import argparse
 from pathlib import Path
 import sys
 
+from .data import DataError, check_table, read_table
 from .problem import TEMPLATE, ProblemError, load_problem
 
 
@@ -36,8 +37,18 @@ def describe(problem):
 
 
 def check(args):
-    print(describe(load_problem(args.campaign)))
-    return 0
+    problem = load_problem(args.campaign)
+    print(describe(problem))
+    table = read_table(args.campaign, problem)
+    if not table.rows:
+        print('data.csv: no experiments yet')
+        return 0
+    counts = {s: sum(row['status'] == s for row in table.rows) for s in ('done', 'pending', 'failed')}
+    print(f'data.csv: {len(table.rows)} rows (' + ', '.join(f'{n} {s}' for s, n in counts.items()) + ')')
+    issues = check_table(problem, table)
+    for issue in issues:
+        print(issue)
+    return 1 if any(issue.level == 'error' for issue in issues) else 0
 
 
 def main(argv=None):
@@ -52,6 +63,6 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         return args.function(args)
-    except ProblemError as exc:
+    except (ProblemError, DataError) as exc:
         print(f'error: {exc}', file=sys.stderr)
         return 1
