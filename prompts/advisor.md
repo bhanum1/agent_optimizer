@@ -113,8 +113,15 @@ campaign.write_proposals(U, label="<method>")
 
 - The default view is the unit cube with the objective as a loss: negated
   when the problem maximizes. `raw=True` gives the user's units and
-  direction. `campaign.incumbent()`, `campaign.failed()` and
-  `campaign.remaining` are also there.
+  direction. Also available: `campaign.dim`, `campaign.names`,
+  `campaign.bounds` (raw), `campaign.unit_bounds`, `campaign.remaining`,
+  `campaign.incumbent()` and `campaign.failed()`.
+- Unit coordinates map back per parameter: linearly, or in log space for
+  `log = true`; each whole number of an integer parameter owns an equal
+  slice of [0, 1]. `write_proposals` clips to the bounds, rounds integers,
+  and rounds other values to 6 significant digits.
+- `summary.json` lists the package versions under `environment`; cite them
+  for inherited defaults instead of looking them up.
 - For a `[pool]`, propose rows instead: `campaign.candidates()` (features of
   every row), `campaign.available()` (positions not done or pending) and
   `campaign.write_candidates(positions, label=...)`.

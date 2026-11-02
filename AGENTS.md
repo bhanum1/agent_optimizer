@@ -10,8 +10,9 @@ The prompt given to the optimization agent in experiments is a different file:
 | --- | --- |
 | `src/agentoptimizer/` | The package: `agent_harness/` (client the agent calls), `blind_runner/` (isolated runner, evaluator, preflight), `optimizers/` (ask/tell wrappers), `tasks/` (objectives and `TASKS` registry), `advisor/` (advisor mode: campaign folders for real experiments) |
 | `scripts/` | `run_agent.py`, `run_campaign.py`, `run_sweep.py`; `agent_runs.py` (launch, wait, status); `opt_run.py` (advisor mode); `figures/` for paper figures; `slurm/` for cluster sweeps |
-| `.claude/skills/optimize/` | The `/optimize` skill: one call to launch agent runs and report on them |
-| `prompts/` | The optimization agent's prompt |
+| `.claude/skills/` | `/optimize` (launch benchmark runs and report on them) and `/opt-run` (advisor mode: propose the next block of a real campaign) |
+| `examples/` | Advisor-mode example campaigns with simulated labs |
+| `prompts/` | The benchmark agent's prompt (`optimization_agent.md`) and the advisor-mode policy (`advisor.md`) |
 | `data/` | Task inputs (MOF pool, OPV emulator, OPV pool) and the pipelines that produced them |
 | `docs/` | Task catalogue, adding tasks, figure rules, and `plan/` for the manuscript |
 | `tests/` | Unit tests; no model calls, no real objectives |
@@ -40,7 +41,8 @@ conditions, so say why in the commit message.
   identities, so the copies work and reveal nothing.
 - **The agent prompt is an experimental condition.** Changing
   `prompts/optimization_agent.md` changes what every later run measures; record
-  why in the commit message.
+  why in the commit message. `prompts/advisor.md` carries the same block-wise
+  policy into advisor mode; keep the two in step.
 - **Task identities stay private.** `docs/TASKS.md` and `src/agentoptimizer/tasks/`
   name the functions; nothing from them may reach a sandbox.
 - **No results in git.** Campaign outputs go to `runs/` (ignored) and are

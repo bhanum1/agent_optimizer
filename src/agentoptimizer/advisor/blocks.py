@@ -9,8 +9,10 @@ decision for that block.
 from __future__ import annotations
 
 import csv
+from importlib import metadata
 import json
 from pathlib import Path
+import platform
 import re
 import subprocess
 import sys
@@ -18,6 +20,8 @@ import sys
 from .data import Issue, check_candidate, check_point, check_table, format_number, load_campaign, write_table
 from .summary import summarize
 
+# Packages a proposal script may use, reported with each block's summary.
+ENVIRONMENT = ('numpy', 'scipy', 'torch', 'botorch', 'gpytorch', 'cma', 'Py-BOBYQA', 'agentoptimizer')
 # Columns a proposals.csv may have besides the parameters.
 PROPOSAL_EXTRAS = ('optimizer', 'notes')
 
@@ -41,9 +45,20 @@ def new_block(campaign):
     number = open_block_number(data)
     folder = block_folder(campaign, number)
     folder.mkdir(parents=True, exist_ok=True)
-    summary = {'block': number, **summarize(problem, data)}
+    summary = {'block': number, **summarize(problem, data), 'environment': environment()}
     (folder / 'summary.json').write_text(json.dumps(summary, indent=2, allow_nan=False) + '\n')
     return number, folder
+
+
+def environment():
+    """Versions a proposal script runs with, so a decision can name its defaults."""
+    versions = {'python': platform.python_version()}
+    for name in ENVIRONMENT:
+        try:
+            versions[name] = metadata.version(name)
+        except metadata.PackageNotFoundError:
+            pass
+    return versions
 
 
 def _number(campaign, number):

@@ -133,13 +133,27 @@ journal read-only and never touches the workspace. A run launched from inside a
 Claude Code session does not inherit that session's `CLAUDE_*` variables: the
 runner drops them, so the agent CLI starts as it would from a terminal.
 
-## Advisor mode (in progress)
+## Advisor mode (`/opt-run`)
 
 For real experiments rather than benchmarks: the objective is yours (a lab,
-a simulation queue), and each block is proposed from the results so far. The
-`/opt-run` skill that makes the decisions comes next (phase 3 of
-[the plan](docs/plan/05-advisor-mode.md)); the campaign tooling it drives
-works now:
+a simulation queue), and each block is proposed from the results so far.
+In Claude Code, from the repository root:
+
+```text
+/opt-run init my_campaign                        # interview -> problem.toml; optional import of old results
+/opt-run my_campaign                             # decide, write and run the next block's propose.py
+/opt-run record my_campaign results.csv          # results back (or fill them in data.csv)
+/opt-run status my_campaign
+```
+
+Each call decides one block (method, settings, size) under the policy in
+[prompts/advisor.md](prompts/advisor.md), records why in `decisions.md`, and
+writes `blocks/NNN/propose.py`, a deterministic script that produces the
+block. The proposals land in `data.csv` as pending experiments. To try it
+without a lab, use the [reaction example](examples/reaction/README.md) and
+its simulated lab.
+
+The skill drives `scripts/opt_run.py`, which also works on its own:
 
 ```bash
 .venv/bin/python scripts/opt_run.py init my_campaign          # then edit my_campaign/problem.toml
@@ -367,13 +381,15 @@ Figures that leave the repo follow [FIGURES.md](docs/FIGURES.md). Their scripts
 
 - `prompts/optimization_agent.md`: the canonical agent prompt, copied into each
   workspace as `AGENTS.md`.
+- `prompts/advisor.md`: the advisor-mode policy that `/opt-run` follows.
 - `src/agentoptimizer/tasks/`: private objective implementations and registry.
 - `src/agentoptimizer/optimizers/`: shared optimizer wrappers.
 - `src/agentoptimizer/agent_harness/harness.py`: public evaluation client.
 - `src/agentoptimizer/blind_runner/`: native execution, private evaluator and orchestration.
 - `scripts/`: agent and baseline runners, `agent_runs.py` to launch and report
   on agent runs; `scripts/figures/`: plotting entry points.
-- `.claude/skills/optimize/`: the `/optimize` Claude Code skill.
+- `.claude/skills/`: the `/optimize` and `/opt-run` Claude Code skills.
+- `examples/`: advisor-mode example campaigns with simulated labs.
 - `src/agentoptimizer/advisor/`: advisor mode (campaign folders, summary,
   proposal blocks); `scripts/opt_run.py` is its command line.
 - `data/`: task inputs (`mof_pool/`, `opv_emulator/`, `opv_pool/`) and the
