@@ -1,7 +1,8 @@
 """Noisy BBOB tasks from COCO's `bbob-noisy` suite, via `cocoex`.
 
-Requires `coco-experiment==2.8.2` (import name `cocoex`); not in
-requirements.txt, install it into `.venv` by hand.
+Requires `coco-experiment==2.8.2` (import name `cocoex`), from
+the `backends` extra (`uv sync --all-extras`), which only the evaluator
+environment installs.
 
 COCO's noise RNG is global in its C library, cannot be seeded, and resets
 whenever a problem is constructed. Every campaign therefore sees the same

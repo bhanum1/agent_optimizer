@@ -108,7 +108,7 @@ print(json.dumps({'prefix':sys.prefix,'base_prefix':sys.base_prefix,
     info = json.loads(subprocess.check_output([str(python), '-I', '-c', query], text=True))
     if info['backends']:
         raise ValueError('Agent runtime contains objective backends: ' + ', '.join(info['backends'])
-                         + '. Install requirements-agent.txt in a separate environment.')
+                         + '. Create it with: UV_PROJECT_ENVIRONMENT=.agent-venv uv sync --only-group agent')
     return info
 
 

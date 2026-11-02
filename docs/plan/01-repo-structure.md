@@ -44,7 +44,8 @@ first method, not ahead of time.
 Made in the restructure commit:
 
 - **Flattened `main/`** into `src/agentoptimizer/` with a `pyproject.toml`;
-  install with `pip install -e ".[figures]"` into the evaluator environment.
+  environments come from `uv sync` (see the README; uv replaced the
+  `requirements*.txt` files).
   Scripts and tests no longer edit `sys.path` to find the package.
 - **Agent-facing layout unchanged.** The runner still copies the harness and
   optimizers into each workspace as package `src`, so the agent sees the same

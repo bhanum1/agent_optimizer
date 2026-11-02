@@ -2,10 +2,14 @@
 
 ## Environments
 
-- `main/requirements.txt` and `main/requirements-agent.txt` are unpinned in
-  the seed; only the optional task backends in the README carry versions.
-  Pin both (lock files or exact `==`), and keep the two-environment split:
-  the agent environment must never see objective backends.
+- Done: uv manages both environments from `pyproject.toml` and `uv.lock`
+  (Python 3.11; 3.11.9 on the development Mac). `[tool.uv]
+  constraint-dependencies` pins the direct libraries to the versions behind
+  the published runs (numpy 2.4.6, torch 2.14.1, botorch 0.18.1, cma 4.5.0,
+  …). The agent environment is the `agent` dependency group alone and never
+  sees the package or objective backends.
+- Linux: `uv.lock` is cross-platform, but torch wheels differ by platform;
+  check results on the cluster against macOS before mixing them.
 - Record the Codex CLI and Claude Code CLI versions, the model identifiers and
   reasoning effort for every agent run.
 - Validate the Linux sandbox path (bubblewrap) on the target cluster; the

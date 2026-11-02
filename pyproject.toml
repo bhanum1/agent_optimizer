@@ -8,13 +8,39 @@ version = "0.1.0"
 description = "An LLM agent chooses optimization methods, hyperparameters and evaluation block lengths for black-box problems."
 readme = "README.md"
 requires-python = ">=3.11"
-dynamic = ["dependencies"]
+# Evaluator environment (.venv): this package, its baselines and the BBOB backend.
+dependencies = ["numpy", "scipy", "ioh", "cma", "botorch", "Py-BOBYQA"]
 
 [project.optional-dependencies]
 figures = ["matplotlib"]
+# Objective backends for the CEC, G-suite, COCO, Nevergrad and YAHPO task families.
+# opfunu still imports pkg_resources, which setuptools 81 removed.
+backends = ["opfunu", "setuptools<81", "pymoo", "coco-experiment", "nevergrad", "onnxruntime"]
 
-[tool.setuptools.dynamic]
-dependencies = { file = ["requirements.txt"] }
+[dependency-groups]
+# Agent runtime (.agent-venv): optimizer libraries only. Install it with
+# --only-group agent, which leaves out this package and every objective backend.
+agent = ["numpy", "scipy", "cma", "botorch", "Py-BOBYQA", "pandas", "matplotlib"]
+
+[tool.uv]
+# Versions of the environments behind the published runs (pre-manuscript-snapshot).
+constraint-dependencies = [
+    "numpy==2.4.6",
+    "scipy==1.17.1",
+    "ioh==0.3.22",
+    "cma==4.5.0",
+    "botorch==0.18.1",
+    "gpytorch==1.15.2",
+    "torch==2.14.1",
+    "py-bobyqa==1.5.0",
+    "pandas==3.1.0",
+    "matplotlib==3.11.2",
+    "opfunu==1.0.1",
+    "pymoo==0.6.1.6",
+    "coco-experiment==2.8.2",
+    "nevergrad==1.0.12",
+    "onnxruntime==1.31.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

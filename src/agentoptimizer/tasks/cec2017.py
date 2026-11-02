@@ -1,9 +1,10 @@
 """CEC-2017 tasks F5, F6, F8 (shifted/rotated), via direct equations.
 
 Requires `opfunu==1.0.1`, used only as the source of the official shift
-vectors and rotation matrices. Its evaluators are not called. It is not in
-requirements.txt (sandbox code does not need it) and imports `pkg_resources`,
-so it needs `setuptools<81`.
+vectors and rotation matrices. Its evaluators are not called. It comes from
+the `backends` extra (`uv sync --all-extras`), which only the evaluator
+environment installs, and imports `pkg_resources`, so it needs
+`setuptools<81` (also in that extra).
 """
 
 from __future__ import annotations

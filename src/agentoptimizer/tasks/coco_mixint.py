@@ -1,8 +1,8 @@
 """Mixed-integer BBOB tasks from COCO's `bbob-mixint` suite, via `cocoex`.
 
-Requires `coco-experiment==2.8.2` (import name `cocoex`). It is not in
-requirements.txt (sandbox code does not need it); install it into `.venv`
-by hand.
+Requires `coco-experiment==2.8.2` (import name `cocoex`), from
+the `backends` extra (`uv sync --all-extras`), which only the evaluator
+environment installs.
 """
 
 from __future__ import annotations

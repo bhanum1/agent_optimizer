@@ -1,9 +1,10 @@
 """YAHPO Gym `rbv2_*` hyperparameter-optimization tasks, via their ONNX surrogates.
 
-Requires `onnxruntime` (tested with 1.31.0); not in requirements.txt, install
-it into `.venv` by hand. `yahpo-gym` itself pins numpy<2, which conflicts with
-`ioh`, so its surrogate models are evaluated here directly with the same
-input encoding (reproduces yahpo_gym 1.0.2 outputs exactly). The model files
+Requires `onnxruntime==1.31.0`, from the `backends` extra
+(`uv sync --all-extras`), which only the evaluator environment installs.
+`yahpo-gym` itself pins numpy<2, which conflicts with `ioh`, so its surrogate
+models are evaluated here directly with the same input encoding (reproduces
+yahpo_gym 1.0.2 outputs exactly). The model files
 (config_space.json, encoding.json, model.onnx per scenario, from
 slds-lmu/yahpo_data v1.0.2) live in `external/yahpo_data/<scenario>/` at the
 repository root, which git ignores.

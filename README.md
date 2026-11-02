@@ -21,7 +21,7 @@ in the source repository at tag
 ## Requirements
 
 - macOS (checked) or Linux (has an execution path; validate it on the target machine).
-- Python 3.11+.
+- [uv](https://docs.astral.sh/uv/) 0.12 or later. It installs Python 3.11 if needed.
 - [Codex CLI](https://github.com/openai/codex), for **both** agents: it is the
   per-command sandbox. Authenticate it (`codex login`) only for `--agent codex`.
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code), only for
@@ -35,26 +35,28 @@ Other CLI versions must support the named permission profiles used by the runner
 ## Install once
 
 Run every command in this README from the repository root unless it says otherwise.
-Keep two Python environments: the agent gets optimizer libraries; only the private
-evaluator gets this package and objective backends such as `ioh`. Never install
-the package into `.agent-venv`; the runner refuses an agent runtime that has it.
+Keep two Python environments, both built from `uv.lock`: the agent gets optimizer
+libraries only; only the private evaluator gets this package and objective
+backends such as `ioh`. The runner refuses an agent runtime that has either.
 
 ```bash
-python3.11 -m venv .venv
-.venv/bin/python -m pip install -e ".[figures]"
-python3.11 -m venv .agent-venv
-.agent-venv/bin/python -m pip install -r requirements-agent.txt
+uv sync --all-extras --locked
+UV_PROJECT_ENVIRONMENT=.agent-venv uv sync --only-group agent --locked
 codex login
 ```
 
-This is enough for the BBOB tasks (`sphere10`, `rosenbrock*`, `rastrigin10`,
-`step_ellipsoid10`, …) and the data-backed `opv_pce`, `opv_pool` and `mof_pool`.
+The first command builds `.venv`: this package (editable), the baselines, every
+objective backend and matplotlib. The second builds `.agent-venv` from the
+`agent` dependency group alone, without the package. The lock pins the library
+versions used for the published runs; see `[tool.uv]` in `pyproject.toml`.
 
-### Optional task backends
+Run scripts with `.venv/bin/python` as below rather than `uv run`. A bare
+`uv sync` (no `--all-extras`) removes the objective backends from `.venv`.
 
-The other task families need packages that are deliberately kept out of
-`requirements.txt`, because agent sandboxes must not see them. Install them
-into the evaluator environment `.venv` only:
+### Task backends
+
+The `backends` extra holds the packages for the non-BBOB task families. They
+live only in `.venv`, because agent sandboxes must not see them:
 
 | Tasks | Needs |
 | --- | --- |
@@ -64,10 +66,6 @@ into the evaluator environment `.venv` only:
 | `ng_noisy_*` | `nevergrad==1.0.12` |
 | `yahpo_svm`, `yahpo_xgboost` | `onnxruntime==1.31.0` plus the surrogate files below |
 | `psa_v10` | A user-supplied evaluator at `external/psa_v10/psa_v10_blackbox.py`; not distributed |
-
-```bash
-.venv/bin/python -m pip install "opfunu==1.0.1" "setuptools<81" "pymoo==0.6.1.6" "coco-experiment==2.8.2" "nevergrad==1.0.12" "onnxruntime==1.31.0"
-```
 
 The YAHPO surrogates are git-ignored; download them into `external/yahpo_data/`:
 

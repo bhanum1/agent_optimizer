@@ -18,13 +18,18 @@ The prompt given to the optimization agent in experiments is a different file:
 ## Setup and checks
 
 ```bash
-python3.11 -m venv .venv && .venv/bin/python -m pip install -e ".[figures]"
+uv sync --all-extras --locked
+UV_PROJECT_ENVIRONMENT=.agent-venv uv sync --only-group agent --locked
 .venv/bin/python -m unittest discover -s tests
 ```
 
-The agent runtime is a second environment (`.agent-venv`, from
-`requirements-agent.txt`). Never install this package or any objective backend
-into it; the runner refuses to start if it finds one.
+Dependencies live in `pyproject.toml` and `uv.lock`; change them with `uv add` /
+`uv lock`, never by installing into an environment by hand. `.venv` is the
+evaluator; `.agent-venv` is the agent runtime, built from the `agent` group
+alone. Never install this package or any objective backend into it; the runner
+refuses to start if it finds one. `[tool.uv] constraint-dependencies` pins the
+versions behind the published runs: changing them changes the experimental
+conditions, so say why in the commit message.
 
 ## Rules
 

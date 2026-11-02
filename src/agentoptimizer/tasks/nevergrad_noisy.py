@@ -1,7 +1,7 @@
 """Noisy tasks from nevergrad's `ArtificialFunction`, with our own noise.
 
-Requires `nevergrad==1.0.12`; not in requirements.txt, install it into
-`.venv` by hand.
+Requires `nevergrad==1.0.12`, from the `backends` extra
+(`uv sync --all-extras`), which only the evaluator environment installs.
 
 Nevergrad draws its noise from numpy's global RNG at call time, tangling it
 with optimizer randomness. So the instance (the shift) is fixed, built once

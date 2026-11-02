@@ -1,7 +1,7 @@
 """Constrained tasks G04 and G07 from the classic G-suite, via `pymoo`.
 
-Requires `pymoo==0.6.1.6`. It is not in requirements.txt (sandbox code does
-not need it); install it into `.venv` by hand.
+Requires `pymoo==0.6.1.6`, from the `backends` extra (`uv sync --all-extras`),
+which only the evaluator environment installs.
 """
 
 from __future__ import annotations
