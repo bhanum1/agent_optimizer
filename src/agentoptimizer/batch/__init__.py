@@ -6,4 +6,5 @@ be reproduced from the inputs and seed alone. Used by advisor mode
 signature and docs/plan/05-advisor-mode.md for the plan.
 """
 from .base import Proposal, check_inputs, snap
+from .gp import fit_gp, qlognei
 from .space import random, space_filling
