@@ -18,7 +18,7 @@ import subprocess
 import sys
 
 from .data import Issue, check_candidate, check_point, check_table, format_number, load_campaign, write_table
-from .summary import summarize
+from .summary import model_diagnostics, summarize
 
 # Packages a proposal script may use, reported with each block's summary.
 ENVIRONMENT = ('numpy', 'scipy', 'torch', 'botorch', 'gpytorch', 'cma', 'Py-BOBYQA', 'agentoptimizer')
@@ -45,7 +45,8 @@ def new_block(campaign):
     number = open_block_number(data)
     folder = block_folder(campaign, number)
     folder.mkdir(parents=True, exist_ok=True)
-    summary = {'block': number, **summarize(problem, data), 'environment': environment()}
+    summary = {'block': number, **summarize(problem, data),
+               'model': model_diagnostics(problem, data), 'environment': environment()}
     (folder / 'summary.json').write_text(json.dumps(summary, indent=2, allow_nan=False) + '\n')
     return number, folder
 

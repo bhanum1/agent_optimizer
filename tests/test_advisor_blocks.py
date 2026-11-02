@@ -52,6 +52,7 @@ class Blocks(unittest.TestCase):
         summary = json.loads((folder / 'summary.json').read_text())
         self.assertEqual((summary['block'], summary['incumbent']['id']), (2, 2))
         self.assertIn('scipy', summary['environment'])
+        self.assertIn('model', summary)  # None here: only one done row
         # Reopening an unaccepted block reuses its folder.
         self.assertEqual(new_block(self.folder)[0], 2)
 

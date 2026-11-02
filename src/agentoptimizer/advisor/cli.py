@@ -25,7 +25,7 @@ from .blocks import BlockError, accept_block, new_block, run_block, validate_pro
 from .data import DataError, check_table, load_campaign, read_table
 from .problem import TEMPLATE, ProblemError, load_problem
 from .results import ResultsError, import_rows, record_results
-from .summary import format_summary, summarize
+from .summary import format_summary, model_diagnostics, summarize
 
 
 def init(args):
@@ -71,6 +71,8 @@ def check(args):
 def summary(args):
     problem, _, data = load_campaign(args.campaign)
     result = summarize(problem, data)
+    if args.model:
+        result['model'] = model_diagnostics(problem, data)
     print(json.dumps(result, indent=2) if args.json else format_summary(result))
     return 0
 
@@ -136,8 +138,9 @@ def main(argv=None):
 
     command('init', init, 'write a problem.toml template')
     command('check', check, 'validate the campaign')
-    command('summarize', summary, 'print the data summary').add_argument(
-        '--json', action='store_true', help='print the summary as JSON')
+    sub = command('summarize', summary, 'print the data summary')
+    sub.add_argument('--json', action='store_true', help='print the summary as JSON')
+    sub.add_argument('--model', action='store_true', help='add GP diagnostics (lengthscales, leave-one-out fit)')
     command('new-block', new_block_command, 'open the next block')
     for name, function, text in [('run', run_command, "run the block's propose.py and validate"),
                                  ('validate', validate_command, "validate the block's proposals"),

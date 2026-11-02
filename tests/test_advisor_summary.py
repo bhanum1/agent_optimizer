@@ -8,7 +8,7 @@ import unittest
 from advisor_fixtures import PROBLEM, campaign, quiet
 from agentoptimizer.advisor.cli import main
 from agentoptimizer.advisor.data import load_campaign
-from agentoptimizer.advisor.summary import format_summary, summarize
+from agentoptimizer.advisor.summary import format_summary, model_diagnostics, summarize
 
 # Unit coordinates: id 1 is (0, 0, 1/60); ids 2 and 3 are (0.5, 0.5, 14.5/30);
 # id 4 is (1, 1, 29.5/30). Ids 2 and 3 are replicates.
@@ -72,6 +72,18 @@ class Summary(unittest.TestCase):
         s = self.summary(rows='')
         self.assertEqual((s['incumbent'], s['blocks'], s['budget']['remaining']), (None, [], 20))
         self.assertIn('incumbent: none yet', format_summary(s))
+
+    def test_model_diagnostics(self):
+        rows = ''.join(f'{i},1,done,advisor,sobol,{80 + 6 * i},{0.001 * 1.4 ** i:.6g},{1 + i},{1 - ((i - 9) / 10) ** 2:.4f},\n'
+                       for i in range(1, 19))
+        campaign(self.folder, rows)
+        problem, _, data = load_campaign(self.folder)
+        model = model_diagnostics(problem, data)
+        self.assertEqual(set(model['lengthscales']), {'temperature', 'conc', 'stir'})
+        self.assertEqual(model['n'], 18)
+        self.assertIn('model (GP on 18 done rows)', format_summary({**summarize(problem, data), 'model': model}))
+        campaign(self.folder, ROWS.splitlines()[0] + '\n')
+        self.assertIsNone(model_diagnostics(*load_campaign(self.folder)[::2]))
 
     def test_cli(self):
         campaign(self.folder, ROWS)
