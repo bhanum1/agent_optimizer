@@ -7,6 +7,9 @@
     run        run the open block's propose.py, then validate its proposals
     validate   validate the open block's proposals.csv
     accept     add the open block's proposals to data.csv as pending rows
+    record     fill in pending rows from a results CSV (id, value or status failed);
+               rows without an id are added as manual experiments
+    import     add prior results from a CSV as block 0
 
 A block's flow: new-block -> write "## Block N" in decisions.md and
 blocks/NNN/propose.py -> run -> accept -> run the experiments -> record.
@@ -21,6 +24,7 @@ import sys
 from .blocks import BlockError, accept_block, new_block, run_block, validate_proposals
 from .data import DataError, check_table, load_campaign, read_table
 from .problem import TEMPLATE, ProblemError, load_problem
+from .results import ResultsError, import_rows, record_results
 from .summary import format_summary, summarize
 
 
@@ -104,6 +108,19 @@ def accept_command(args):
     return 0
 
 
+def record_command(args):
+    recorded, added = record_results(args.campaign, args.file)
+    print(f'Recorded {len(recorded)} pending row(s)' + (f' (ids {recorded[0]}-{recorded[-1]})' if recorded else '')
+          + (f'; added {len(added)} manual row(s) (ids {added[0]}-{added[-1]})' if added else '') + '.')
+    return 0
+
+
+def import_command(args):
+    ids = import_rows(args.campaign, args.file)
+    print(f'Imported {len(ids)} row(s) as block 0 (ids {ids[0]}-{ids[-1]}).')
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='opt_run.py', description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -129,9 +146,13 @@ def main(argv=None):
             sub.add_argument('--timeout', type=float, default=600, help='seconds (default 600)')
         if name == 'accept':
             sub.add_argument('--optimizer', help='method label, if proposals.csv has no optimizer column')
+    command('record', record_command, 'fill in results for pending rows').add_argument(
+        'file', type=Path, help='CSV with id and the objective (or status failed), optional notes')
+    command('import', import_command, 'add prior results as block 0').add_argument(
+        'file', type=Path, help='CSV with the parameters and the objective')
     args = parser.parse_args(argv)
     try:
         return args.function(args)
-    except (ProblemError, DataError, BlockError) as exc:
+    except (ProblemError, DataError, BlockError, ResultsError) as exc:
         print(f'error: {exc}', file=sys.stderr)
         return 1
