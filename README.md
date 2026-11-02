@@ -103,6 +103,36 @@ These three checks spend **no model calls**. Run them after installing:
 
    It should end with `Isolation passed: … checks, 0/100 evaluations.`
 
+## Run in one call
+
+In Claude Code, from the repository root:
+
+```text
+/optimize step_ellipsoid10 100 seeds 0 1 2
+/optimize mof_pool 100 agent claude effort xhigh baselines
+/optimize status
+```
+
+The [skill](.claude/skills/optimize/SKILL.md) creates missing environments,
+launches one detached campaign per seed once its isolation preflight passes,
+waits for the runs to end, and reports each run's best value, gap to the
+optimum, method blocks and integrity audit (with `baselines`, it also runs the
+baseline sweep and counts the baselines the agent beat). The same steps from a
+terminal:
+
+```bash
+.venv/bin/python scripts/agent_runs.py launch --task step_ellipsoid10 --budget 100 --seeds 0 1 2
+.venv/bin/python scripts/agent_runs.py status
+.venv/bin/python scripts/agent_runs.py wait runs/run-<id> [--baselines runs/baselines]
+```
+
+`launch` passes other flags (`--agent`, `--model`, `--effort`) to `run_agent.py`.
+Its runs keep going after the terminal or Claude Code session closes; their
+console output is in `private/launcher.log`. `status` reads each run's private
+journal read-only and never touches the workspace. A run launched from inside a
+Claude Code session does not inherit that session's `CLAUDE_*` variables: the
+runner drops them, so the agent CLI starts as it would from a terminal.
+
 ## Run the agent
 
 Start a fresh campaign:
@@ -315,7 +345,9 @@ Figures that leave the repo follow [FIGURES.md](docs/FIGURES.md). Their scripts
 - `src/agentoptimizer/optimizers/`: shared optimizer wrappers.
 - `src/agentoptimizer/agent_harness/harness.py`: public evaluation client.
 - `src/agentoptimizer/blind_runner/`: native execution, private evaluator and orchestration.
-- `scripts/`: agent and baseline runners; `scripts/figures/`: plotting entry points.
+- `scripts/`: agent and baseline runners, `agent_runs.py` to launch and report
+  on agent runs; `scripts/figures/`: plotting entry points.
+- `.claude/skills/optimize/`: the `/optimize` Claude Code skill.
 - `data/`: task inputs (`mof_pool/`, `opv_emulator/`, `opv_pool/`) and the
   pipelines that built them.
 - `docs/`: task catalogue, adding tasks, figure rules, and the manuscript plan.

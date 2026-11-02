@@ -9,7 +9,8 @@ The prompt given to the optimization agent in experiments is a different file:
 | Path | Contents |
 | --- | --- |
 | `src/agentoptimizer/` | The package: `agent_harness/` (client the agent calls), `blind_runner/` (isolated runner, evaluator, preflight), `optimizers/` (ask/tell wrappers), `tasks/` (objectives and `TASKS` registry) |
-| `scripts/` | `run_agent.py`, `run_campaign.py`, `run_sweep.py`; `figures/` for paper figures; `slurm/` for cluster sweeps |
+| `scripts/` | `run_agent.py`, `run_campaign.py`, `run_sweep.py`; `agent_runs.py` (launch, wait, status); `figures/` for paper figures; `slurm/` for cluster sweeps |
+| `.claude/skills/optimize/` | The `/optimize` skill: one call to launch agent runs and report on them |
 | `prompts/` | The optimization agent's prompt |
 | `data/` | Task inputs (MOF pool, OPV emulator, OPV pool) and the pipelines that produced them |
 | `docs/` | Task catalogue, adding tasks, figure rules, and `plan/` for the manuscript |

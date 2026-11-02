@@ -256,6 +256,16 @@ On an evaluator error, stop and report; do not retry an unknown evaluation.
     return root, workspace, private, policy
 
 
+def cli_environment():
+    # Launched from inside a Claude Code session (the /optimize skill, say), the
+    # agent CLI would inherit that session's proxy URL, messaging socket, effort
+    # and mode settings. Dropping them starts it as it starts from a terminal.
+    if 'CLAUDECODE' not in os.environ:
+        return dict(os.environ)
+    return {k: v for k, v in os.environ.items()
+            if not k.startswith(('CLAUDE', 'MCP_')) and k != 'ANTHROPIC_BASE_URL'}
+
+
 def instructions(args, workspace):
     return ((workspace / 'AGENTS.md').read_text() +
             f'\nAll campaign execution and file access use the {SERVER[args.agent]} MCP tools. '
@@ -286,7 +296,7 @@ def codex_command(args, workspace, private, policy):
     return [str(args.codex), '--no-daemon', 'exec', '--ignore-user-config', '--ignore-rules',
             '--ephemeral', '--skip-git-repo-check', '--json', '--color', 'never',
             '-m', args.model, '-C', str(workspace), *overrides(config),
-            '-o', str(private / 'agent_final.txt'), '-'], os.environ
+            '-o', str(private / 'agent_final.txt'), '-'], cli_environment()
 
 
 def claude_command(args, workspace, private):
@@ -302,7 +312,7 @@ def claude_command(args, workspace, private):
                '--permission-mode', 'dontAsk', '--setting-sources', '', '--disable-slash-commands',
                '--no-session-persistence', '--system-prompt', instructions(args, workspace)]
     # The ceiling keeps the enclosing repository's git status out of the CLI's context.
-    env = {**os.environ, 'ENABLE_CLAUDEAI_MCP_SERVERS': 'false', 'CLAUDE_CODE_DISABLE_AUTO_MEMORY': '1',
+    env = {**cli_environment(), 'ENABLE_CLAUDEAI_MCP_SERVERS': 'false', 'CLAUDE_CODE_DISABLE_AUTO_MEMORY': '1',
            'GIT_CEILING_DIRECTORIES': str(workspace.parent)}
     write_json(private / 'effective_overrides.json', {'command': command[1:], 'mcp': config})
     return command, env

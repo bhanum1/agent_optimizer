@@ -21,6 +21,22 @@ from ..tasks.base import FEASIBILITY_TOL
 class BudgetExhausted(Exception):
     pass
 
+
+def incumbents(db, campaign):
+    """Each completed evaluation with its feasibility and the incumbent so far:
+    the feasible point with the lowest observed y, and its noise-free value.
+    Reads only, so it also serves a read-only connection to a live journal."""
+    rows = db.execute('SELECT idx,x,y,g,y_true,label,elapsed,wall_ns FROM evaluations '
+                      'WHERE campaign=? AND y IS NOT NULL ORDER BY idx', (campaign,)).fetchall()
+    best, best_x, best_true = math.inf, None, None
+    for row in rows:
+        x, y, g, y_true = row[1:5]
+        feasible = sum(max(v, 0.) for v in json.loads(g or '[]')) <= FEASIBILITY_TOL
+        if feasible and y < best:
+            best, best_x, best_true = y, json.loads(x), y_true
+        yield row, feasible, (None if best_x is None else best), best_x, best_true
+
+
 class Evaluator:
     def __init__(self, suite, database, task_factory):
         self.suite = suite
@@ -94,17 +110,7 @@ class Evaluator:
                                 (campaign, self.count(campaign), name, content, time.time_ns()))
 
     def incumbents(self, campaign):
-        """Each completed evaluation with its feasibility and the incumbent so far:
-        the feasible point with the lowest observed y, and its noise-free value."""
-        rows = self.db.execute('SELECT idx,x,y,g,y_true,label,elapsed,wall_ns FROM evaluations '
-                               'WHERE campaign=? AND y IS NOT NULL ORDER BY idx', (campaign,)).fetchall()
-        best, best_x, best_true = math.inf, None, None
-        for row in rows:
-            x, y, g, y_true = row[1:5]
-            feasible = sum(max(v, 0.) for v in json.loads(g or '[]')) <= FEASIBILITY_TOL
-            if feasible and y < best:
-                best, best_x, best_true = y, json.loads(x), y_true
-            yield row, feasible, (None if best_x is None else best), best_x, best_true
+        return incumbents(self.db, campaign)
 
     def artifacts(self, campaign):
         status = self.status(campaign)
