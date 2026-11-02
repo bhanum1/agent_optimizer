@@ -27,9 +27,9 @@ campaign scripts. They remain in the old repository at the cutover tag.
 README.md  LICENSE  CITATION.cff  pyproject.toml
 prompts/optimization_agent.md     the agent prompt (today's AGENTS.md)
 src/agentoptimizer/
-  harness/  blind_runner/  optimizers/  selectors/  tasks/  llm_baselines/
+  agent_harness/  blind_runner/  optimizers/  selectors/  tasks/  llm_baselines/
 scripts/                          run_*, figures/
-data/                             task inputs only: mof_pool/, opv_emulator/, opv_pool/
+data/                             task inputs: mof_pool/, opv_emulator/, opv_pool/
 experiments/                      one config per paper experiment (02, 03, 04)
 tests/
 docs/                             user docs; plan/ removed or archived at release
@@ -39,30 +39,46 @@ docs/                             user docs; plan/ removed or archived at releas
 holds the LLM comparisons (03). Both are created by the PRs that add the
 first method, not ahead of time.
 
+## Decisions
+
+Made in the restructure commit:
+
+- **Flattened `main/`** into `src/agentoptimizer/` with a `pyproject.toml`;
+  install with `pip install -e ".[figures]"` into the evaluator environment.
+  Scripts and tests no longer edit `sys.path` to find the package.
+- **Agent-facing layout unchanged.** The runner still copies the harness and
+  optimizers into each workspace as package `src`, so the agent sees the same
+  files and import paths as in earlier runs. The copied modules now use
+  relative imports so they work under both names. The runner and preflight
+  also refuse an agent runtime that has `agentoptimizer` installed.
+- **Agent prompt moved** to `prompts/optimization_agent.md` (copied into each
+  workspace as `AGENTS.md`). The root `AGENTS.md` is now a contributor guide.
+- **OPV data**: `task_005_baseline/` → `data/opv_emulator/`,
+  `task_006_baseline/` → `data/opv_pool/`, each moved whole so the pipelines
+  still run in place. `make_poly_results.py` was dropped; it only plotted
+  results that are not in this repository.
+- **Figure scripts** moved to `scripts/figures/` and resolve result folders
+  from the repository root, where a results release would be unpacked.
+
 ## Open decisions
 
-- **Flatten `main/`.** Nothing else lives beside it now, so the extra level only
-  lengthens paths. Moving to `src/agentoptimizer/` with a `pyproject.toml`
-  replaces the `sys.path.insert(0, 'main')` pattern used in scripts and docs.
-- **Agent prompt location.** `CLAUDE.md` imports `AGENTS.md`, which is the
-  *optimization agent's* prompt. Any coding assistant opened on this repo
-  therefore reads instructions meant for the experiment agent. Move the prompt
-  to `prompts/` and give contributors' assistants their own short `AGENTS.md`.
-- **OPV pipelines.** `task_005_baseline/` and `task_006_baseline/` mix task
-  inputs (read by `opv.py` and `opv_pool.py` via a hard-coded `parents[3]`
-  path) with preprocessing code, notebooks and reports. Keep only inputs under
-  `data/`; move the pipelines to `data/<task>/pipeline/` or drop them if the
-  data release documents provenance.
 - **`psa_v10`.** Registered but needs a private evaluator that is not
   distributed. Drop from the release, or keep with a clear "not reproducible"
   note.
+- **Data pipelines vs. inputs.** `data/opv_emulator/` and `data/opv_pool/` keep
+  their preprocessing code, notebook and reports beside the inputs, and both
+  carry a copy of `pce_cleaned_dataset.csv`. Trim once the data release
+  documents provenance.
+- **Figure-script inputs.** Several scripts hard-code result folders
+  (`results_linux`, `results_full`, `agent_runs/...`) and the old
+  `AGENT_RUNS` map in `make_comparison_plots.py` points at archived runs.
+  Rework once the data release layout is fixed.
 
 ## Cleanup list
 
-- [ ] README links to `main/agent_runs/...` and `task_006_baseline/README.md`
-      results that are not in this repository; point them at the data release.
-- [ ] README paragraph on the PSA campaign scripts, which were not imported.
-- [ ] README layout section mentions `archive_results/` and `poly_results/`.
-- [ ] Figure scripts default to result folders (`results_linux`, etc.) that
-      will live in the data release; make the input path an argument.
-- [ ] Hard-coded data paths in `opv.py` and `opv_pool.py`.
+- [x] README links to results that are not in this repository; they now point
+      at the source repository's tag.
+- [x] README paragraph on the PSA campaign scripts.
+- [x] README layout section.
+- [ ] Figure scripts: make the input path an argument everywhere.
+- [x] Hard-coded data paths in `opv.py` and `opv_pool.py` (now `data/...`).

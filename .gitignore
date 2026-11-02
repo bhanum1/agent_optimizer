@@ -1,11 +1,10 @@
 .venv/
 .agent-venv/
 /runs/
+/external/
 __pycache__/
 *.pyc
-.DS_Store
 *.egg-info/
-main/docs/
-main/tasks/MOF/
-external/
-video/*.mov
+build/
+dist/
+.DS_Store
