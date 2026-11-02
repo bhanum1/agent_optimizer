@@ -28,7 +28,7 @@ README.md  LICENSE  CITATION.cff  pyproject.toml
 prompts/optimization_agent.md     the agent prompt (today's AGENTS.md)
 src/agentoptimizer/
   agent_harness/  blind_runner/  optimizers/  selectors/  tasks/  llm_baselines/  advisor/
-scripts/                          run_*, agent_runs.py, advise.py, figures/
+scripts/                          run_*, agent_runs.py, opt_run.py, figures/
 data/                             task inputs: mof_pool/, opv_emulator/, opv_pool/
 experiments/                      one config per paper experiment (02, 03, 04, 05)
 examples/                         advisor-mode campaigns (05)

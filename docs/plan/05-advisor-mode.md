@@ -15,7 +15,7 @@ how real experimental campaigns run. Phase 4 measures it.
 
 ## How the two modes differ
 
-| | Benchmark mode (`/optimize`) | Advisor mode (`/advise`) |
+| | Benchmark mode (`/optimize`) | Advisor mode (`/opt-run`) |
 | --- | --- | --- |
 | Who evaluates | Private evaluator, through the bridge | The user, outside the loop (lab, cluster, simulator) |
 | What the model sees | Bounds, dimension, budget, its own observations; no task identity | Whatever the user provides: parameter names, units, notes, data from any source |
@@ -108,7 +108,7 @@ only a cache.
 
 ## What the model reads
 
-`advise summarize` computes a fixed summary instead of leaving the model to
+`opt_run.py summarize` computes a fixed summary instead of leaving the model to
 work out statistics from a raw table:
 - counts of done, pending and failed rows, and budget used;
 - the incumbent and its parameters;
@@ -122,24 +122,24 @@ work out statistics from a raw table:
 The summary is saved with the block, so each decision can be traced to what
 the model saw. The raw table stays available.
 
-## The `/advise` skill
+## The `/opt-run` skill
 
-1. `/advise init` builds `problem.toml` from a short conversation and imports
-   existing results (CSV or Excel) into `data.csv`. `/advise <folder>` runs
+1. `/opt-run init` builds `problem.toml` from a short conversation and imports
+   existing results (CSV or Excel) into `data.csv`. `/opt-run <folder>` runs
    the steps below.
-2. `advise check`: validates the schema, types, bounds and units. It stops
+2. `opt_run.py check`: validates the schema, types, bounds and units. It stops
    with a clear error rather than guessing.
-3. `advise summarize` writes `blocks/NNN/summary.json`.
+3. `opt_run.py summarize` writes `blocks/NNN/summary.json`.
 4. Decide: the model reads `problem.toml`, the summary, `decisions.md` and
    the last block's script, following `prompts/advisor.md`. It chooses the
    method, hyperparameters, block size, seed and reason.
 5. It writes `propose.py` and runs it with `.venv/bin/python`. Then
-   `advise validate` checks the count, bounds and types, rejects duplicates
+   `opt_run.py validate` checks the count, bounds and types, rejects duplicates
    of done or pending rows, and checks pool membership.
 6. It appends the decision to `decisions.md`, adds the proposals to
    `data.csv` as pending rows, and shows the table.
 7. The user runs the experiments, enters the results (or runs
-   `advise record results.csv`) and calls `/advise` again. Points the user
+   `opt_run.py record results.csv`) and calls `/opt-run` again. Points the user
    overrides or adds are recorded with `source = manual`, and the next
    decision sees them.
 
@@ -168,36 +168,62 @@ alongside the scores.
 | Phase | Deliverable | Model calls | Depends on |
 | --- | --- | --- | --- |
 | 0 | Settle the open decisions below | — | — |
-| 1 | Campaign format; `agentoptimizer.advisor` (load, check, summarize, validate, record); `scripts/advise.py`; tests | None | 0 |
+| 1 | Campaign format; `agentoptimizer.advisor` (load, check, summarize, validate, record); `scripts/opt_run.py`; tests | None | 0 |
 | 2 | Warm-start and batch adapters for the table above; tests on synthetic functions | None | 1; shared with 02 |
-| 3 | `prompts/advisor.md`; the `/advise` skill (in-session); an example campaign in `examples/` | Small | 1, 2 |
+| 3 | `prompts/advisor.md`; the `/opt-run` skill (in-session); an example campaign in `examples/` | Small | 1, 2 |
 | 4 | Headless advisor (`agent codex\|claude`); blind replay runner; experiments | Yes | 3; Linux check (04) for the cluster |
 | 5 | Categorical variables, closed-loop `--evaluate`, constraints, multi-objective, multi-fidelity | — | 4 |
 
+### Phase 1 in slices
+
+Each slice is one layer with its own tests and commit, and the next slice
+builds on it. Every slice is usable from `scripts/opt_run.py` as soon as it
+lands.
+
+| Slice | Adds | CLI | Tests |
+| --- | --- | --- | --- |
+| 1 | `problem.toml` schema and loader; scaling to the unit cube (linear, log, integer) | `init`, `check` | Valid and invalid specs; scaling round trip |
+| 2 | `data.csv` schema; reader and writer that keep extra columns; row checks | `check` | Each error names its line and column |
+| 3 | Deterministic summary | `summarize` | Incumbent, block table and distances on hand-made data |
+| 4 | Block folders; proposal validation; accepting proposals as pending rows; running `propose.py` | `new-block`, `run`, `validate`, `accept` | Rejects out-of-bounds points, duplicates and a missing decision |
+| 5 | Results in: pending rows recorded, prior data imported, manual rows | `record`, `import` | Status changes; unknown ids refused; all-or-nothing writes |
+| 6 | `Campaign` API for proposal scripts; a loop over three blocks with no model | — | End to end on a synthetic function |
+| 7 | Candidate pools (`candidates.csv`) through every layer | all | Proposals must be untested pool rows |
+
 Phase 3 is done when a synthetic campaign goes through five blocks of
-`/advise` → proposals → simulated results without manual fixes, and every
+`/opt-run` → proposals → simulated results without manual fixes, and every
 block's `propose.py` reproduces its proposals exactly when rerun.
+
+## Decisions made (2026-11-02)
+
+- **Name.** The skill is `/opt-run` for now; the CLI is `scripts/opt_run.py`
+  and the package `agentoptimizer.advisor`.
+- **Rebuild freely.** Any part of the repository may be torn down and
+  rebuilt; prefer the clean design over compatibility with earlier code or
+  runs. Changes to experimental conditions are still recorded, because they
+  trigger reruns (04).
+- **Who decides.** The calling session in phase 3; a headless `codex exec`
+  or `claude -p` call (the benchmarked agent, with fixed model, effort and
+  prompt) in phase 4, which replay needs. Both use the same prompt and folder
+  contract.
+- **Variable types.** Continuous (linear or log scale), integer, and finite
+  candidate pools first; categorical in phase 5.
+- **Problem file.** TOML, read with the standard library.
 
 ## Open decisions
 
-1. **Who decides.** (A) The session that calls the skill: simple, and the
-   user can discuss each block, but the model and effort vary with the
-   session. (B) A headless `codex exec` or `claude -p` call with a fixed
-   model, effort and prompt, which is the benchmarked agent. Recommendation:
-   A in phase 3, B in phase 4, which replay needs anyway. Both use the same
-   prompt and folder contract.
-2. **Variable types in phase 1.** Recommendation: continuous, integer (by
-   rounding) and finite pools first; categorical in phase 5.
-3. **Shared policy text.** Duplicate the block-wise policy of
+1. **Shared policy text.** Duplicate the block-wise policy of
    `prompts/optimization_agent.md` in `prompts/advisor.md`, or split it into a
    shared file that both prompts include. Splitting changes the benchmark
    prompt file, so the generated `AGENTS.md` must stay byte-identical.
-4. **Domain context.** Allowed by default in advisor mode, but replay uses
+2. **Domain context.** Allowed by default in advisor mode, but replay uses
    anonymous names. A follow-up could test whether real parameter names (OPV
    has them) help.
-5. **Where the adapters live.** Recommendation: `advisor/methods.py`,
-   keeping `optimizers/` frozen for the benchmark until the reruns in 04 are
-   decided.
+3. **Where the adapters live** (phase 2). With rebuilding allowed, the
+   choice is design, not compatibility: `advisor/methods.py`, or warm start and
+   batch support added to `optimizers/` itself and shared with the selectors
+   (02). Changing `optimizers/` changes the benchmark workspace, so it means
+   reruns.
 
 ## Risks
 
