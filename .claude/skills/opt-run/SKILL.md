@@ -78,6 +78,15 @@ deciding anything. `scripts/opt_run.py` does all the bookkeeping (run it with
      put `id,<objective>[,status,notes]` rows in a CSV and call
      `/opt-run record <folder> <file>`.
 
+## Working notes
+
+- Read files with the Read tool, including `summary.json` and library source
+  under `.venv/lib/python3.11/site-packages/`. Bash is for `opt_run.py`.
+- To look at a model before committing to it (lengthscales, fit quality),
+  print those from `propose.py`: `run` saves its output in
+  `blocks/NNN/propose.log`. Revise the script and run it again as needed;
+  only the final version's proposals are accepted.
+
 ## Rules
 
 - Never exceed the budget, and never edit, invent or estimate a result.

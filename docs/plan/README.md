@@ -40,7 +40,7 @@ that supports it and the figure or table that shows it.
 | Dynamic-selection baselines | | Planned | Confirm method list and fairness rules in 02 |
 | LLM-optimizer comparisons | | Planned | Check code availability for each method in 03 |
 | Reproducibility and release | | Planned | Choose data host and license in 04 |
-| Advisor mode (`/opt-run`) | | Phase 1 done (7 slices) | Phase 2: warm-start and batch adapters (05) |
+| Advisor mode (`/opt-run`) | | Phases 1 and 3 done; skill works end to end | Phase 2 adapters, then replay (phase 4) (05) |
 
 ## Open decisions
 

@@ -205,6 +205,37 @@ Phase 3 is done when a synthetic campaign goes through five blocks of
 `/opt-run` → proposals → simulated results without manual fixes, and every
 block's `propose.py` reproduces its proposals exactly when rerun.
 
+**Phase 3 status: done (2026-11-02).** Five headless `claude -p "/opt-run …"`
+sessions (Opus 5.5) on the reaction example, with its simulated lab between
+them:
+
+| Block | Decision | Best so far |
+| --- | --- | --- |
+| 1 | Sobol, 8 points | 48.3 |
+| 2 | Batch GP-BO (qLogNEI), 8 | 52.0 |
+| 3 | GP-BO in a trust region around the incumbent, 8 | 86.2 |
+| 4 | Trust region recentred, 7 + 1 replicate (noise sd 0.4) | 92.8 |
+| 5 | Refine, 5 + 1 lower-catalyst probe | 93.0 |
+
+The optimum is about 95. This used 38 of 40 experiments, with one failure
+in the tar region, which block 2 probed on purpose. It cost about $1.90 and
+took 1 to 1.5 minutes per block. No session needed a human. Block 4 fixed
+its own script and logged a `**Revision:**`. Every block's `propose.py`
+reproduces its proposals exactly from the data it saw.
+
+What it showed for later phases:
+
+- **Each block wrote its own batch BO** (qLogNEI, trust regions) in about
+  40 lines, and block 4 needed two fixes. Phase 2's adapters would shorten
+  the scripts, remove that class of error, and keep methods consistent
+  between blocks. That case is now stronger than the need for batching,
+  which the model handled itself.
+- **Inline Python was refused in a headless session** (only `opt_run.py` is
+  pre-approved), so the model reread files to inspect data and models. The
+  skill now says to use Read and to print diagnostics from `propose.py`. A
+  deterministic model diagnostic in the summary (GP lengthscales,
+  leave-one-out fit) would save these steps.
+
 ## Decisions made (2026-11-02)
 
 - **Name.** The skill is `/opt-run` for now; the CLI is `scripts/opt_run.py`
