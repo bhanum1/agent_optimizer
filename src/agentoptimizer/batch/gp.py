@@ -84,7 +84,7 @@ def _settings(seed, failed_as, num_restarts, raw_samples, bounds):
 
 
 def qlognei(X, y, q, *, pending=None, failed=None, candidates=None, dim=None, seed=0,
-            bounds=None, failed_as='ignore', num_restarts=10, raw_samples=512, method='qlognei'):
+            bounds=None, failed_as='ignore', num_restarts=10, raw_samples=512):
     """A batch of q points (or q candidates) by q-log noisy expected improvement.
 
     bounds: an optional (2, d) sub-box of the unit cube to search in (rows:
@@ -92,25 +92,38 @@ def qlognei(X, y, q, *, pending=None, failed=None, candidates=None, dim=None, se
     failed_as: 'ignore' failed runs, or count them as the 'worst' loss seen.
     """
     inputs = check_inputs(X, y, q, pending, failed, candidates, dim)
-    train_X, train_y = _training_data(inputs, failed_as)
-    if len(train_y) < 2:
-        raise ValueError('qlognei needs at least 2 measured points; start with space_filling')
+    model, info, train_X = _model(inputs, failed_as, seed)
     box = np.array([[0.] * inputs.dim, [1.] * inputs.dim]) if bounds is None else np.asarray(bounds, dtype=float)
     if box.shape != (2, inputs.dim) or (box[0] > box[1]).any():
         raise ValueError(f'bounds must have shape (2, {inputs.dim}) with lower <= upper')
+    settings = _settings(seed, failed_as, num_restarts, raw_samples, bounds)
+    return _propose('qlognei', inputs, model, info, train_X, box, q, seed, settings, num_restarts, raw_samples)
+
+
+def _model(inputs, failed_as, seed):
+    train_X, train_y = _training_data(inputs, failed_as)
+    if len(train_y) < 2:
+        raise ValueError('a GP proposer needs at least 2 measured points; start with space_filling')
     # BoTorch acquisition functions maximize, so the model is fitted to -loss.
     model, info = fit_gp(train_X, -train_y, seed)
-    settings = _settings(seed, failed_as, num_restarts, raw_samples, bounds)
+    return model, info, train_X
+
+
+def _inside(candidates, box):
+    return np.flatnonzero(((candidates >= box[0] - 1e-12) & (candidates <= box[1] + 1e-12)).all(1))
+
+
+def _propose(method, inputs, model, info, train_X, box, q, seed, settings, num_restarts, raw_samples):
+    """qLogNEI over the box: optimized jointly for points, greedily for candidates."""
     torch.manual_seed(seed)
     pending_points = _tensor(inputs.pending) if len(inputs.pending) else None
-
     if inputs.candidates is None:
         acquisition = qLogNoisyExpectedImprovement(model, X_baseline=_tensor(train_X), X_pending=pending_points)
         points, _ = optimize_acqf(acquisition, bounds=_tensor(box), q=q, num_restarts=num_restarts,
                                   raw_samples=raw_samples)
         return finish(method, inputs, X=points.detach().numpy(), settings=settings, info=info)
 
-    inside = np.flatnonzero(((inputs.candidates >= box[0] - 1e-12) & (inputs.candidates <= box[1] + 1e-12)).all(1))
+    inside = _inside(inputs.candidates, box)
     if len(inside) < q:
         raise ValueError(f'only {len(inside)} candidates lie inside the bounds; q is {q}')
     chosen = []
@@ -128,3 +141,41 @@ def qlognei(X, y, q, *, pending=None, failed=None, candidates=None, dim=None, se
                 scores.append(acquisition(rows).reshape(-1).numpy())
         chosen.append(int(left[int(np.argmax(np.concatenate(scores)))]))
     return finish(method, inputs, indices=chosen, settings=settings, info=info)
+
+
+def trust_region(X, y, q, *, pending=None, failed=None, candidates=None, dim=None, seed=0,
+                 length=0.4, center=None, failed_as='ignore', num_restarts=10, raw_samples=512):
+    """qLogNEI inside a box around the incumbent, as in TuRBO.
+
+    length: the box edge in the unit cube before scaling. TuRBO starts at 0.8,
+    doubles it (to at most 1.6) after a run of improving batches, halves it
+    after a run of non-improving ones, and restarts below 2**-7; choose it
+    from the block history. Edges are stretched along parameters with long
+    lengthscales and shrunk along short ones, keeping the volume length**d.
+    center: a unit-cube point; by default the incumbent (lowest loss).
+    With candidates, the box grows until it holds at least q of them.
+    """
+    inputs = check_inputs(X, y, q, pending, failed, candidates, dim)
+    if not 0 < length <= 2:
+        raise ValueError(f'length must be in (0, 2], not {length!r}')
+    model, info, train_X = _model(inputs, failed_as, seed)
+    scales = np.asarray(info['lengthscales'])
+    weights = scales / np.exp(np.mean(np.log(scales)))
+    middle = inputs.X[np.argmin(inputs.y)] if center is None else _check_center(center, inputs.dim)
+    used = length
+    while True:
+        box = np.clip(np.array([middle - used * weights / 2, middle + used * weights / 2]), 0., 1.)
+        if inputs.candidates is None or len(_inside(inputs.candidates, box)) >= q or (box == [[0], [1]]).all():
+            break
+        used *= 1.25
+    settings = {**_settings(seed, failed_as, num_restarts, raw_samples, None), 'length': length,
+                'center': 'incumbent' if center is None else middle.tolist()}
+    info = {**info, 'center': middle.tolist(), 'length_used': used, 'box': box.tolist()}
+    return _propose('trust_region', inputs, model, info, train_X, box, q, seed, settings, num_restarts, raw_samples)
+
+
+def _check_center(center, dim):
+    center = np.asarray(center, dtype=float).reshape(-1)
+    if center.shape != (dim,) or center.min() < 0 or center.max() > 1:
+        raise ValueError(f'center must be a point in the unit cube with {dim} coordinates')
+    return center

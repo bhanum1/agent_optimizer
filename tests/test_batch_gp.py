@@ -64,5 +64,35 @@ class QLogNEI(unittest.TestCase):
             batch.qlognei(X, Y, 2, failed=failed, failed_as='skip')
 
 
+class TrustRegion(unittest.TestCase):
+    def test_box_around_the_incumbent(self):
+        p = batch.trust_region(X, Y, 4, length=.4, seed=0)
+        box = np.array(p.info['box'])
+        self.assertEqual(p.method, 'trust_region')
+        np.testing.assert_allclose(p.info['center'], X[np.argmin(Y)])
+        self.assertTrue(((p.X >= box[0] - 1e-9) & (p.X <= box[1] + 1e-9)).all())
+        # The third coordinate does not matter, so the box is widest along it.
+        width = box[1] - box[0]
+        self.assertGreater(width[2], max(width[:2]))
+        near = batch.trust_region(X, Y, 4, length=.1, seed=0)
+        incumbent = X[np.argmin(Y)]
+        self.assertLess(np.linalg.norm(near.X[:, :2] - incumbent[:2], axis=1).mean(),
+                        np.linalg.norm(p.X[:, :2] - incumbent[:2], axis=1).mean())
+
+    def test_center_pool_and_errors(self):
+        p = batch.trust_region(X, Y, 2, center=[.5, .5, .5], length=.2, seed=0)
+        self.assertEqual(p.settings['center'], [.5, .5, .5])
+        candidates = RNG.random((30, 3))
+        p = batch.trust_region(X, Y, 4, candidates=candidates, length=.05, seed=0)
+        self.assertGreater(p.info['length_used'], .05)
+        box = np.array(p.info['box'])
+        self.assertTrue(((p.X >= box[0] - 1e-9) & (p.X <= box[1] + 1e-9)).all())
+        self.assertEqual(len(set(p.indices.tolist())), 4)
+        with self.assertRaisesRegex(ValueError, 'length must be'):
+            batch.trust_region(X, Y, 2, length=0)
+        with self.assertRaisesRegex(ValueError, 'center must be'):
+            batch.trust_region(X, Y, 2, center=[2, 0, 0])
+
+
 if __name__ == '__main__':
     unittest.main()
