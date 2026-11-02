@@ -88,6 +88,16 @@ class Blocks(unittest.TestCase):
         (folder / 'propose.py').write_text('print("forgot to write")\n')
         self.assertIn('not found', str(run_block(self.folder)[1][0]))
 
+    def test_unseeded_script_is_refused(self):
+        _, folder = new_block(self.folder)
+        (folder / 'propose.py').write_text(
+            'import random\n'
+            'with open("proposals.csv", "w") as f:\n'
+            '    f.write("temperature,conc,stir\\n%r,0.1,3\\n" % random.uniform(80, 200))\n')
+        with self.assertRaisesRegex(BlockError, 'different proposals on a second run'):
+            run_block(self.folder)
+        self.assertEqual(run_block(self.folder, verify=False)[1], [])
+
     def test_validation_errors(self):
         cases = [
             ('temperature,conc,stir\n250,0.1,3\n', 'line 2, temperature: 250 is outside'),

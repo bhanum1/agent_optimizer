@@ -52,12 +52,7 @@ def _number(campaign, number):
     return open_block_number(load_campaign(campaign)[2])
 
 
-def run_block(campaign, number=None, timeout=600):
-    """Run the block's propose.py with this interpreter, then validate its proposals."""
-    number = _number(campaign, number)
-    folder = block_folder(campaign, number)
-    if not (folder / 'propose.py').exists():
-        raise BlockError(f'{folder / "propose.py"} not found; write it first')
+def _execute(folder, timeout):
     # A stale file must not pass for this run's output.
     (folder / 'proposals.csv').unlink(missing_ok=True)
     try:
@@ -69,6 +64,22 @@ def run_block(campaign, number=None, timeout=600):
     if result.returncode:
         tail = '\n'.join((result.stdout + result.stderr).strip().splitlines()[-15:])
         raise BlockError(f'propose.py exited with {result.returncode}; see {folder / "propose.log"}\n{tail}')
+    path = folder / 'proposals.csv'
+    return path.read_text() if path.exists() else None
+
+
+def run_block(campaign, number=None, timeout=600, verify=True):
+    """Run the block's propose.py with this interpreter, then validate its proposals.
+    With verify, run it twice: a script whose proposals differ between runs
+    cannot be reproduced later, so it is an error."""
+    number = _number(campaign, number)
+    folder = block_folder(campaign, number)
+    if not (folder / 'propose.py').exists():
+        raise BlockError(f'{folder / "propose.py"} not found; write it first')
+    first = _execute(folder, timeout)
+    if verify and first is not None and _execute(folder, timeout) != first:
+        raise BlockError('propose.py wrote different proposals on a second run; '
+                         'seed every random number generator (numpy, torch, the optimizer)')
     return validate_proposals(campaign, number)
 
 

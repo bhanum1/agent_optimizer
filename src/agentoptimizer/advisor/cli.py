@@ -4,7 +4,7 @@
     check      validate problem.toml and data.csv
     summarize  print the data summary the advisor reads (--json for the raw form)
     new-block  open the next block folder and save its summary
-    run        run the open block's propose.py, then validate its proposals
+    run        run the open block's propose.py twice (it must be deterministic), then validate
     validate   validate the open block's proposals.csv
     accept     add the open block's proposals to data.csv as pending rows
     record     fill in pending rows from a results CSV (id, value or status failed);
@@ -96,7 +96,7 @@ def show_proposals(rows, issues):
 
 
 def run_command(args):
-    return show_proposals(*run_block(args.campaign, args.block, args.timeout))
+    return show_proposals(*run_block(args.campaign, args.block, args.timeout, verify=not args.no_verify))
 
 
 def validate_command(args):
@@ -145,7 +145,9 @@ def main(argv=None):
         sub = command(name, function, text)
         sub.add_argument('--block', type=int, help='block number (default: the open block)')
         if name == 'run':
-            sub.add_argument('--timeout', type=float, default=600, help='seconds (default 600)')
+            sub.add_argument('--timeout', type=float, default=600, help='seconds per run (default 600)')
+            sub.add_argument('--no-verify', action='store_true',
+                             help='run once, without checking that a second run gives the same proposals')
         if name == 'accept':
             sub.add_argument('--optimizer', help='method label, if proposals.csv has no optimizer column')
     command('record', record_command, 'fill in results for pending rows').add_argument(
