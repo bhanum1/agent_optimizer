@@ -133,6 +133,32 @@ journal read-only and never touches the workspace. A run launched from inside a
 Claude Code session does not inherit that session's `CLAUDE_*` variables: the
 runner drops them, so the agent CLI starts as it would from a terminal.
 
+## Advisor mode (in progress)
+
+For real experiments rather than benchmarks: the objective is yours (a lab,
+a simulation queue), and each block is proposed from the results so far. The
+`/opt-run` skill that makes the decisions comes next (phase 3 of
+[the plan](docs/plan/05-advisor-mode.md)); the campaign tooling it drives
+works now:
+
+```bash
+.venv/bin/python scripts/opt_run.py init my_campaign          # then edit my_campaign/problem.toml
+.venv/bin/python scripts/opt_run.py import my_campaign old.csv # optional: earlier results, as block 0
+.venv/bin/python scripts/opt_run.py new-block my_campaign      # opens blocks/001/ with summary.json
+# write "## Block 1" in decisions.md and blocks/001/propose.py, then:
+.venv/bin/python scripts/opt_run.py run my_campaign            # runs propose.py, validates proposals.csv
+.venv/bin/python scripts/opt_run.py accept my_campaign         # adds them to data.csv as pending
+.venv/bin/python scripts/opt_run.py record my_campaign results.csv
+.venv/bin/python scripts/opt_run.py summarize my_campaign
+```
+
+A campaign is a folder: `problem.toml` (parameters, objective, budget,
+context; an optional `[pool]` of candidates), `data.csv` (one row per
+experiment), `decisions.md`, and `blocks/NNN/` with each block's summary,
+script and proposals. A `propose.py` uses `agentoptimizer.advisor.Campaign`
+to read the data and write its proposals; see
+[campaign.py](src/agentoptimizer/advisor/campaign.py).
+
 ## Run the agent
 
 Start a fresh campaign:
@@ -348,6 +374,8 @@ Figures that leave the repo follow [FIGURES.md](docs/FIGURES.md). Their scripts
 - `scripts/`: agent and baseline runners, `agent_runs.py` to launch and report
   on agent runs; `scripts/figures/`: plotting entry points.
 - `.claude/skills/optimize/`: the `/optimize` Claude Code skill.
+- `src/agentoptimizer/advisor/`: advisor mode (campaign folders, summary,
+  proposal blocks); `scripts/opt_run.py` is its command line.
 - `data/`: task inputs (`mof_pool/`, `opv_emulator/`, `opv_pool/`) and the
   pipelines that built them.
 - `docs/`: task catalogue, adding tasks, figure rules, and the manuscript plan.

@@ -180,6 +180,17 @@ Each slice is one layer with its own tests and commit, and the next slice
 builds on it. Every slice is usable from `scripts/opt_run.py` as soon as it
 lands.
 
+**Status: done (2026-11-02, `bddd132`…`03c8edb`, 36 tests).** Left for later
+phases, found while building it:
+
+- Batches are still one point per call for GP-BO and pool GP-BO; phase 2's
+  batch adapters are what make real blocks possible.
+- Proposals are rounded to 6 significant digits. A per-parameter `step`
+  (for example 5 °C increments) would match lab practice better.
+- Import reads CSV only, not Excel.
+- `accept` requires a `## Block N` entry in `decisions.md` but does not
+  enforce append-only edits, as the benchmark evaluator does.
+
 | Slice | Adds | CLI | Tests |
 | --- | --- | --- | --- |
 | 1 | `problem.toml` schema and loader; scaling to the unit cube (linear, log, integer) | `init`, `check` | Valid and invalid specs; scaling round trip |
