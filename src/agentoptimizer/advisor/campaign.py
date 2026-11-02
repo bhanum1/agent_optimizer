@@ -10,6 +10,12 @@
 With a [pool], choose rows instead: candidates(), available() and
 write_candidates(positions, label).
 
+The batch proposers in agentoptimizer.batch take inputs() and return a
+Proposal that write() records, in either mode:
+
+    from agentoptimizer import batch
+    campaign.write(batch.space_filling(**campaign.inputs(), q=8, seed=1))
+
 The optimizers in agentoptimizer.optimizers minimize over a box, so the
 default view is the unit cube with the objective as a loss: negated when the
 problem maximizes. raw=True gives the user's units and direction instead.
@@ -95,6 +101,24 @@ class Campaign:
             return None, None
         best = np.argmax(y) if raw and self.problem.direction == 'maximize' else np.argmin(y)
         return X[best], y[best]
+
+    def inputs(self):
+        """Keyword arguments for an agentoptimizer.batch proposer: the data so far
+        in the unit cube as a loss and, with a pool, the available rows as candidates."""
+        X, y = self.observations()
+        pool = self.problem.pool is not None
+        return {'X': X, 'y': y, 'pending': self.pending(), 'failed': self.failed(), 'dim': self.dim,
+                'candidates': self.candidates()[self.available()] if pool else None}
+
+    def write(self, proposal, notes=None):
+        """Write an agentoptimizer.batch Proposal made from inputs(); prints its settings
+        and diagnostics, which `opt_run.py run` keeps in propose.log. Returns the path."""
+        print(proposal.describe())
+        if self.problem.pool is not None:
+            if proposal.indices is None:
+                raise ProblemError('this campaign has a [pool]; pass candidates=inputs()["candidates"]')
+            return self.write_candidates(self.available()[proposal.indices], proposal.method, notes)
+        return self.write_proposals(proposal.X, proposal.method, notes=notes)
 
     @property
     def candidate_ids(self):
