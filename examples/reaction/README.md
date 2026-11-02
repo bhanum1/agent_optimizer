@@ -39,3 +39,6 @@ GP-BO → trust-region GP-BO → recentred, with a replicate → refine, and
 reached 93.0% after 38 of the 40 experiments (one failed in the tar
 region), for about $1.90 in model calls. Every
 block's `propose.py` reproduced its proposals exactly from the data it saw.
+With the `agentoptimizer.batch` proposers (Sobol → qLogNEI → trust region),
+the same test cost $1.57, each script was 6–7 lines, and it reached 92.2%
+by block 3.

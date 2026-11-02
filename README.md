@@ -149,7 +149,8 @@ In Claude Code, from the repository root:
 Each call decides one block (method, settings, size) under the policy in
 [prompts/advisor.md](prompts/advisor.md), records why in `decisions.md`, and
 writes `blocks/NNN/propose.py`, a deterministic script that produces the
-block. The proposals land in `data.csv` as pending experiments. To try it
+block. Most scripts are one line calling a proposer from
+`agentoptimizer.batch`. The proposals land in `data.csv` as pending experiments. To try it
 without a lab, use the [reaction example](examples/reaction/README.md) and
 its simulated lab.
 
@@ -392,6 +393,8 @@ Figures that leave the repo follow [FIGURES.md](docs/FIGURES.md). Their scripts
 - `examples/`: advisor-mode example campaigns with simulated labs.
 - `src/agentoptimizer/advisor/`: advisor mode (campaign folders, summary,
   proposal blocks); `scripts/opt_run.py` is its command line.
+- `src/agentoptimizer/batch/`: batch proposers that rebuild their state from
+  the data on each call (space filling, qLogNEI, trust region, CMA-ES, DE).
 - `data/`: task inputs (`mof_pool/`, `opv_emulator/`, `opv_pool/`) and the
   pipelines that built them.
 - `docs/`: task catalogue, adding tasks, figure rules, and the manuscript plan.

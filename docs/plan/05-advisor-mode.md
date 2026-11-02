@@ -236,6 +236,31 @@ What it showed for later phases:
   deterministic model diagnostic in the summary (GP lengthscales,
   leave-one-out fit) would save these steps.
 
+**Phase 2 status: done (2026-11-02).** `agentoptimizer.batch` gives
+`space_filling`, `random`, `qlognei`, `trust_region`, `cma_es` and `de`, all
+of which work in pools, plus `combine`. Each block summary also carries
+GP diagnostics. The same five-block headless test, rerun on a fresh copy:
+
+| | Phase 3 (hand-written scripts) | Phase 2 (batch proposers) |
+| --- | --- | --- |
+| Model calls, 5 blocks | $1.90 | $1.57 |
+| Turns per block | 19, 9, 18, 20, 10 | 12, 12, 14, 18, 13 |
+| `propose.py` code lines | 10 → 59, growing | 6–7 every block |
+| Best yield | 93.0 (block 5) | 92.2 (block 3, after 24 experiments) |
+
+Every block reproduces exactly. Its third run in block 4 was deliberate: it
+previewed the trust-region box in `propose.log`, then revised the length
+and logged it. One run each cannot rank the two on yield.
+
+**Cost, for planning replay (phase 4).** A block costs $0.27–0.46 on Opus
+5.5 at default effort, when run headless on a claude.ai login (the figure
+is the CLI's API-price estimate). Writing the roughly 20k-token starting
+context to the cache is 42–61% of that (every block is a fresh session);
+output is 21–37% and cache reads 19–24%. The levers are a cheaper model or
+lower effort, restricting headless runs to the tools the skill uses
+(`--tools "Bash,Read,Write,Edit"`), and fewer turns (for example,
+`new-block` printing everything the decision needs).
+
 ## Decisions made (2026-11-02)
 
 - **Name.** The skill is `/opt-run` for now; the CLI is `scripts/opt_run.py`
@@ -251,21 +276,21 @@ What it showed for later phases:
 - **Variable types.** Continuous (linear or log scale), integer, and finite
   candidate pools first; categorical in phase 5.
 - **Problem file.** TOML, read with the standard library.
+- **Shared policy text** (phase 3). `prompts/advisor.md` is its own file
+  carrying the benchmark prompt's block-wise policy; the contributor guide
+  says to keep the two in step. The benchmark prompt is unchanged.
+- **Where the adapters live** (phase 2). A new package,
+  `agentoptimizer.batch`, of stateless proposers: each call takes the data
+  so far (unit cube, loss, pending, failed, pool candidates) and returns the
+  next q points with the settings it used and diagnostics. The same form
+  serves the selectors in 02, which can call them with the full history.
+  `optimizers/` is unchanged, so the benchmark workspace is too.
 
 ## Open decisions
 
-1. **Shared policy text.** Duplicate the block-wise policy of
-   `prompts/optimization_agent.md` in `prompts/advisor.md`, or split it into a
-   shared file that both prompts include. Splitting changes the benchmark
-   prompt file, so the generated `AGENTS.md` must stay byte-identical.
-2. **Domain context.** Allowed by default in advisor mode, but replay uses
+1. **Domain context.** Allowed by default in advisor mode, but replay uses
    anonymous names. A follow-up could test whether real parameter names (OPV
    has them) help.
-3. **Where the adapters live** (phase 2). With rebuilding allowed, the
-   choice is design, not compatibility: `advisor/methods.py`, or warm start and
-   batch support added to `optimizers/` itself and shared with the selectors
-   (02). Changing `optimizers/` changes the benchmark workspace, so it means
-   reruns.
 
 ## Risks
 

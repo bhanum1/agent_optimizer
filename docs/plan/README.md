@@ -40,7 +40,7 @@ that supports it and the figure or table that shows it.
 | Dynamic-selection baselines | | Planned | Confirm method list and fairness rules in 02 |
 | LLM-optimizer comparisons | | Planned | Check code availability for each method in 03 |
 | Reproducibility and release | | Planned | Choose data host and license in 04 |
-| Advisor mode (`/opt-run`) | | Phases 1 and 3 done; skill works end to end | Phase 2 adapters, then replay (phase 4) (05) |
+| Advisor mode (`/opt-run`) | | Phases 1–3 done; skill works end to end with batch proposers | Replay experiment (phase 4) (05) |
 
 ## Open decisions
 
@@ -53,5 +53,4 @@ the relevant document.
 3. Code and data licenses (04).
 4. Data host for results (04).
 5. Final method lists for 02 and 03.
-6. Advisor mode (05): shared prompt text, domain context, where the
-   warm-start adapters live.
+6. Advisor mode (05): domain context in replay.
