@@ -123,7 +123,7 @@ def _propose(method, inputs, model, info, train_X, box, q, seed, settings, num_r
                                   raw_samples=raw_samples)
         return finish(method, inputs, X=points.detach().numpy(), settings=settings, info=info)
 
-    inside = _inside(inputs.candidates, box)
+    inside = np.intersect1d(_inside(inputs.candidates, box), inputs.open)
     if len(inside) < q:
         raise ValueError(f'only {len(inside)} candidates lie inside the bounds; q is {q}')
     chosen = []
@@ -165,7 +165,8 @@ def trust_region(X, y, q, *, pending=None, failed=None, candidates=None, dim=Non
     used = length
     while True:
         box = np.clip(np.array([middle - used * weights / 2, middle + used * weights / 2]), 0., 1.)
-        if inputs.candidates is None or len(_inside(inputs.candidates, box)) >= q or (box == [[0], [1]]).all():
+        if (inputs.candidates is None or len(np.intersect1d(_inside(inputs.candidates, box), inputs.open)) >= q
+                or (box == [[0], [1]]).all()):
             break
         used *= 1.25
     settings = {**_settings(seed, failed_as, num_restarts, raw_samples, None), 'length': length,

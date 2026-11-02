@@ -24,7 +24,8 @@ def _ranked(inputs, need, name):
 def _place(name, inputs, points, settings, info):
     points = np.clip(points, 0., 1.)
     if inputs.candidates is not None:
-        return finish(name, inputs, indices=snap(points, inputs.candidates), settings=settings, info=info)
+        return finish(name, inputs, indices=snap(points, inputs.candidates, inputs.open), settings=settings,
+                      info=info)
     return finish(name, inputs, X=points, settings=settings, info=info)
 
 

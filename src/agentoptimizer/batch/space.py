@@ -12,8 +12,7 @@ def random(X, y, q, *, pending=None, failed=None, candidates=None, dim=None, see
     inputs = check_inputs(X, y, q, pending, failed, candidates, dim)
     rng = np.random.default_rng(seed)
     if inputs.candidates is not None:
-        return finish('random', inputs, indices=rng.choice(len(inputs.candidates), q, replace=False),
-                      settings={'seed': seed})
+        return finish('random', inputs, indices=rng.choice(inputs.open, q, replace=False), settings={'seed': seed})
     return finish('random', inputs, X=rng.random((q, inputs.dim)), settings={'seed': seed})
 
 
@@ -38,6 +37,8 @@ def space_filling(X, y, q, *, pending=None, failed=None, candidates=None, dim=No
         cloud = inputs.candidates
     nearest = (np.min(np.linalg.norm(cloud[:, None, :] - known[None, :, :], axis=-1), axis=1)
                if len(known) else np.full(len(cloud), np.inf))
+    if inputs.candidates is not None:
+        nearest[np.setdiff1d(np.arange(len(cloud)), inputs.open)] = -np.inf
     chosen = []
     for _ in range(q):
         nearest[chosen] = -np.inf

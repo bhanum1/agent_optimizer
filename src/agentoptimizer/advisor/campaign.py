@@ -35,6 +35,14 @@ from .problem import ProblemError
 DIGITS = 6
 
 
+def _labels(label, count):
+    """One method label per row: a single label, or one per row."""
+    labels = [label] * count if isinstance(label, str) else list(label)
+    if len(labels) != count or not all(isinstance(text, str) and text for text in labels):
+        raise ValueError(f'expected one label or {count} non-empty labels')
+    return labels
+
+
 class Campaign:
     def __init__(self, root, block=None):
         self.root = Path(root)
@@ -117,8 +125,8 @@ class Campaign:
         if self.problem.pool is not None:
             if proposal.indices is None:
                 raise ProblemError('this campaign has a [pool]; pass candidates=inputs()["candidates"]')
-            return self.write_candidates(self.available()[proposal.indices], proposal.method, notes)
-        return self.write_proposals(proposal.X, proposal.method, notes=notes)
+            return self.write_candidates(self.available()[proposal.indices], proposal.row_labels(), notes)
+        return self.write_proposals(proposal.X, proposal.row_labels(), notes=notes)
 
     @property
     def candidate_ids(self):
@@ -149,8 +157,8 @@ class Campaign:
         with path.open('w', newline='') as stream:
             writer = csv.writer(stream, lineterminator='\n')
             writer.writerow(['candidate_id', 'optimizer', 'notes'])
-            for i, note in zip(positions, notes):
-                writer.writerow([pool.ids[i], label, note])
+            for i, row_label, note in zip(positions, _labels(label, len(positions)), notes):
+                writer.writerow([pool.ids[i], row_label, note])
         print(f'Wrote {len(positions)} proposals to {path}')
         return path
 
@@ -176,7 +184,7 @@ class Campaign:
         with path.open('w', newline='') as stream:
             writer = csv.writer(stream, lineterminator='\n')
             writer.writerow([*self.names, 'optimizer', 'notes'])
-            for row, note in zip(X, notes):
-                writer.writerow([*(format_number(p, v) for p, v in zip(self.problem.parameters, row)), label, note])
+            for row, row_label, note in zip(X, _labels(label, len(X)), notes):
+                writer.writerow([*(format_number(p, v) for p, v in zip(self.problem.parameters, row)), row_label, note])
         print(f'Wrote {len(X)} proposals to {path}')
         return path

@@ -65,6 +65,29 @@ class Space(unittest.TestCase):
         self.assertIn('setting n_candidates = 4096', text)
 
 
+class Combine(unittest.TestCase):
+    def test_box_parts_keep_their_labels(self):
+        first = batch.space_filling(X, Y, 3, seed=0)
+        second = batch.random(X, Y, 2, pending=first.X, seed=1)
+        block = batch.combine(first, second)
+        self.assertEqual((block.method, block.X.shape), ('space_filling+random', (5, 3)))
+        self.assertEqual(block.row_labels(), ['space_filling'] * 3 + ['random'] * 2)
+        self.assertIn('1:space_filling', block.settings)
+
+    def test_pool_parts_do_not_repeat_rows(self):
+        candidates = RNG.random((12, 3))
+        first = batch.random(X, Y, 4, candidates=candidates, seed=0)
+        with self.assertRaisesRegex(ValueError, 'same candidate twice'):
+            batch.combine(first, batch.random(X, Y, 4, candidates=candidates, seed=0))
+        for proposer in (batch.random, batch.space_filling):
+            second = proposer(X, Y, 8, candidates=candidates, pending=first.X, seed=0)
+            self.assertEqual(len(set(batch.combine(first, second).indices.tolist())), 12)
+        with self.assertRaisesRegex(ValueError, 'exceeds the 8 candidates'):
+            batch.random(X, Y, 9, candidates=candidates, pending=first.X)
+        with self.assertRaisesRegex(ValueError, 'pool rows with free points'):
+            batch.combine(first, batch.random(X, Y, 1, seed=0))
+
+
 class CampaignHookup(unittest.TestCase):
     def test_box_and_pool_write(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -77,6 +100,14 @@ class CampaignHookup(unittest.TestCase):
             self.assertIn('space_filling: 3 points', out.getvalue())
             text = (folder / 'blocks/001/proposals.csv').read_text().splitlines()
             self.assertEqual((len(text), text[1].split(',')[-2]), (4, 'space_filling'))
+            inputs = c.inputs()
+            first = batch.space_filling(**inputs, q=2, seed=0)
+            second = batch.random(**{**inputs, 'pending': np.vstack([inputs['pending'], first.X])}, q=1, seed=0)
+            stack, _ = quiet()
+            with stack:
+                c.write(batch.combine(first, second))
+            labels = [line.split(',')[-2] for line in (folder / 'blocks/001/proposals.csv').read_text().splitlines()[1:]]
+            self.assertEqual(labels, ['space_filling', 'space_filling', 'random'])
 
         import test_advisor_pool as pools
         with tempfile.TemporaryDirectory() as tmp:
