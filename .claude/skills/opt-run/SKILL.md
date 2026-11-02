@@ -80,6 +80,10 @@ deciding anything. `scripts/opt_run.py` does all the bookkeeping (run it with
 
 ## Working notes
 
+- Prefer a proposer from `agentoptimizer.batch` (policy, section 3): one
+  line of `propose.py`, tested, and it records its settings. Write points
+  by hand only when none fits the decision.
+
 - Read files with the Read tool, including `summary.json` and library source
   under `.venv/lib/python3.11/site-packages/`. Bash is for `opt_run.py`.
 - To look at a model before committing to it (lengthscales, fit quality),

@@ -97,48 +97,76 @@ no commitment to a later method>
 When the remaining budget is zero, write a final entry with the outcome and
 no new block.
 
-**Then `blocks/<NNN>/propose.py`**, which writes the block's proposals:
+**Then `blocks/<NNN>/propose.py`**, which writes the block's proposals.
+Most blocks need only a proposer from `agentoptimizer.batch`:
 
 ```python
 """Block <N>: <method>, <q> experiments. <one-line reason; full entry in decisions.md>"""
-import numpy as np
+from agentoptimizer import batch
 from agentoptimizer.advisor import Campaign
 
 campaign = Campaign.load(__file__)
-X, y = campaign.observations()        # done rows: unit cube, y as a loss (lower is better)
-pending = campaign.pending()          # proposed but not measured yet
-...                                   # choose U, shape (q, dim), in [0, 1]
-campaign.write_proposals(U, label="<method>")
+proposal = batch.trust_region(**campaign.inputs(), q=8, seed=4, length=0.4)
+campaign.write(proposal)              # prints settings and diagnostics into propose.log
 ```
 
-- The default view is the unit cube with the objective as a loss: negated
-  when the problem maximizes. `raw=True` gives the user's units and
-  direction. Also available: `campaign.dim`, `campaign.names`,
-  `campaign.bounds` (raw), `campaign.unit_bounds`, `campaign.remaining`,
-  `campaign.incumbent()` and `campaign.failed()`.
+The proposers rebuild their state from the data on every call and work the
+same for a `[pool]`, where they choose available rows. Each takes `q`,
+`seed` and the settings below, and records every setting it used, defaults
+included:
+
+| Proposer | Use | Settings |
+| --- | --- | --- |
+| `space_filling` | A first design (scrambled Sobol), or points far from everything placed | `n_candidates` |
+| `random` | Uniform points or rows | — |
+| `qlognei` | Batch GP-BO by q-log noisy expected improvement; pending points count as chosen | `bounds` (a sub-box), `failed_as` (`'ignore'` or `'worst'`), `num_restarts`, `raw_samples` |
+| `trust_region` | `qlognei` in a box around the incumbent, scaled by the lengthscales (TuRBO-style) | `length` (TuRBO: start 0.8, double after improving blocks, halve after flat ones), `center`, `failed_as` |
+| `cma_es` | One CMA-ES generation centred on the best points | `mu`, `sigma` |
+| `de` | One differential-evolution generation from the best points | `population`, `F`, `CR`, `strategy` (`'rand1'` or `'best1'`) |
+
+To mix methods in one block (say, BO plus a replicate or a probe), give each
+later proposer the earlier parts as pending and join them; each row keeps
+its own method label:
+
+```python
+import numpy as np
+inputs = campaign.inputs()
+main = batch.qlognei(**inputs, q=7, seed=5)
+probe = batch.space_filling(**{**inputs, "pending": np.vstack([inputs["pending"], main.X])}, q=1, seed=5)
+campaign.write(batch.combine(main, probe))
+```
+
+`summary.json` already has a GP fitted to the done rows under `model`:
+leave-one-out R^2, noise share and lengthscales, most sensitive first. Use
+it to judge whether a model is worth trusting before choosing a model-based
+method.
+
+When no proposer fits, write the points yourself:
+
+- `campaign.observations()` gives the done rows as (X, y): the unit cube,
+  with y as a loss (negated when the problem maximizes). `raw=True` gives
+  the user's units and direction. Also available: `campaign.pending()`,
+  `campaign.failed()`, `campaign.incumbent()`, `campaign.dim`,
+  `campaign.names`, `campaign.bounds` (raw), `campaign.remaining`.
+- Write with `campaign.write_proposals(U, label=...)` (U in the unit cube,
+  one label or one per row). For a pool, use `campaign.candidates()`,
+  `campaign.available()` and `campaign.write_candidates(positions, label=...)`.
 - Unit coordinates map back per parameter: linearly, or in log space for
   `log = true`; each whole number of an integer parameter owns an equal
-  slice of [0, 1]. `write_proposals` clips to the bounds, rounds integers,
-  and rounds other values to 6 significant digits.
+  slice of [0, 1]. Writing clips to the bounds, rounds integers, and rounds
+  other values to 6 significant digits.
+- BoTorch acquisition functions maximize; fit models to `-y`.
+
+For every script:
+
+- It must be deterministic: seed every generator. `opt_run.py run` runs it
+  twice and refuses proposals that differ.
+- It may use what the environment has: numpy, scipy, torch, botorch,
+  gpytorch, cma, Py-BOBYQA and `agentoptimizer`. No network, no installs,
+  nothing written except through `campaign.write*`. It must finish within
+  10 minutes.
 - `summary.json` lists the package versions under `environment`; cite them
   for inherited defaults instead of looking them up.
-- For a `[pool]`, propose rows instead: `campaign.candidates()` (features of
-  every row), `campaign.available()` (positions not done or pending) and
-  `campaign.write_candidates(positions, label=...)`.
-- It must be deterministic: seed every generator (numpy, torch, the
-  optimizer). `opt_run.py run` runs it twice and refuses proposals that
-  differ.
-- It may use what the environment has: numpy, scipy, torch, botorch,
-  gpytorch, cma, Py-BOBYQA and `agentoptimizer.optimizers`. No network, no
-  installs, nothing written except through `write_proposals` or
-  `write_candidates`. It must finish within 10 minutes.
-- The wrappers in `agentoptimizer.optimizers` are single-campaign ask/tell
-  objects. `GPBO.ask` proposes one point; the pool `GPBO.ask_pool` one row.
-  `CMAES`, `DifferentialEvolution` and `TuRBO` accept only points they
-  proposed themselves. For batches and warm starts, use the libraries
-  directly (for example botorch's `qLogNoisyExpectedImprovement` with
-  `X_pending`, or `cma.CMAEvolutionStrategy` started at the incumbent) and
-  say so in the decision.
 
 ## 4. Hard rules
 
