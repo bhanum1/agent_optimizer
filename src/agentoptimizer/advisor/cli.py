@@ -44,6 +44,8 @@ def describe(problem):
         f'{problem.total_budget} experiments' if problem.total_budget else '',
         f'blocks of {problem.block_size}' if problem.block_size else ''] if part) or 'not set'
     lines = [f'{problem.name}: {problem.direction} {problem.objective}; noise {problem.noise}; budget {budget}']
+    if problem.pool is not None:
+        lines.append(f'pool: {len(problem.pool)} candidates in {problem.pool.file}')
     for p in problem.parameters:
         scale = 'log' if p.log else 'linear'
         unit = f' {p.unit}' if p.unit else ''

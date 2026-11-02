@@ -26,7 +26,9 @@ def _distances(A, B):
 
 def _at_bounds(problem, x):
     sides = []
-    for p, value, unit in zip(problem.parameters, x, problem.to_unit([x])[0]):
+    for i, (p, value, unit) in enumerate(zip(problem.parameters, x, problem.to_unit([x])[0])):
+        if problem.pool is not None and np.ptp(problem.pool.X[:, i]) == 0:
+            continue  # a constant pool feature says nothing about where to search
         low = value == p.low if p.type == 'integer' else unit < TOUCH
         high = value == p.high if p.type == 'integer' else unit > 1 - TOUCH
         sides += [{'parameter': p.name, 'side': side} for side, hit in (('low', low), ('high', high)) if hit]
@@ -34,8 +36,11 @@ def _at_bounds(problem, x):
 
 
 def _row(problem, data, index):
-    return {'id': int(data.ids[index]), 'block': int(data.blocks[index]), 'value': _number(data.y[index]),
-            'parameters': {name: float(v) for name, v in zip(problem.names, data.X[index])}}
+    row = {'id': int(data.ids[index]), 'block': int(data.blocks[index]), 'value': _number(data.y[index]),
+           'parameters': {name: float(v) for name, v in zip(problem.names, data.X[index])}}
+    if problem.pool is not None:
+        row['candidate_id'] = data.candidate[index]
+    return row
 
 
 def summarize(problem, data):
@@ -56,6 +61,12 @@ def summarize(problem, data):
         'failures': {'count': int(failed.sum()), 'rate': _number(failed.sum() / max(used, 1)),
                      'by_block': {}},
     }
+    if problem.pool is not None:
+        taken = set(data.candidate[done | pending].tolist())
+        summary['pool'] = {'file': problem.pool.file, 'size': len(problem.pool),
+                           'tested': len(set(data.candidate[done | failed].tolist())),
+                           'pending': len(set(data.candidate[pending].tolist())),
+                           'available': len(problem.pool) - len(taken)}
     if done.any():
         order = np.flatnonzero(done)[np.argsort(loss[done], kind='stable')]
         best = order[0]
@@ -122,8 +133,9 @@ def _g(value):
     return '-' if value is None else f'{value:.4g}'
 
 
-def _point(parameters):
-    return ', '.join(f'{name}={value:.4g}' for name, value in parameters.items())
+def _point(row):
+    point = ', '.join(f'{name}={value:.4g}' for name, value in row['parameters'].items())
+    return f"candidate {row['candidate_id']} ({point})" if 'candidate_id' in row else point
 
 
 def format_summary(summary):
@@ -132,12 +144,16 @@ def format_summary(summary):
              f"experiments: {counts['done']} done, {counts['pending']} pending, {counts['failed']} failed"
              + (f"; budget {budget['total']}: {budget['used']} used, {budget['pending']} pending, "
                 f"{budget['remaining']} remaining" if budget['total'] else '')]
+    if 'pool' in summary:
+        pool = summary['pool']
+        lines.append(f"pool: {pool['size']} candidates in {pool['file']}; {pool['tested']} tested, "
+                     f"{pool['pending']} pending, {pool['available']} available")
     incumbent = summary['incumbent']
     if incumbent is None:
         lines.append('incumbent: none yet (no done experiments)')
     else:
         lines.append(f"incumbent: id {incumbent['id']} (block {incumbent['block']}), "
-                     f"{s['objective']} {_g(incumbent['value'])} at {_point(incumbent['parameters'])}")
+                     f"{s['objective']} {_g(incumbent['value'])} at {_point(incumbent)}")
         if incumbent['at_bounds']:
             lines.append('  at bounds: ' + ', '.join(f"{b['parameter']} {b['side']}" for b in incumbent['at_bounds']))
     if summary['blocks']:
@@ -153,7 +169,7 @@ def format_summary(summary):
         lines.append(f"blocks since the incumbent improved: {summary['blocks_since_improvement']}")
     if summary['top']:
         lines.append(f'top {len(summary["top"])}:')
-        lines += [f"  id {r['id']} (block {r['block']}): {_g(r['value'])} at {_point(r['parameters'])}"
+        lines += [f"  id {r['id']} (block {r['block']}): {_g(r['value'])} at {_point(r)}"
                   for r in summary['top']]
     if summary['replicates']:
         r = summary['replicates']

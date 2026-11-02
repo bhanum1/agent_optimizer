@@ -35,10 +35,22 @@ def _status(problem, row, line, errors):
 
 
 def _new_row(problem, row, identifier, block, source, status):
+    values = {name: row.get(name, '') for name in problem.names}
+    extra = {}
+    if problem.pool is not None:
+        # Values a pool row leaves out are the candidate's own.
+        extra['candidate_id'] = row.get('candidate_id', '')
+        position = problem.pool.rows().get(extra['candidate_id'])
+        if position is not None:
+            for name, value in zip(problem.names, problem.pool.X[position]):
+                values[name] = values[name] or repr(float(value))
     return {'id': str(identifier), 'block': str(block), 'status': status, 'source': source,
-            'optimizer': row.get('optimizer') or source,
-            **{name: row.get(name, '') for name in problem.names},
+            'optimizer': row.get('optimizer') or source, **extra, **values,
             problem.objective: row.get(problem.objective, ''), 'notes': row.get('notes', '')}
+
+
+def _pool_columns(problem):
+    return ['candidate_id'] if problem.pool is not None else []
 
 
 def _commit(campaign, problem, table, errors):
@@ -55,7 +67,7 @@ def record_results(campaign, path):
     Returns (ids recorded, ids added)."""
     problem, table, data = load_campaign(campaign)
     columns, rows = _read(path)
-    allowed = ['id', problem.objective, 'status', 'notes', 'optimizer', *problem.names]
+    allowed = ['id', problem.objective, 'status', 'notes', 'optimizer', *_pool_columns(problem), *problem.names]
     unknown = [c for c in columns if c not in allowed]
     if unknown:
         raise ResultsError(f'{path}: unknown column(s) {", ".join(unknown)}; allowed: {", ".join(allowed)}')
@@ -107,9 +119,11 @@ def import_rows(campaign, path):
     columns, rows = _read(path)
     if 'id' in columns:
         raise ResultsError(f'{path}: import assigns ids; rename the id column (to notes, say) or drop it')
-    allowed = [*problem.names, problem.objective, 'status', 'notes', 'optimizer']
+    allowed = [*_pool_columns(problem), *problem.names, problem.objective, 'status', 'notes', 'optimizer']
     unknown = [c for c in columns if c not in allowed]
-    missing = [c for c in [*problem.names, problem.objective] if c not in columns]
+    # From a pool, the candidate_id is enough: the values come from the pool.
+    needed = ['candidate_id'] if problem.pool is not None else problem.names
+    missing = [c for c in [*needed, problem.objective] if c not in columns]
     if unknown or missing:
         raise ResultsError(f'{path}: ' + '; '.join(part for part in [
             'missing column(s) ' + ', '.join(missing) if missing else '',

@@ -6,7 +6,9 @@ are errors, so a typo cannot silently drop a setting.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections import Counter
+import csv
+from dataclasses import dataclass, field
 import math
 from pathlib import Path
 import tomllib
@@ -95,6 +97,22 @@ class Parameter:
         return np.clip(values, self.low, self.high)
 
 
+@dataclass(frozen=True, eq=False)
+class Pool:
+    """A finite set of candidates: experiments can only be chosen from these rows."""
+    file: str
+    ids: tuple
+    names: list  # parameter names, the columns of X
+    X: np.ndarray  # raw feature values
+
+    def __len__(self):
+        return len(self.ids)
+
+    def rows(self):
+        """candidate_id -> row position."""
+        return {identifier: i for i, identifier in enumerate(self.ids)}
+
+
 @dataclass(frozen=True)
 class Problem:
     name: str
@@ -105,6 +123,7 @@ class Problem:
     parameters: tuple[Parameter, ...]
     total_budget: int | None = None
     block_size: int | None = None
+    pool: Pool | None = field(default=None, compare=False)
 
     @property
     def names(self):
@@ -152,7 +171,7 @@ def _count(value, where):
     return value
 
 
-def _parameter(table, index):
+def _parameter(table, index, pool=None):
     where = f'parameters[{index}]'
     if not isinstance(table, dict):
         raise ProblemError(f'{where} must be a [[parameters]] table')
@@ -164,10 +183,21 @@ def _parameter(table, index):
     kind = table.get('type', 'continuous')
     if kind not in TYPES:
         raise ProblemError(f'{where}: type must be one of {", ".join(TYPES)}, not {kind!r}')
+    column = pool.X[:, pool.names.index(name)] if pool is not None else None
     for key in ('low', 'high'):
-        if key not in table:
+        if key not in table and column is None:
             raise ProblemError(f'{where}: {key} is required')
-    low, high = _number(table['low'], f'{where}.low'), _number(table['high'], f'{where}.high')
+    # With a pool, missing bounds are the range of its candidates; a constant
+    # feature gets a unit-wide range so scaling stays defined.
+    low = _number(table['low'], f'{where}.low') if 'low' in table else float(column.min())
+    high = _number(table['high'], f'{where}.high') if 'high' in table else float(column.max())
+    if column is not None and 'high' not in table and high == low:
+        high = low + 1.
+    if column is not None and (column.min() < low or column.max() > high):
+        raise ProblemError(f'{where}: candidates span [{column.min():g}, {column.max():g}], '
+                           f'outside the bounds [{low:g}, {high:g}]')
+    if column is not None and kind == 'integer' and not np.all(column == np.round(column)):
+        raise ProblemError(f'{where}: an integer parameter has non-integer candidate values')
     if not low < high:
         raise ProblemError(f'{where}: low ({low:g}) must be below high ({high:g})')
     log = table.get('log', False)
@@ -185,8 +215,46 @@ def _parameter(table, index):
     return Parameter(name, kind, low, high, log, unit)
 
 
-def parse_problem(data, default_name='campaign'):
-    _keys(data, ('name', 'description', 'noise', 'objective', 'budget', 'parameters'), 'problem.toml')
+def read_pool(path, names):
+    """Read candidates.csv: a candidate_id column and one column per parameter."""
+    path = Path(path)
+    if not path.exists():
+        raise ProblemError(f'[pool] file {path} not found')
+    with path.open(newline='') as stream:
+        reader = csv.DictReader(stream)
+        columns = [c.strip() for c in reader.fieldnames or []]
+        missing = [c for c in ['candidate_id', *names] if c not in columns]
+        if missing:
+            raise ProblemError(f'{path}: missing column(s) {", ".join(missing)}')
+        ids, X = [], []
+        for row in reader:
+            row = {k.strip(): (v or '').strip() for k, v in row.items() if k is not None}
+            if not any(row.values()):
+                continue
+            where = f'{path}, line {reader.line_num}'
+            if not row['candidate_id']:
+                raise ProblemError(f'{where}: candidate_id is empty')
+            values = []
+            for name in names:
+                try:
+                    value = float(row[name])
+                except ValueError:
+                    value = math.nan
+                if not math.isfinite(value):
+                    raise ProblemError(f'{where}: {name} must be a finite number, not {row[name]!r}')
+                values.append(value)
+            ids.append(row['candidate_id'])
+            X.append(values)
+    duplicates = sorted(i for i, n in Counter(ids).items() if n > 1)
+    if duplicates:
+        raise ProblemError(f'{path}: repeated candidate_id(s) {", ".join(duplicates[:10])}')
+    if not ids:
+        raise ProblemError(f'{path} has no candidates')
+    return Pool(path.name, tuple(ids), list(names), np.array(X, dtype=float))
+
+
+def parse_problem(data, default_name='campaign', folder=None):
+    _keys(data, ('name', 'description', 'noise', 'objective', 'budget', 'parameters', 'pool'), 'problem.toml')
     name = data.get('name', default_name)
     description = data.get('description', '')
     if not isinstance(name, str) or not isinstance(description, str):
@@ -218,7 +286,19 @@ def parse_problem(data, default_name='campaign'):
     tables = data.get('parameters')
     if not isinstance(tables, list) or not tables:
         raise ProblemError('at least one [[parameters]] table is required')
-    parameters = tuple(_parameter(table, i) for i, table in enumerate(tables))
+    pool = None
+    if 'pool' in data:
+        spec = data['pool']
+        if not isinstance(spec, dict):
+            raise ProblemError('[pool] must be a table')
+        _keys(spec, ('file',), '[pool]')
+        if folder is None:
+            raise ProblemError('[pool] is read from the campaign folder; use load_problem()')
+        names = [t.get('name') if isinstance(t, dict) else None for t in tables]
+        if not all(isinstance(n, str) and n for n in names):
+            raise ProblemError('every [[parameters]] table needs a name')
+        pool = read_pool(Path(folder) / spec.get('file', 'candidates.csv'), names)
+    parameters = tuple(_parameter(table, i, pool) for i, table in enumerate(tables))
     names = [p.name for p in parameters] + [objective_name]
     for column in names:
         if column in RESERVED:
@@ -226,7 +306,9 @@ def parse_problem(data, default_name='campaign'):
     duplicates = sorted({n for n in names if names.count(n) > 1})
     if duplicates:
         raise ProblemError(f'names must be unique across parameters and the objective: {", ".join(duplicates)}')
-    return Problem(name, description.strip(), noise, objective_name, direction, parameters, total, block)
+    if pool is not None and total and total > len(pool):
+        raise ProblemError(f'[budget] total ({total}) exceeds the {len(pool)} candidates in the pool')
+    return Problem(name, description.strip(), noise, objective_name, direction, parameters, total, block, pool)
 
 
 def load_problem(folder):
@@ -237,4 +319,4 @@ def load_problem(folder):
         data = tomllib.loads(path.read_text())
     except tomllib.TOMLDecodeError as exc:
         raise ProblemError(f'{path}: {exc}') from None
-    return parse_problem(data, default_name=Path(folder).resolve().name)
+    return parse_problem(data, default_name=Path(folder).resolve().name, folder=folder)

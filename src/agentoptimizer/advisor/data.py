@@ -55,17 +55,35 @@ class Data:
     optimizer: np.ndarray
     X: np.ndarray
     y: np.ndarray
+    candidate: np.ndarray  # candidate_id per row; empty strings outside pool mode
 
     def where(self, status):
         return self.status == status
 
 
+def _pool_column(problem):
+    return ['candidate_id'] if problem.pool is not None else []
+
+
 def standard_columns(problem):
-    return [*BOOKKEEPING, *problem.names, problem.objective, 'notes']
+    return [*BOOKKEEPING, *_pool_column(problem), *problem.names, problem.objective, 'notes']
 
 
 def required_columns(problem):
-    return [*BOOKKEEPING, *problem.names, problem.objective]
+    return [*BOOKKEEPING, *_pool_column(problem), *problem.names, problem.objective]
+
+
+def check_candidate(problem, row, point):
+    """(column, message) for a row whose candidate_id is unknown or whose values
+    differ from that candidate's; nothing outside pool mode."""
+    if problem.pool is None:
+        return []
+    position = problem.pool.rows().get(row.get('candidate_id', ''))
+    if position is None:
+        return [('candidate_id', f'{row.get("candidate_id", "")!r} is not in {problem.pool.file}')]
+    return [(name, f'{value:g} differs from {problem.pool.file} ({expected:g}) for this candidate')
+            for name, value, expected in zip(problem.names, point, problem.pool.X[position])
+            if value is not None and not math.isclose(value, expected, rel_tol=1e-9, abs_tol=1e-12)]
 
 
 def read_table(folder, problem):
@@ -189,7 +207,7 @@ def check_table(problem, table):
             error(row, line, 'optimizer', 'is empty; use the method label, or "manual" or "import"')
 
         point, problems = check_point(problem, row)
-        for column, message in problems:
+        for column, message in problems + check_candidate(problem, row, point):
             error(row, line, column, message)
 
         result = row[problem.objective]
@@ -201,13 +219,14 @@ def check_table(problem, table):
         elif status == 'failed' and result:
             error(row, line, problem.objective, 'a failed row has no result; clear it, or set status to done')
 
-        if status == 'pending' and None not in point:
-            key = tuple(point)
-            if key in points:
-                issues.append(Issue('warning', where(row, line),
-                                    f'repeats the point of id {points[key]}, which is also pending or done'))
-        if status in ('pending', 'done') and None not in point:
-            points.setdefault(tuple(point), row['id'])
+        # A pool row is identified by its candidate: distinct candidates may share features.
+        key = row.get('candidate_id') if problem.pool is not None else (None if None in point else tuple(point))
+        if status == 'pending' and key and key in points:
+            issues.append(Issue('warning', where(row, line),
+                                f'repeats the {"candidate" if problem.pool else "point"} of id {points[key]}, '
+                                'which is also pending or done'))
+        if status in ('pending', 'done') and key:
+            points.setdefault(key, row['id'])
     return sorted(issues, key=lambda issue: issue.level != 'error')
 
 
@@ -222,4 +241,5 @@ def parse_table(problem, table):
     text = lambda column: np.array([row[column] for row in rows], dtype=object)
     return Data(ids=np.array([int(row['id']) for row in rows], dtype=int),
                 blocks=np.array([int(row['block']) for row in rows], dtype=int),
-                status=text('status'), source=text('source'), optimizer=text('optimizer'), X=X, y=y)
+                status=text('status'), source=text('source'), optimizer=text('optimizer'), X=X, y=y,
+                candidate=np.array([row.get('candidate_id', '') for row in rows], dtype=object))
