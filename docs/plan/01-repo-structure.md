@@ -27,17 +27,18 @@ campaign scripts. They remain in the old repository at the cutover tag.
 README.md  LICENSE  CITATION.cff  pyproject.toml
 prompts/optimization_agent.md     the agent prompt (today's AGENTS.md)
 src/agentoptimizer/
-  agent_harness/  blind_runner/  optimizers/  selectors/  tasks/  llm_baselines/
-scripts/                          run_*, figures/
+  agent_harness/  blind_runner/  optimizers/  selectors/  tasks/  llm_baselines/  advisor/
+scripts/                          run_*, agent_runs.py, advise.py, figures/
 data/                             task inputs: mof_pool/, opv_emulator/, opv_pool/
-experiments/                      one config per paper experiment (02, 03, 04)
+experiments/                      one config per paper experiment (02, 03, 04, 05)
+examples/                         advisor-mode campaigns (05)
 tests/
 docs/                             user docs; plan/ removed or archived at release
 ```
 
 `selectors/` holds the dynamic-selection baselines (02); `llm_baselines/`
-holds the LLM comparisons (03). Both are created by the PRs that add the
-first method, not ahead of time.
+holds the LLM comparisons (03); `advisor/` holds advisor mode (05). Each is
+created by the commit that adds its first piece, not ahead of time.
 
 ## Decisions
 

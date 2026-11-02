@@ -33,7 +33,9 @@ A selector wraps other optimizers, so the plain ask/tell interface is not
 enough. Questions the first PR must answer:
 
 - How a selector hands state to the next optimizer (best point, population,
-  covariance) and which optimizers can accept a warm start.
+  covariance) and which optimizers can accept a warm start. Advisor mode
+  needs the same warm start; see the table in
+  [05-advisor-mode.md](05-advisor-mode.md) and share the adapters.
 - Whether selectors run through `run_campaign.py` unchanged (if they expose
   ask/tell outward) or need their own runner.
 - How the trace records which inner optimizer produced each evaluation, so the
