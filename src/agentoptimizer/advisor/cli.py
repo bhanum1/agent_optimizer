@@ -3,6 +3,13 @@
     init       write a problem.toml template to fill in
     check      validate problem.toml and data.csv
     summarize  print the data summary the advisor reads (--json for the raw form)
+    new-block  open the next block folder and save its summary
+    run        run the open block's propose.py, then validate its proposals
+    validate   validate the open block's proposals.csv
+    accept     add the open block's proposals to data.csv as pending rows
+
+A block's flow: new-block -> write "## Block N" in decisions.md and
+blocks/NNN/propose.py -> run -> accept -> run the experiments -> record.
 """
 from __future__ import annotations
 
@@ -11,16 +18,10 @@ import json
 from pathlib import Path
 import sys
 
-from .data import DataError, check_table, parse_table, read_table
+from .blocks import BlockError, accept_block, new_block, run_block, validate_proposals
+from .data import DataError, check_table, load_campaign, read_table
 from .problem import TEMPLATE, ProblemError, load_problem
 from .summary import format_summary, summarize
-
-
-def load(folder):
-    """The campaign's problem, table and parsed data; raises on any error."""
-    problem = load_problem(folder)
-    table = read_table(folder, problem)
-    return problem, table, parse_table(problem, table)
 
 
 def init(args):
@@ -62,9 +63,44 @@ def check(args):
 
 
 def summary(args):
-    problem, _, data = load(args.campaign)
+    problem, _, data = load_campaign(args.campaign)
     result = summarize(problem, data)
     print(json.dumps(result, indent=2) if args.json else format_summary(result))
+    return 0
+
+
+def new_block_command(args):
+    number, folder = new_block(args.campaign)
+    print(f'Block {number} is open: {folder} (summary.json saved).\n'
+          f'Next: add "## Block {number}" to decisions.md, write {folder / "propose.py"}, '
+          f'then run: opt_run.py run {args.campaign}')
+    return 0
+
+
+def show_proposals(rows, issues):
+    if rows:
+        columns = list(rows[0])
+        widths = [max(len(c), *(len(r.get(c, '')) for r in rows)) for c in columns]
+        print(f'{len(rows)} proposals:')
+        for r in [dict(zip(columns, columns)), *rows]:
+            print('  ' + '  '.join(r.get(c, '').ljust(w) for c, w in zip(columns, widths)).rstrip())
+    for issue in issues:
+        print(issue)
+    return 1 if any(issue.level == 'error' for issue in issues) else 0
+
+
+def run_command(args):
+    return show_proposals(*run_block(args.campaign, args.block, args.timeout))
+
+
+def validate_command(args):
+    return show_proposals(*validate_proposals(args.campaign, args.block))
+
+
+def accept_command(args):
+    ids = accept_block(args.campaign, args.block, args.optimizer)
+    print(f'Added ids {ids[0]}-{ids[-1]} to data.csv as pending. '
+          'Run the experiments, then record the results.')
     return 0
 
 
@@ -83,9 +119,19 @@ def main(argv=None):
     command('check', check, 'validate the campaign')
     command('summarize', summary, 'print the data summary').add_argument(
         '--json', action='store_true', help='print the summary as JSON')
+    command('new-block', new_block_command, 'open the next block')
+    for name, function, text in [('run', run_command, "run the block's propose.py and validate"),
+                                 ('validate', validate_command, "validate the block's proposals"),
+                                 ('accept', accept_command, "add the block's proposals as pending rows")]:
+        sub = command(name, function, text)
+        sub.add_argument('--block', type=int, help='block number (default: the open block)')
+        if name == 'run':
+            sub.add_argument('--timeout', type=float, default=600, help='seconds (default 600)')
+        if name == 'accept':
+            sub.add_argument('--optimizer', help='method label, if proposals.csv has no optimizer column')
     args = parser.parse_args(argv)
     try:
         return args.function(args)
-    except (ProblemError, DataError) as exc:
+    except (ProblemError, DataError, BlockError) as exc:
         print(f'error: {exc}', file=sys.stderr)
         return 1

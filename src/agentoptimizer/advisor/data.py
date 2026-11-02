@@ -15,6 +15,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .problem import load_problem
+
 STATUSES = ('done', 'pending', 'failed')
 SOURCES = ('advisor', 'manual', 'import')
 BOOKKEEPING = ('id', 'block', 'status', 'source', 'optimizer')
@@ -124,6 +126,32 @@ def _int(text):
         return None
 
 
+def check_point(problem, row):
+    """The parameter values of a row as floats (None where invalid), and
+    (column, message) for each invalid one."""
+    point, problems = [], []
+    for p in problem.parameters:
+        value = _float(row.get(p.name, ''))
+        if value is None:
+            problems.append((p.name, f'must be a finite number, not {row.get(p.name, "")!r}'))
+        elif not p.low <= value <= p.high:
+            problems.append((p.name, f'{value:g} is outside [{p.low:g}, {p.high:g}]; '
+                                     'fix the row or widen the bounds in problem.toml'))
+            value = None
+        elif p.type == 'integer' and not value.is_integer():
+            problems.append((p.name, f'{value:g} is not a whole number'))
+            value = None
+        point.append(value)
+    return point, problems
+
+
+def load_campaign(folder):
+    """The campaign's problem, table and parsed data; raises on any error."""
+    problem = load_problem(folder)
+    table = read_table(folder, problem)
+    return problem, table, parse_table(problem, table)
+
+
 def check_table(problem, table):
     """Every problem with the table, errors first in file order, then warnings."""
     issues = []
@@ -160,17 +188,9 @@ def check_table(problem, table):
         if not row['optimizer']:
             error(row, line, 'optimizer', 'is empty; use the method label, or "manual" or "import"')
 
-        point = []
-        for p in problem.parameters:
-            value = _float(row[p.name])
-            if value is None:
-                error(row, line, p.name, f'must be a finite number, not {row[p.name]!r}')
-            elif not p.low <= value <= p.high:
-                error(row, line, p.name, f'{value:g} is outside [{p.low:g}, {p.high:g}]; '
-                      'fix the row or widen the bounds in problem.toml')
-            elif p.type == 'integer' and not value.is_integer():
-                error(row, line, p.name, f'{value:g} is not a whole number')
-            point.append(value)
+        point, problems = check_point(problem, row)
+        for column, message in problems:
+            error(row, line, column, message)
 
         result = row[problem.objective]
         if status == 'done' and _float(result) is None:

@@ -6,7 +6,8 @@ import tempfile
 import unittest
 
 from advisor_fixtures import PROBLEM, campaign, quiet
-from agentoptimizer.advisor.cli import load, main
+from agentoptimizer.advisor.cli import main
+from agentoptimizer.advisor.data import load_campaign
 from agentoptimizer.advisor.summary import format_summary, summarize
 
 # Unit coordinates: id 1 is (0, 0, 1/60); ids 2 and 3 are (0.5, 0.5, 14.5/30);
@@ -31,7 +32,7 @@ class Summary(unittest.TestCase):
 
     def summary(self, rows=ROWS, problem=PROBLEM):
         campaign(self.folder, rows, problem=problem)
-        problem, _, data = load(self.folder)
+        problem, _, data = load_campaign(self.folder)
         return summarize(problem, data)
 
     def test_hand_worked_campaign(self):
