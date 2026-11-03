@@ -202,6 +202,10 @@ Outputs are in `runs/replay-<id>/`:
 - `private/blocks.csv`: turns, tokens and cost per block;
 - `private/integrity_audit.json`.
 
+`scripts/run_batch_baselines.py` runs the batch baselines a replay is compared
+with: Sobol then qLogNEI, Sobol then a TuRBO-style trust region, and random,
+each at a fixed q through the same `agentoptimizer.batch` proposers.
+
 ## Run the agent
 
 Start a fresh campaign:

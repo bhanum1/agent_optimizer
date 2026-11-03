@@ -9,7 +9,7 @@ The prompt given to the optimization agent in experiments is a different file:
 | Path | Contents |
 | --- | --- |
 | `src/agentoptimizer/` | The package: `agent_harness/` (client the agent calls), `blind_runner/` (isolated runner, advisor replay, evaluator, preflight), `optimizers/` (ask/tell wrappers), `tasks/` (objectives and `TASKS` registry), `advisor/` (advisor mode: campaign folders for real experiments), `batch/` (stateless batch proposers from data: space filling, qLogNEI, trust region, CMA-ES, DE) |
-| `scripts/` | `run_agent.py`, `run_campaign.py`, `run_sweep.py`; `run_replay.py` (advisor replay); `agent_runs.py` (launch, wait, status); `opt_run.py` (advisor mode); `figures/` for paper figures; `slurm/` for cluster sweeps |
+| `scripts/` | `run_agent.py`, `run_campaign.py`, `run_sweep.py`; `run_replay.py` (advisor replay) and `run_batch_baselines.py` (its batch baselines); `agent_runs.py` (launch, wait, status); `opt_run.py` (advisor mode); `figures/` for paper figures; `slurm/` for cluster sweeps |
 | `.claude/skills/` | `/optimize` (launch benchmark runs and report on them) and `/opt-run` (advisor mode: propose the next block of a real campaign) |
 | `examples/` | Advisor-mode example campaigns with simulated labs |
 | `prompts/` | The benchmark agent's prompt (`optimization_agent.md`), the advisor-mode policy (`advisor.md`) and the replay advisor's procedure (`advisor_headless.md`) |
