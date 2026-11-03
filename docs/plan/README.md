@@ -41,8 +41,8 @@ that supports it and the figure or table that shows it.
 | Dynamic-selection baselines | | Planned | Confirm method list and fairness rules in 02 |
 | LLM-optimizer comparisons | | Planned | Check code availability for each method in 03 |
 | Reproducibility and release | | Planned | Choose data host and license in 04 |
-| Advisor mode (`/opt-run`) | | Phases 1–3 done; replay runner works end to end (phase 4) | Phase 4b: `max_block_size`, then fresh/resume context (05) |
-| Unified loop | | Planned | Decide feedback inside a block (06, decision 1) |
+| Advisor mode (`/opt-run`) | | Phases 1–3 done; replay runner works end to end (phase 4) | Fix the space-filling seed bug; no-summary flag (05) |
+| Unified loop | | Planned; rounds decided | Slice 1: rounds in the executor (06) |
 
 ## Open decisions
 
@@ -56,4 +56,4 @@ the relevant document.
 4. Data host for results (04).
 5. Final method lists for 02 and 03.
 6. Advisor mode (05): domain context in replay.
-7. Unified loop (06): feedback inside a block, the merged prompt, the fate of `optimizers/`.
+7. Unified loop (06): the merged prompt, the fate of `optimizers/`.
