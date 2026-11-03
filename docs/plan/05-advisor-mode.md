@@ -155,7 +155,7 @@ as C1 and C4.
 | Comparison | Isolates |
 | --- | --- |
 | Benchmark agent (live session, sequential) | Combined cost of batching and fresh context |
-| Advisor with fixed q vs. advisor-chosen q | Value of choosing the block size |
+| Fresh vs. resumed context (phase 4b) | Value of carried reasoning, and its cost |
 | Batch baselines at the same q (q-LogNEI, TuRBO, CMA-ES) and SBS/VBS | Value of adaptive selection in batch mode |
 | With and without the summary | Whether the summary helps or steers |
 
@@ -311,7 +311,7 @@ Constrained tasks wait for constraints in advisor mode (phase 5). Replay uses
 `.agent-venv` like the benchmark: `advisor/` and `batch/` use only relative
 imports and libraries from the `agent` group, so they are copied in the way
 `optimizers/` is, and `propose.py` finds them through the copy. The
-condition flags, fixed q and no summary, come after the base runner works.
+condition flags (no summary; context, phase 4b) come after the base runner works.
 
 | Slice | Adds | Tests |
 | --- | --- | --- |
@@ -376,6 +376,75 @@ Caveats:
 Reading: the advisor ends close to the live agent and ahead of every batch
 baseline at the same q. It is slower to start in two of three seeds. Three
 seeds show direction, not a difference.
+
+The advisor also wrote methods of its own when the building blocks did not
+fit, labelled `nearest_neighbours` and `gp_mean_consensus`: the freedom the
+design asks for is already used.
+
+### Block size: a suggestion with a hard maximum (decided 2026-11-03)
+
+`[budget] block_size` stays a suggestion. The advisor may request fewer or
+more points when the data call for it, and says why in its decision. A new
+`[budget] max_block_size` is the hard limit, set by the people running the
+campaign (lab capacity, a cluster queue). `accept` refuses a block larger
+than it or than the remaining budget, and replay refuses such a block in the
+same way. Without `max_block_size`, the only limit is the remaining budget.
+The planned "fixed q" condition is dropped; the comparison with batch
+baselines at the suggested size stays.
+
+### Context between blocks: fresh or resume (phase 4b)
+
+A run setting, `--context fresh|resume`, recorded in the manifest.
+
+- **fresh** (as now): every block is a new headless session. Continuity
+  lives only in the campaign folder, mainly `decisions.md`. This is the
+  default for real campaigns. Blocks there are hours or days apart, so a
+  resumed session would find its cache expired and pay full price for its
+  whole history.
+- **resume**: one session per campaign. Block 1 starts it; every later block
+  is a new message in it ("block N−1's results are in `campaign/data.csv`;
+  propose block N"), so the advisor keeps its own reasoning, not just what
+  it wrote down. This is closer to the benchmark agent, which ran as one
+  session.
+
+**What the MOF runs say about cost.** In fresh replay, the fixed prefix
+(system prompt and tools, about 5.4k tokens) is already read from cache
+across sessions, because the runner calls blocks back to back. Each block's
+25–48k written tokens are new material: the summary, data reads, the
+script. So resume does not save the startup cost; there is little left to
+save. It adds the history to every turn as cache reads. At about 30k
+tokens per block and 11 turns, block 12 of a MOF run would read around
+4M cached tokens, against about 250k for a fresh block. Resume is
+therefore a **condition** (does carried reasoning help?), not a saving, on
+long campaigns, and it needs a bound:
+
+- `--max-context N` (tokens, default 150k). When the last turn of a block
+  exceeded it, the next block starts a fresh session (a rollover), recorded
+  as such. The CLI's own auto-compaction is turned off if it can be;
+  otherwise every compaction is detected in the event stream and recorded,
+  since it changes what the advisor sees.
+- Retries: in resume mode a retry is a further message in the same session
+  saying that no block was accepted; in fresh mode it is a new session, as now.
+
+Mechanics, to confirm against the CLI versions in slice 1:
+
+- Claude: block 1 passes `--session-id <uuid>` without
+  `--no-session-persistence`; later blocks pass `--resume <uuid>`. The
+  transcript lives in the CLI's own store, outside the sandbox, where the
+  advisor's tools cannot reach it.
+- Codex: drop `--ephemeral`, read the thread id from the first call's
+  `thread.started` event, and continue with `codex exec resume <id>`.
+- The system prompt is fixed when the session starts. `advisor_headless.md`
+  loses "nothing carries over"; the runner adds one sentence for the mode.
+- `blocks.csv` gains `session` and `context` (fresh, resumed, rollover),
+  and the audit gains the number of sessions and compactions.
+
+| Slice | Adds | Tests | Model calls |
+| --- | --- | --- | --- |
+| 1 | `max_block_size` in `problem.toml`, `accept` and replay; headless text and policy say the block size is a suggestion | Oversized block refused by `accept` and by replay | None |
+| 2 | Session plumbing: `--context`, command construction for both CLIs, per-mode prompt, rollover rule, records | Commands for fresh, first-resume and resume; rollover from a recorded usage; scripted advisor that checks it is called with the same session | None |
+| 3 | One sphere10 replay with `--context resume` (budget 24) | Cost per block and turns, against the fresh run above | About $1 |
+| 4 | MOF, 3 seeds, resume, to set beside the fresh runs | C6 table gains a row | About $15, more if rollovers are rare |
 
 ## Decisions made (2026-11-02)
 

@@ -17,6 +17,7 @@ development history and every result produced before the cutover.
 | [03-llm-optimizer-comparisons.md](03-llm-optimizer-comparisons.md) | LLM-based optimizers and benchmarks we compare against |
 | [04-reproducibility-and-release.md](04-reproducibility-and-release.md) | Environments, reruns, data release, license, citation |
 | [05-advisor-mode.md](05-advisor-mode.md) | Real use: propose the next block from existing data, as a script |
+| [06-unified-loop.md](06-unified-loop.md) | One loop for benchmarks and real campaigns; benchmark mode retires |
 
 ## Claims → evidence
 
@@ -40,7 +41,8 @@ that supports it and the figure or table that shows it.
 | Dynamic-selection baselines | | Planned | Confirm method list and fairness rules in 02 |
 | LLM-optimizer comparisons | | Planned | Check code availability for each method in 03 |
 | Reproducibility and release | | Planned | Choose data host and license in 04 |
-| Advisor mode (`/opt-run`) | | Phases 1–3 done; replay runner works end to end (phase 4) | Fixed-q and no-summary flags; first C6 runs on OPV and MOF pools (05) |
+| Advisor mode (`/opt-run`) | | Phases 1–3 done; replay runner works end to end (phase 4) | Phase 4b: `max_block_size`, then fresh/resume context (05) |
+| Unified loop | | Planned | Decide feedback inside a block (06, decision 1) |
 
 ## Open decisions
 
@@ -54,3 +56,4 @@ the relevant document.
 4. Data host for results (04).
 5. Final method lists for 02 and 03.
 6. Advisor mode (05): domain context in replay.
+7. Unified loop (06): feedback inside a block, the merged prompt, the fate of `optimizers/`.
