@@ -341,9 +341,11 @@ the preferred 8. A replay block costs well under an `/opt-run` block
 ($0.07–0.19 against $0.27–0.46) because the headless call has no Claude
 Code system prompt or built-in tools, only the policy and two MCP tools.
 
-**Open for the experiments: effort.** The benchmark agent runs at max
-effort. Matching it costs about 5× per block (about $1 instead of $0.15–0.20).
-Choose before the C6 runs, and use the same setting for every condition.
+**Effort: medium (decided 2026-11-03).** The benchmark agent runs at max
+effort. Matching it would cost about 5× per block (about $1 instead of
+$0.15–0.20). Replay uses medium for every condition, and `run_replay.py`
+defaults to it. The comparison with the benchmark agent therefore differs
+in effort as well as in batching and fresh context; the paper says so.
 
 ## Decisions made (2026-11-02)
 

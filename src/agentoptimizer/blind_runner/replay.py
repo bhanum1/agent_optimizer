@@ -422,8 +422,8 @@ def main(argv=None):
     parser.add_argument('--seed', type=int, default=0, help='Campaign seed and private observation-noise seed')
     parser.add_argument('--agent', default='claude', choices=['codex', 'claude'], help='CLI that drives the model')
     parser.add_argument('--model', help='Default: gpt-6-astra (codex), claude-opus-5-5 (claude)')
-    parser.add_argument('--effort', default='max', choices=['low', 'medium', 'high', 'xhigh', 'max'],
-                        help='Reasoning effort (default: max, as in the benchmark).')
+    parser.add_argument('--effort', default='medium', choices=['low', 'medium', 'high', 'xhigh', 'max'],
+                        help='Reasoning effort (default: medium, the C6 setting; the benchmark agent uses max).')
     parser.add_argument('--retries', type=int, default=1, help='Fresh calls for a block that accepted nothing')
     parser.add_argument('--agent-python', type=Path, default=REPO / '.agent-venv/bin/python')
     parser.add_argument('--codex', type=Path, default=shutil.which('codex'),
