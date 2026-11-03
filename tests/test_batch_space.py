@@ -8,7 +8,6 @@ import numpy as np
 from advisor_fixtures import campaign, quiet
 from agentoptimizer import batch
 from agentoptimizer.advisor import Campaign
-from agentoptimizer.advisor.data import load_campaign
 
 RNG = np.random.default_rng(0)
 X = RNG.random((10, 3))

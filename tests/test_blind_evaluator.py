@@ -30,7 +30,7 @@ class Integrity(unittest.TestCase):
             path = Path(tmp) / 'state.sqlite'
             e = Evaluator(suite, path, lambda c: CrashingTask())
             e.handle('a', {'request_id': uuid.uuid4().hex, 'op': 'label', 'name': 'test',
-                'documents': {'roadmap_initial.md': 'First block', 'changelog.md': ''}})
+                'documents': {'decisions.md': '## Block 1'}})
             request = {'request_id': uuid.uuid4().hex, 'op': 'evaluate', 'x': [0.] * 10}
             with self.assertRaises(Crash):
                 e.handle('a', request)
@@ -57,7 +57,7 @@ class Integrity(unittest.TestCase):
                 return e.handle('a', {'request_id': uuid.uuid4().hex, 'op': op, **kwargs})
             self.assertFalse(call('evaluate', x=[0.]*10)['ok'])
             self.assertEqual(e.count('a'), 0)
-            docs = {'roadmap_initial.md': 'First block only', 'changelog.md': ''}
+            docs = {'decisions.md': '## Block 1'}
             self.assertTrue(call('label', name='test', documents=docs)['ok'])
             request = {'request_id': uuid.uuid4().hex, 'op': 'evaluate', 'x': [1.]*10}
             first = e.handle('a', request)
@@ -65,7 +65,7 @@ class Integrity(unittest.TestCase):
             self.assertEqual(e.handle('a', request), first)
             self.assertEqual(tasks['a'].calls, 1)
             self.assertEqual(e.count('b'), 0)
-            self.assertFalse(call('save', documents={**docs, 'roadmap_initial.md': 'rewritten'})['ok'])
+            self.assertFalse(call('label', name='test', documents={'decisions.md': 'rewritten'})['ok'])
             self.assertFalse(call('evaluate', x=[6.]*10)['ok'])
             self.assertEqual(e.count('a'), 1)
             self.assertTrue(call('evaluate', x=[0.]*10)['ok'])
@@ -76,7 +76,7 @@ class Integrity(unittest.TestCase):
             self.assertEqual(e.handle('a', request), first)
             self.assertEqual(call('evaluate', x=[0.]*10)['error_type'], 'BudgetExhausted')
             self.assertEqual(tasks['a'].calls, 0)
-            self.assertNotIn('f_opt', json.dumps(e.artifacts('a')))
+            self.assertNotIn('f_opt', json.dumps(e.status('a')))
             e.db.close()
 
     def test_budget_cannot_change_after_restart(self):
@@ -96,7 +96,7 @@ class Integrity(unittest.TestCase):
             e = Evaluator({'budget': 2, 'campaigns': [{'id': 'a'}]},
                           Path(tmp) / 'state.sqlite', lambda _: BrokenTask())
             e.handle('a', {'request_id': uuid.uuid4().hex, 'op': 'label', 'name': 'test',
-                'documents': {'roadmap_initial.md': 'First block', 'changelog.md': ''}})
+                'documents': {'decisions.md': '## Block 1'}})
             reply = e.handle('a', {'request_id': uuid.uuid4().hex, 'op': 'evaluate', 'x': [0.]*10})
             self.assertEqual(reply['error_type'], 'EvaluatorError')
             self.assertNotIn('SECRET_OBJECTIVE_NAME', json.dumps(reply))
@@ -113,18 +113,19 @@ class Integrity(unittest.TestCase):
                           Path(tmp) / 'state.sqlite', lambda _: SmallTask())
             def call(op, **kwargs):
                 return e.handle('a', {'request_id': uuid.uuid4().hex, 'op': op, **kwargs})
-            docs = {'roadmap_initial.md': 'First block only', 'changelog.md': ''}
+            docs = {'decisions.md': '## Block 1\n'}
             self.assertEqual(call('status')['result']['bounds'], SmallTask.bounds)
             self.assertTrue(call('label', name='random', documents=docs)['ok'])
             self.assertFalse(call('evaluate', x=[-1., 0.])['ok'])
             self.assertFalse(call('evaluate', x=[True, 0.])['ok'])
             self.assertFalse(call('evaluate', x=[0., 0., 0.])['ok'])
             self.assertTrue(call('evaluate', x=[.5, 0.])['ok'])
-            changed = {**docs, 'changelog.md': 'Decision at evaluation 1'}
-            self.assertTrue(call('save', documents=changed)['ok'])
-            self.assertFalse(call('save', documents=docs)['ok'])
-            snapshot = e.db.execute("SELECT eval_idx FROM snapshots WHERE name='changelog.md'").fetchone()
-            self.assertEqual(snapshot[0], 1)
+            changed = {'decisions.md': '## Block 1\n## Block 2\n'}
+            self.assertTrue(call('label', name='random', documents=changed)['ok'])
+            self.assertFalse(call('label', name='random', documents=docs)['ok'])
+            self.assertFalse(call('label', name='random', documents={'changelog.md': ''})['ok'])
+            snapshots = e.db.execute("SELECT eval_idx FROM snapshots WHERE name='decisions.md'").fetchall()
+            self.assertEqual(snapshots, [(0,), (1,)])
             self.assertEqual(e.count('a'), 1)
             e.db.close()
 
@@ -145,13 +146,11 @@ class Integrity(unittest.TestCase):
             status = call('status')['result']
             self.assertTrue(status['noisy'])
             self.assertEqual(status['n_constraints'], 1)
-            call('label', name='test', documents={'roadmap_initial.md': 'First block', 'changelog.md': ''})
+            call('label', name='test', documents={'decisions.md': '## Block 1'})
             self.assertEqual(call('evaluate', x=[1.])['result'], {'y': 101., 'g': [1.]})
             call('evaluate', x=[-2.])
             call('evaluate', x=[-1.])
-            artifacts = e.artifacts('a')
-            self.assertEqual(json.loads(artifacts['meta.json'])['best_y'], 101.)
-            self.assertNotIn('y_true', artifacts['trace.csv'])
+            self.assertNotIn('y_true', json.dumps(e.status('a')))
             best = [row.split(',')[-1] for row in e.scored_trace('a').splitlines()[1:]]
             self.assertEqual(best, ['', '4.0', '1.0'])
             e.db.close()

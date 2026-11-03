@@ -1,6 +1,6 @@
 """Private evaluator: durable budgets, idempotent requests and prospective decisions.
 
-Only the trusted runner imports this module. Agents receive the transport client.
+Only the trusted runner imports this module; the advisor never reaches it.
 """
 import csv
 import hashlib
@@ -18,10 +18,8 @@ import traceback
 from ..tasks.base import FEASIBILITY_TOL
 
 
-# Decision documents a campaign journals, and the rule for each: "fixed" is
-# written before the first evaluation and never changed; "append" only grows.
-# A suite may name its own (replay journals decisions.md).
-DOCUMENTS = {'roadmap_initial.md': 'fixed', 'changelog.md': 'append'}
+# Decision documents a campaign journals; each may only grow.
+DOCUMENTS = ('decisions.md',)
 
 
 class BudgetExhausted(Exception):
@@ -46,7 +44,6 @@ def incumbents(db, campaign):
 class Evaluator:
     def __init__(self, suite, database, task_factory):
         self.suite = suite
-        self.rules = suite.get('documents', DOCUMENTS)
         self.lock = threading.Lock()
         self.tasks = {c['id']: task_factory(c) for c in suite['campaigns']}
         self.error_log = Path(database).parent / 'evaluator_errors.log'
@@ -92,14 +89,11 @@ class Evaluator:
                 'budget': self.suite['budget'], 'evaluations_used': used,
                 'evaluations_remaining': self.suite['budget'] - used}
         if getattr(task, 'indexed_pool', False):
-            purchased = {row[0] for row in self.db.execute(
-                'SELECT candidate_index FROM evaluations WHERE campaign=?', (campaign,))}
-            state.update(indexed_pool=True, n_candidates=int(task.n_candidates),
-                         available_indices=[i for i in range(task.n_candidates) if i not in purchased])
+            state.update(indexed_pool=True, n_candidates=int(task.n_candidates))
         return state
 
     def documents(self, campaign, docs):
-        if not isinstance(docs, dict) or set(docs) != set(self.rules):
+        if not isinstance(docs, dict) or set(docs) != set(DOCUMENTS):
             raise ValueError('Invalid decision documents.')
         for name, content in docs.items():
             if not isinstance(content, str) or len(content.encode()) > 200000:
@@ -107,9 +101,7 @@ class Evaluator:
             old = self.db.execute('SELECT content FROM documents WHERE campaign=? AND name=?',
                                   (campaign, name)).fetchone()
             old = old[0] if old else ''
-            if self.rules[name] == 'fixed' and old and content != old:
-                raise ValueError(f'{name} is immutable once written.')
-            if self.rules[name] == 'append' and not content.startswith(old):
+            if not content.startswith(old):
                 raise ValueError(f'{name} must be append-only.')
             if content != old:
                 self.db.execute('INSERT OR REPLACE INTO documents VALUES(?,?,?)', (campaign, name, content))
@@ -118,31 +110,6 @@ class Evaluator:
 
     def incumbents(self, campaign):
         return incumbents(self.db, campaign)
-
-    def artifacts(self, campaign):
-        status = self.status(campaign)
-        constrained = status['n_constraints'] > 0
-        indexed = status.get('indexed_pool', False)
-        indices = dict(self.db.execute('SELECT idx,candidate_index FROM evaluations WHERE campaign=?',
-                                       (campaign,))) if indexed else {}
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(['eval_idx', 'x', *(['candidate_index'] if indexed else []),
-                         'y', *(['g', 'feasible'] if constrained else []),
-                         'best_y', 'optimizer', 'eval_seconds', 'wall_ns'])
-        best, best_x = None, None
-        best_index, best_index_y = None, math.inf
-        for (idx, x, y, g, _, label, elapsed, wall_ns), feasible, best, best_x, _ in self.incumbents(campaign):
-            if indexed and feasible and y < best_index_y:
-                best_index, best_index_y = indices[idx], y
-            writer.writerow([idx, x, *([indices[idx]] if indexed else []),
-                             y, *([g, feasible] if constrained else []),
-                             '' if best is None else best, label, elapsed, wall_ns])
-        meta = {**status, 'best_y': best, 'best_x': best_x}
-        if indexed:
-            meta['best_candidate_index'] = best_index
-        artifacts = {'trace.csv': output.getvalue(), 'meta.json': json.dumps(meta, indent=2)}
-        return artifacts
 
     def scored_trace(self, campaign):
         """Private scoring trace in the baseline convention: y_best_so_far is the
@@ -180,7 +147,6 @@ class Evaluator:
             if 'documents' in request:
                 self.documents(campaign, request['documents'])
             op = request.get('op')
-            artifacts = None
             if op == 'status':
                 result = self.status(campaign)
             elif op == 'label':
@@ -217,8 +183,7 @@ class Evaluator:
                 label = self.db.execute('SELECT label FROM labels WHERE campaign=?', (campaign,)).fetchone()
                 written = dict(self.db.execute('SELECT name,content FROM documents WHERE campaign=?',
                                                (campaign,)))
-                fixed = [name for name, rule in self.rules.items() if rule == 'fixed']
-                if not label or not all(written.get(name, '').strip() for name in fixed):
+                if not label or not all(written.get(name, '').strip() for name in DOCUMENTS):
                     raise ValueError('Record the first decision and optimizer label before evaluating.')
                 # Reserve a charged slot durably before calling the objective. A crash cannot reset it.
                 self.db.execute('INSERT INTO evaluations(campaign,idx,request_id,x,label,wall_ns,candidate_index) '
@@ -242,16 +207,9 @@ class Evaluator:
                                  ev.elapsed, campaign, n + 1))
                 if g:
                     result = {'y': result, 'g': g}
-                if n + 1 == self.suite['budget']:
-                    artifacts = self.artifacts(campaign)
-            elif op == 'save':
-                artifacts = self.artifacts(campaign)
-                result = None
             else:
                 raise ValueError('Unsupported evaluator operation.')
             reply = {'ok': True, 'result': result}
-            if artifacts is not None:
-                reply['artifacts'] = artifacts
         except (ValueError, BudgetExhausted) as exc:
             reply = {'ok': False, 'error_type': type(exc).__name__, 'error': str(exc)}
         except Exception:

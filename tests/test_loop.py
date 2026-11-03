@@ -1,4 +1,4 @@
-"""Advisor replay: the sandbox copy of the advisor, and the runner's checks."""
+"""The loop: the sandbox copy of the advisor, and the runner's checks."""
 import contextlib
 import io
 from pathlib import Path
@@ -17,8 +17,9 @@ from agentoptimizer.advisor.blocks import accept_block, new_block, run_block
 from agentoptimizer.advisor.data import read_table
 from agentoptimizer.advisor.problem import load_problem
 from agentoptimizer.blind_runner.evaluator import Evaluator
-from agentoptimizer.blind_runner.replay import (Replay, ReplayError, build_campaign, install_advisor, problem_toml,
-                                                system_prompt, usage_of)
+from agentoptimizer.blind_runner.agent_cli import system_prompt, usage_of
+from agentoptimizer.blind_runner.campaign import build_campaign, install_advisor, problem_toml
+from agentoptimizer.blind_runner.loop import Loop, LoopError
 
 REPO = Path(__file__).resolve().parents[1]
 AGENT_PYTHON = REPO / '.agent-venv/bin/python'
@@ -55,7 +56,7 @@ class AdvisorCopy(unittest.TestCase):
 
 
 class Documents(unittest.TestCase):
-    def test_replay_decisions_are_append_only(self):
+    def test_decisions_are_append_only(self):
         class Task:
             dim = 2
             bounds = [[-1., 1.]] * 2
@@ -64,7 +65,7 @@ class Documents(unittest.TestCase):
                 return SimpleNamespace(y=sum(v * v for v in x), elapsed=0.)
 
         with tempfile.TemporaryDirectory() as tmp:
-            suite = {'budget': 3, 'campaigns': [{'id': 'run'}], 'documents': {'decisions.md': 'append'}}
+            suite = {'budget': 3, 'campaigns': [{'id': 'run'}]}
             e = Evaluator(suite, Path(tmp) / 'state.sqlite', lambda _: Task())
 
             def call(op, **kwargs):
@@ -77,8 +78,6 @@ class Documents(unittest.TestCase):
             reply = call('label', name='block 3', documents={'decisions.md': '## Block 1 (edited)\n'})
             self.assertFalse(reply['ok'])
             self.assertIn('append-only', reply['error'])
-            reply = call('label', name='x', documents={'roadmap_initial.md': '', 'changelog.md': ''})
-            self.assertFalse(reply['ok'])
             e.db.close()
 
 
@@ -133,67 +132,67 @@ def scripted(public, tamper=None):
     return advise
 
 
-class Loop(unittest.TestCase):
+class Campaigns(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
 
-    def replay(self, task, budget=10, tamper=None, advise=None, round_size=2):
+    def make(self, task, budget=10, tamper=None, advise=None, round_size=2):
         workspace, private = build_campaign(Path(self.tmp.name) / uuid.uuid4().hex, task, budget, 4, round_size,
                                             seed=3)
-        suite = {'budget': budget, 'campaigns': [{'id': 'run'}], 'documents': {'decisions.md': 'append'}}
+        suite = {'budget': budget, 'campaigns': [{'id': 'run'}]}
         self.evaluator = Evaluator(suite, private / 'evaluations.sqlite', lambda _: task)
         self.addCleanup(self.evaluator.db.close)
         public = workspace / 'campaign'
 
         def sandbox(command):
             return subprocess.run(['/bin/bash', '-c', command], cwd=workspace, capture_output=True, text=True)
-        return Replay(workspace, private, self.evaluator, advise or scripted(public, tamper), sandbox,
+        return Loop(workspace, private, self.evaluator, advise or scripted(public, tamper), sandbox,
                       python=sys.executable), public
 
     def test_three_blocks_use_the_budget_and_match_the_journal(self):
-        replay, public = self.replay(Sphere())
-        records = replay.run()
+        run, public = self.make(Sphere())
+        records = run.run()
         self.assertEqual([(r['block'], r['size'], r['rounds'], r['rows'], r['status']) for r in records],
                          [(1, 4, 2, 4, 'evaluated'), (2, 4, 2, 4, 'evaluated'), (3, 2, 1, 2, 'evaluated')])
         # Round 2 of block 1 saw round 1's results: space filling away from them.
         self.assertEqual(records[0]['methods'], 'sobol + space_filling')
         self.assertEqual(sum(r['cost_usd'] for r in records), 1.5)
-        truth = read_table(replay.truth, replay.problem).rows
+        truth = read_table(run.truth, run.problem).rows
         self.assertEqual(self.evaluator.count('run'), 10)
         journal = self.evaluator.db.execute('SELECT x, y, label FROM evaluations ORDER BY idx').fetchall()
         for row, (x, y, label) in zip(truth, journal):
             self.assertEqual([float(row['x0']), float(row['x1'])], eval(x))
             self.assertEqual(float(row['y']), y)
             self.assertEqual(label, f'block {row["block"]} {row["optimizer"]}')
-        self.assertEqual((replay.private / 'campaign/decisions.md').read_text().count('## Block'), 3)
-        self.assertTrue((replay.private / 'blocks/002/propose.py').exists())
-        self.assertIn('block,attempts,status', (replay.private / 'blocks.csv').read_text())
+        self.assertEqual((run.private / 'campaign/decisions.md').read_text().count('## Block'), 3)
+        self.assertTrue((run.private / 'blocks/002/propose.py').exists())
+        self.assertIn('block,attempts,status', (run.private / 'blocks.csv').read_text())
         # The workspace problem is anonymous and minimizes y.
         problem = load_problem(public)
         self.assertEqual((problem.names, problem.objective, problem.direction), (['x0', 'x1'], 'y', 'minimize'))
 
     def test_pool_rows_are_evaluated_by_candidate_one_at_a_time(self):
-        replay, public = self.replay(Pool(), budget=6, round_size=1)
-        records = replay.run()
+        run, public = self.make(Pool(), budget=6, round_size=1)
+        records = run.run()
         self.assertEqual([(r['rows'], r['rounds']) for r in records], [(4, 4), (2, 2)])
-        rows = read_table(replay.truth, replay.problem).rows
+        rows = read_table(run.truth, run.problem).rows
         self.assertEqual(sorted(r['candidate_id'] for r in rows), ['0', '1', '2', '3', '4', '5'])
         for row in rows:
             self.assertEqual(float(row['y']), float(row['x0']) + float(row['x1']))
 
     def test_a_block_with_no_proposals_gets_one_retry(self):
-        replay, public = self.replay(Sphere(), budget=4)
+        run, public = self.make(Sphere(), budget=4)
         working = scripted(public)
         calls = []
 
         def advise(block, attempt, logs):
             calls.append(attempt)
             return working(block, attempt, logs) if attempt else {}
-        replay.advise = advise
-        self.assertEqual([(r['attempts'], r['status']) for r in replay.run()], [(2, 'evaluated')])
-        replay, _ = self.replay(Sphere(), budget=4, advise=lambda *_: {})
-        self.assertEqual([(r['attempts'], r['status']) for r in replay.run()], [(2, 'no proposals')])
+        run.advise = advise
+        self.assertEqual([(r['attempts'], r['status']) for r in run.run()], [(2, 'evaluated')])
+        run, _ = self.make(Sphere(), budget=4, advise=lambda *_: {})
+        self.assertEqual([(r['attempts'], r['status']) for r in run.run()], [(2, 'no proposals')])
 
     def test_tampering_is_refused(self):
         def edit(path, old, new, count=1):
@@ -231,22 +230,22 @@ class Loop(unittest.TestCase):
                  moved_point: 'not what propose.py proposes', manual_row: 'not a pending advisor row'}
         for make, message in cases.items():
             with self.subTest(make.__name__):
-                replay, public = self.replay(Sphere())
-                replay.advise = scripted(public, make(public))
-                with self.assertRaisesRegex(ReplayError, message):
-                    replay.run()
-                self.assertEqual((replay.records[-1]['status'], replay.records[-1]['cost_usd']), ('refused', .5))
-                self.assertIn('refused', (replay.private / 'blocks.csv').read_text())
+                run, public = self.make(Sphere())
+                run.advise = scripted(public, make(public))
+                with self.assertRaisesRegex(LoopError, message):
+                    run.run()
+                self.assertEqual((run.records[-1]['status'], run.records[-1]['cost_usd']), ('refused', .5))
+                self.assertIn('refused', (run.private / 'blocks.csv').read_text())
 
     def test_links_are_not_followed(self):
-        replay, public = self.replay(Sphere())
+        run, public = self.make(Sphere())
 
         def advise(block, attempt, logs):
             (public / 'data.csv').unlink()
-            (public / 'data.csv').symlink_to(replay.private / 'campaign/problem.toml')
-        replay.advise = advise
-        with self.assertRaisesRegex(ReplayError, 'is a link'):
-            replay.run()
+            (public / 'data.csv').symlink_to(run.private / 'campaign/problem.toml')
+        run.advise = advise
+        with self.assertRaisesRegex(LoopError, 'is a link'):
+            run.run()
 
 
 

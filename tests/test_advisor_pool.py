@@ -10,7 +10,7 @@ from advisor_fixtures import quiet
 from agentoptimizer import batch
 from agentoptimizer.advisor import Campaign, ProblemError
 from agentoptimizer.advisor.blocks import accept_block, new_block, run_block, validate_proposals
-from agentoptimizer.advisor.data import check_table, load_campaign, read_table
+from agentoptimizer.advisor.data import check_table, load_campaign
 from agentoptimizer.advisor.problem import load_problem
 from agentoptimizer.advisor.results import import_rows, record_results
 from agentoptimizer.advisor.summary import format_summary, summarize

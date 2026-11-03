@@ -1,20 +1,20 @@
 # 06 · One loop for benchmarks and real campaigns
 
-The repository has two systems built on the same policy:
+The repository had two systems built on the same policy:
 
-- **Benchmark mode** (`run_agent.py`, `/optimize`): one live session drives
-  `AgentTaskHarness`. It evaluates points one at a time through the bridge
-  and keeps optimizer processes alive with `write_stdin`.
+- **Benchmark mode** (`run_agent.py`, `/optimize`): one live session drove
+  `AgentTaskHarness`. It evaluated points one at a time through a file
+  bridge and kept optimizer processes alive with `write_stdin`.
 - **Advisor mode** (`opt_run.py`, `/opt-run`, replay): each block, the agent
   reads a campaign folder and writes `propose.py`. That script fits the data
   and proposes the block, which a lab (or the replay runner) evaluates.
 
-The second is the design we want everywhere (decided 2026-11-03). The agent
-receives data, as a summary or raw. It writes the optimizer for the next
-block from building blocks, or from scratch. The optimizer fits the data and
-proposes points. Acquisition measures them, and the loop repeats. A benchmark
-is this loop with a simulated lab. This document plans the merge. Benchmark
-mode then retires; its published runs become a legacy condition.
+The second is now the design everywhere (decided and built 2026-11-03). The
+agent receives data, as a summary or raw. It writes the optimizer for the
+next block from building blocks, or from scratch. The optimizer fits the
+data and proposes points, round by round. Acquisition measures them, and the
+loop repeats. A benchmark is this loop with a simulated lab. Benchmark mode
+is retired; its published runs are the legacy condition.
 
 ## The loop
 
@@ -81,58 +81,54 @@ the data, as `agentoptimizer.batch` already is. Methods with internal state
 replays the rounds with the recorded values and requires the same points at
 each one. The last round of a block may be smaller, to fit the block.
 
-## Open decisions
+## Decisions made (2026-11-03)
 
-### 1. The prompt
+- **One prompt.** `prompts/optimization_agent.md` is retired (it stays at
+  the `pre-manuscript-snapshot` tag of the source repository).
+  `prompts/advisor.md` is the policy and `advisor_headless.md` the
+  per-block procedure. The C1–C4 runs are redone under the loop, and the
+  old ones are reported as the legacy agent.
+- **`optimizers/` stays, for the baselines only.** `run_campaign.py` and
+  `run_sweep.py` run its ask/tell wrappers; the agent no longer gets a copy.
+  Its building blocks are `agentoptimizer.batch`. Sequential local methods
+  (BOBYQA, Nelder–Mead) have no batch form; with rounds of 1 the agent can
+  write one in `propose()` (for example a BOBYQA step from the incumbent),
+  so none is ported until runs show the need.
+- **Defaults.** `run_agent.py` defaults to Claude Opus 5.5 at medium effort,
+  the C6 setting; `--agent codex` uses GPT-6 Astra.
 
-`prompts/optimization_agent.md` and `prompts/advisor.md` carry the same
-policy in two forms. Merge them into one policy plus the per-block procedure
-(`advisor_headless.md`). This changes the benchmark condition, so the C1–C4
-runs are redone under the loop and the old ones are reported as the legacy
-agent.
+## Status (2026-11-03)
 
-### 2. What happens to `optimizers/`
+Built: rounds (`[budget] round_size`, `SIZE` and `propose(campaign, q)`),
+the runner proposing later rounds in the sandbox, and one runner
+(`blind_runner/runner.py` with `loop.py`, `agent_cli.py`, `campaign.py`).
+Removed: `agent_harness/`, the bridge, the benchmark preflight and prompt,
+`run_replay.py`, the evaluator's workspace artifacts and its "fixed"
+document rule. A scripted advisor (no model) ran sphere10 and the MOF pool
+through the real sandbox, with every later round proposed there and a clean
+audit.
 
-The stateful ask/tell wrappers exist for the live session. With rounds, the
-building blocks are `agentoptimizer.batch`. Sequential local methods
-(BOBYQA, Nelder–Mead, L-BFGS-B) need a stateless form: a restart from the
-incumbent with a model or simplex rebuilt from recent points. Otherwise they
-are dropped. Recommended: port BOBYQA, the one the agent used most, and drop
-the rest unless runs show a need.
-
-## What stays, goes and changes
-
-| Piece | Fate |
+| Piece | Now |
 | --- | --- |
-| `blind_runner/evaluator.py` (journal, budget, documents) | Stays; it is the simulated lab |
-| `execution.py`, `preflight.py` (sandbox, checks) | Stay; one policy, one probe set |
-| `replay.py` (block loop, checks, reproduction, audit) | Becomes the runner; gains rounds and constraints |
-| `runner.py` (benchmark main, bridge, harness copy) | Goes; its CLI and audit helpers move into the loop runner |
-| `agent_harness/`, `.bridge/`, `write_stdin` keep-alive | Go |
-| `optimizers/` | See open decision 2 |
-| `advisor/`, `batch/` | Stay; `advisor` gains `view` and constraints |
-| `run_agent.py`, `run_replay.py` | One entry point, `scripts/run_loop.py` |
-| `/optimize`, `/opt-run` | `/opt-run` for real campaigns; `/optimize` launches and reports loop runs |
-| `run_campaign.py`, `run_sweep.py` (non-LLM baselines) | Stay; `run_batch_baselines.py` folds into them |
-| `agent_runs.py` | One run type |
+| `blind_runner/evaluator.py` | The simulated lab: journal, budget, `decisions.md` append-only |
+| `execution.py`, `preflight.py` | One sandbox policy (writable `campaign/`, `work/`, `.tmp/`), one probe |
+| `loop.py` | Blocks and rounds, checks, reproduction (was `replay.py`) |
+| `agent_cli.py`, `campaign.py`, `runner.py` | Headless advisor; the anonymous campaign; setup, audit, `main` |
+| `scripts/run_agent.py`, `agent_runs.py`, `/optimize` | One entry point and one kind of run, `runs/run-<id>/` |
 
-Constraints (phase 5 of 05) move up. Six registered tasks are constrained
-(`pymoo_g04`, `pymoo_g07`, three `constrained_*`, `opv_pce`), and the suite
-needs them.
+Still to do:
 
-## Slices
-
-Each slice is tested with a scripted advisor and needs no model calls,
-unless marked otherwise.
-
-| Slice | Adds | Tests |
-| --- | --- | --- |
-| 1 | `[budget] round_size` and `propose(campaign, q)`; the executor loops rounds; reproduction replays them; the policy sizes blocks against the budget | Scripted block of 20 in rounds of 1 matches a hand-run loop; tampered values refused |
-| 2 | `view` setting: summary, raw or both | Raw view writes no summary and `summarize` refuses |
-| 3 | Constraints through problem, data, summary, `batch` and the lab | A constrained task runs three blocks |
-| 4 | One policy prompt; one runner and entry point; `agent_runs.py` and the skills on it | Launch smoke test; benchmark preflight passes on the loop workspace |
-| 5 | Remove `runner.py` benchmark path, `agent_harness/`, `optimizers/` (per open decision 2) and their tests | Full test suite; docs and AGENTS.md layout |
-| 6 | Pilot: 3 suite tasks and MOF under the loop, 3 seeds (model calls) | Compared with the legacy agent runs |
+- **Constraints** through problem, data, summary, `batch` and the lab. Six
+  registered tasks are constrained (`pymoo_g04`, `pymoo_g07`, three
+  `constrained_*`, `opv_pce`) and the suite needs them; the runner refuses
+  them until then.
+- **`view`**: summary, raw or both, as a condition.
+- **Figures** for loop runs: `make_comparison_plots.py` reads only legacy
+  `results/agent_run/` folders.
+- **`batch.space_filling` ignores its seed on pools** (05); fix before the
+  batch baselines are final.
+- **Pilot**: three suite tasks and MOF under the loop, three seeds, against
+  the legacy runs (model calls; ask first).
 
 ## Risks
 

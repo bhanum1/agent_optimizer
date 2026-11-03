@@ -8,11 +8,12 @@ This file names task identities. Keep it in `docs/`; never copy it into a sandbo
 
 A task is implemented once in `src/agentoptimizer/tasks/` and registered in `src/agentoptimizer/tasks/registry.py`.
 The baseline runner calls it directly. The isolated agent runner keeps it private
-and exposes `src/agent_harness/harness.py`, a generic transport client. There are
-no numbered agent harnesses or per-task copies of the objective.
+and gives the agent an anonymous campaign folder built from the task's public
+contract. There are no per-task copies of the objective.
 
-The native runner accepts every registered task. It exposes only the public
-contract below; a new task needs nothing runner-specific.
+The native runner accepts every registered unconstrained task (constrained tasks
+are not supported by the loop yet). It exposes only the public contract below; a
+new task needs nothing runner-specific.
 
 ## 1. Register the Task
 
@@ -90,15 +91,14 @@ Run from the repository root:
 ```
 
 Follow the root [README](../README.md) for the separate optimizer environment,
-isolation boundary, outputs and plotting command. The runner copies the canonical
-prompt (`prompts/optimization_agent.md`) and generic client into a fresh workspace. It gives the agent only
-dimension, bounds, direction, noise status, number of constraints and budget.
-Objective construction and scoring remain outside that workspace. Do not add a
-`task_<NNN>.py` or a new prompt.
+isolation boundary, outputs and plotting command. The runner writes an anonymous
+`problem.toml` (bounds, minimize `y`, noise, budget; candidates for an indexed
+pool) into a fresh workspace with the advisor policy. Objective construction and
+scoring remain outside that workspace. Do not add a `task_<NNN>.py` or a new prompt.
 
 Discrete, categorical and conditional coordinates are decoded inside `_f`, so the
 agent sees the same box as the baselines. Constrained tasks return `(y, g)` from
-`evaluate`. Noisy tasks are reseeded with `--seed`; the private journal keeps
+`evaluate` (baselines only, for now). Noisy tasks are reseeded with `--seed`; the private journal keeps
 `y_true`, and `private/scored_trace.csv` gives `y_best_so_far` in the baseline
 convention (blank before the first feasible point).
 

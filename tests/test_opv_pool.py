@@ -1,7 +1,6 @@
 """Pool selection and runner integration; each test constructs a fresh pool."""
 import csv
 import io
-import json
 from pathlib import Path
 import sys
 import tempfile
@@ -53,7 +52,7 @@ class OPVPoolIntegrity(unittest.TestCase):
                                   Path(tmp) / 'journal.sqlite', lambda _: task)
             self.addCleanup(evaluator.db.close)
             evaluator.handle('run', {'request_id': uuid.uuid4().hex, 'op': 'label',
-                'name': 'probe', 'documents': {'roadmap_initial.md': 'Two probes', 'changelog.md': ''}})
+                'name': 'probe', 'documents': {'decisions.md': '## Block 1'}})
             request = {'request_id': uuid.uuid4().hex, 'op': 'evaluate', 'x': [.5] * task.dim}
             first = evaluator.handle('run', request)
             self.assertTrue(first['ok'])
@@ -64,10 +63,9 @@ class OPVPoolIntegrity(unittest.TestCase):
             second = evaluator.handle('run', {**request, 'request_id': uuid.uuid4().hex})
             self.assertTrue(second['ok'])
             self.assertNotEqual(task.last_candidate, first_id)
-            rows = list(csv.DictReader(io.StringIO(evaluator.artifacts('run')['trace.csv'])))
+            rows = list(csv.DictReader(io.StringIO(evaluator.scored_trace('run'))))
             self.assertEqual(len(rows), 2)
-            self.assertEqual(float(rows[-1]['best_y']), min(first['result'], second['result']))
-            public = json.loads(evaluator.artifacts('run')['meta.json'])
+            public = evaluator.status('run')
             for private_key in ('f_opt', 'candidates', 'last_candidate', 'task', 'task_name'):
                 self.assertNotIn(private_key, public)
 

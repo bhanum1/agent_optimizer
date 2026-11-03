@@ -14,7 +14,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
 from agentoptimizer.blind_runner.evaluator import Evaluator
-from agentoptimizer.blind_runner.runner import cli_environment
+from agentoptimizer.blind_runner.agent_cli import cli_environment
 from scripts.agent_runs import progress, run_dirs, state, summary
 
 
@@ -39,7 +39,7 @@ class Reports(unittest.TestCase):
         def call(op, **kwargs):
             reply = evaluator.handle('run', {'request_id': uuid.uuid4().hex, 'op': op, **kwargs})
             self.assertTrue(reply['ok'], reply)
-        call('label', name='sobol', documents={'roadmap_initial.md': 'First block', 'changelog.md': ''})
+        call('label', name='sobol', documents={'decisions.md': '## Block 1'})
         call('evaluate', x=[2., 0.])
         call('evaluate', x=[1., 0.])
         call('label', name='cma_es')
@@ -68,27 +68,13 @@ class Reports(unittest.TestCase):
             ended.wait()
             (private / 'launcher.json').write_text(json.dumps({'pid': ended.pid}))
             self.assertEqual(state(root), 'stopped')
-            audit = {'unknown_evaluations': 0, 'artifacts_match_journal': True,
-                     'only_workspace_execution_tools': True, 'tool_calls': 0}
-            (private / 'integrity_audit.json').write_text(json.dumps(audit))
-            self.assertEqual(state(root), 'check only')
-            (private / 'cli_exit.json').write_text(json.dumps({'returncode': 0}))
-            self.assertEqual(state(root), 'finished')
-            (private / 'integrity_audit.json').write_text(json.dumps({**audit, 'unknown_evaluations': 1}))
-            self.assertEqual(state(root), 'audit failed')
-
-    def test_replay_states(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            private = Path(tmp) / 'replay-000000000000/private'
-            private.mkdir(parents=True)
-            (private / 'manifest.json').write_text('{}')
             audit = {'unknown_evaluations': 0, 'data_matches_journal': True, 'check_only': True, 'complete': False}
             for changes, expected in [({}, 'check only'), ({'check_only': False}, 'stopped early'),
                                       ({'check_only': False, 'complete': True}, 'finished'),
                                       ({'data_matches_journal': False}, 'audit failed')]:
                 (private / 'integrity_audit.json').write_text(json.dumps({**audit, **changes}))
-                self.assertEqual(state(private.parent), expected)
-            self.assertEqual(run_dirs([], tmp), [private.parent])
+                self.assertEqual(state(root), expected)
+            self.assertEqual(run_dirs([], tmp), [root])
 
 
 class CliEnvironment(unittest.TestCase):

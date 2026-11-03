@@ -65,8 +65,9 @@ git-ignored; results are released separately, not committed.
    budget and that the objective is not repeatable. It never sees the pool,
    the devices or `pool_random.py`.
 
-5. Plots, with the run ID the runner printed (against the published
-   baselines copied to `results_linux/`; use `--results runs/baselines-100` for your own rerun):
+5. Plots, for a legacy live-session run (the plotting script does not read
+   loop runs yet), against the published baselines copied to `results_linux/`;
+   use `--results runs/baselines-100` for your own rerun:
 
    ```bash
    .agent-venv/bin/python scripts/figures/make_comparison_plots.py \

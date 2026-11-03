@@ -1,18 +1,18 @@
 # Contributor guide
 
 Instructions for people and coding assistants working on this repository.
-The prompt given to the optimization agent in experiments is a different file:
-[prompts/optimization_agent.md](prompts/optimization_agent.md).
+The policy given to the optimization agent is a different file:
+[prompts/advisor.md](prompts/advisor.md).
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
-| `src/agentoptimizer/` | The package: `agent_harness/` (client the agent calls), `blind_runner/` (isolated runner, advisor replay, evaluator, preflight), `optimizers/` (ask/tell wrappers), `tasks/` (objectives and `TASKS` registry), `advisor/` (advisor mode: campaign folders for real experiments), `batch/` (stateless batch proposers from data: space filling, qLogNEI, trust region, CMA-ES, DE) |
-| `scripts/` | `run_agent.py`, `run_campaign.py`, `run_sweep.py`; `run_replay.py` (advisor replay) and `run_batch_baselines.py` (its batch baselines); `agent_runs.py` (launch, wait, status); `opt_run.py` (advisor mode); `figures/` for paper figures; `slurm/` for cluster sweeps |
-| `.claude/skills/` | `/optimize` (launch benchmark runs and report on them) and `/opt-run` (advisor mode: propose the next block of a real campaign) |
-| `examples/` | Advisor-mode example campaigns with simulated labs |
-| `prompts/` | The benchmark agent's prompt (`optimization_agent.md`), the advisor-mode policy (`advisor.md`) and the replay advisor's procedure (`advisor_headless.md`) |
+| `src/agentoptimizer/` | The package: `advisor/` (campaign folders: problem, data, summary, blocks and rounds), `batch/` (stateless batch proposers from data: space filling, qLogNEI, trust region, CMA-ES, DE), `blind_runner/` (the blind loop: headless advisor, sandbox, preflight, private evaluator), `tasks/` (objectives and `TASKS` registry), `optimizers/` (ask/tell wrappers the baselines run) |
+| `scripts/` | `run_agent.py` (one blind campaign), `agent_runs.py` (launch, wait, status), `opt_run.py` (campaign CLI); `run_campaign.py`, `run_sweep.py` and `run_batch_baselines.py` (baselines); `figures/` for paper figures; `slurm/` for cluster sweeps |
+| `.claude/skills/` | `/optimize` (launch blind runs and report on them) and `/opt-run` (propose the next block or round of a real campaign) |
+| `examples/` | Example campaigns with simulated labs |
+| `prompts/` | The advisor policy (`advisor.md`) and the headless advisor's per-block procedure (`advisor_headless.md`) |
 | `data/` | Task inputs (MOF pool, OPV emulator, OPV pool) and the pipelines that produced them |
 | `docs/` | Task catalogue, adding tasks, figure rules, and `plan/` for the manuscript |
 | `tests/` | Unit tests; no model calls, no real objectives |
@@ -35,16 +35,14 @@ conditions, so say why in the commit message.
 
 ## Rules
 
-- **The agent's workspace is an interface.** The runner copies
-  `agent_harness/harness.py` and `optimizers/` into each sandbox as the package
-  `src`. Keep imports inside those modules relative, and keep them free of task
+- **The agent's workspace is an interface.** The runner copies `advisor/` and
+  `batch/` into each sandbox as `lib/agentoptimizer`. Keep imports inside them
+  relative, limited to the `agent` dependency group, and free of task
   identities, so the copies work and reveal nothing.
-- **The agent prompt is an experimental condition.** Changing
-  `prompts/optimization_agent.md` changes what every later run measures; record
-  why in the commit message. `prompts/advisor.md` carries the same block-wise
-  policy into advisor mode; keep the two in step. `prompts/advisor_headless.md`
-  is the replay advisor's per-block procedure and follows the `/opt-run`
-  skill's steps; keep those in step too.
+- **The prompts are an experimental condition.** Changing `prompts/advisor.md`
+  or `prompts/advisor_headless.md` changes what every later run measures;
+  record why in the commit message. `advisor_headless.md` follows the
+  `/opt-run` skill's steps; keep the two in step.
 - **Task identities stay private.** `docs/TASKS.md` and `src/agentoptimizer/tasks/`
   name the functions; nothing from them may reach a sandbox.
 - **No results in git.** Campaign outputs go to `runs/` (ignored) and are

@@ -7,9 +7,8 @@ only the results recorded so far. Each call decides **one block**: its
 method, settings and size. You hand back a Python script that proposes the
 block's points from the data, round by round as results come in.
 
-This policy follows the one used in the benchmark experiments
-(`prompts/optimization_agent.md`), adapted to batches decided from a fresh
-start each time. Keep the two in step when either changes.
+The same policy runs real campaigns and the blind benchmarks: there the
+names are anonymous and a private evaluator plays the lab.
 
 ## 1. What you read
 

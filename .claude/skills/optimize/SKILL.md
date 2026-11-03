@@ -1,7 +1,7 @@
 ---
 name: optimize
 description: Run the optimization agent on a benchmark task in one call. Sets up the environments if needed, launches one isolated campaign per seed in the background (each passes the isolation preflight first), and reports the results when they end. Also lists tasks and reports on runs under runs/. Use when asked to run the agent, start a campaign or experiment on a task, or check on runs.
-argument-hint: "<task> <budget> [seeds 0 1 2] [agent codex|claude] [model …] [effort …] [baselines] | status [run …] | tasks"
+argument-hint: "<task> <budget> [seeds 0 1 2] [agent claude|codex] [model …] [effort …] [block size …] [round size …] [baselines] | status [run …] | tasks"
 allowed-tools: Bash(.venv/bin/python scripts/agent_runs.py:*), Bash(.venv/bin/python scripts/run_sweep.py:*), Bash(uv sync:*), Bash(UV_PROJECT_ENVIRONMENT=.agent-venv uv sync:*), Bash(command -v:*), Bash(codex login status)
 ---
 
@@ -29,16 +29,18 @@ for what a run contains.
 | Task: a key from `agent_runs.py tasks` | `--task` | required |
 | Budget: objective evaluations, not tokens | `--budget` | required |
 | Seeds, one independent campaign each | `--seeds 0 1 2` | `0` |
-| Agent CLI | `--agent codex` or `--agent claude` | `codex` |
-| Model | `--model` | `gpt-6-astra` (codex), `claude-opus-5-5` (claude) |
-| Reasoning effort | `--effort low`…`max` | `max` |
+| Agent CLI | `--agent claude` or `--agent codex` | `claude` |
+| Model | `--model` | `claude-opus-5-5` (claude), `gpt-6-astra` (codex) |
+| Reasoning effort | `--effort low`…`max` | `medium` |
+| Suggested block size, written to `problem.toml` | `--block-size` | `8` |
+| Evaluations per round before results come back | `--round-size` | `1` |
 | Baseline sweep for comparison | none (see step 3) | off |
 
 A launch spends model budget, so ask instead of guessing when the task or the
 budget is missing. If the task is not a registry key, show the closest keys
 and ask. For reference, the paper's settings are the 30-task suite at 2000
-evaluations and the OPV and MOF pools at 100 evaluations with seeds 0 1 2;
-earlier experiments used effort `xhigh`.
+evaluations and the OPV and MOF pools at 100 evaluations with seeds 0 1 2.
+Constrained tasks are not supported yet; say so if one is asked for.
 
 ## 2. Check the setup (no model calls)
 
@@ -51,7 +53,7 @@ earlier experiments used effort `xhigh`.
 
 - `command -v codex` must succeed for every launch: the Codex CLI is the
   per-command sandbox for both agents. With `--agent claude`, `command -v claude`
-  must succeed too. With `--agent codex` (the default), `codex login status`
+  must succeed too. With `--agent codex`, `codex login status`
   must report that it is logged in; otherwise the run passes its preflight and
   then fails with 401 errors and zero evaluations. If a CLI is missing or
   signed out, tell the user to install it or run `codex login` themselves, and
@@ -62,7 +64,7 @@ earlier experiments used effort `xhigh`.
 One call starts every seed:
 
 ```bash
-.venv/bin/python scripts/agent_runs.py launch --task <task> --budget <budget> --seeds <seeds> [--agent …] [--model …] [--effort …]
+.venv/bin/python scripts/agent_runs.py launch --task <task> --budget <budget> --seeds <seeds> [--agent …] [--model …] [--effort …] [--block-size …] [--round-size …]
 ```
 
 It returns once each run has passed its isolation preflight (zero evaluations,
@@ -91,7 +93,7 @@ at any time. End the turn; do not poll.
 
 When the waiter ends, report from its output, per seed: the state, evaluations
 used, best value and gap to the optimum, the sequence of method blocks, the
-integrity audit and, with baselines, how many baselines the agent beat. If the
+advisor's cost, the integrity audit and, with baselines, how many baselines the agent beat. If the
 baseline sweep is still running, say so and suggest `/optimize status <run>`
 later. For a run that did not finish, name its logs.
 
