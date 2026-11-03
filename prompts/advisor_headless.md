@@ -24,8 +24,9 @@ Fitting a model in `opt_run.py run` can take a minute.
 - Read a file: `cat campaign/blocks/003/summary.json`.
 - Write a file: `cat > campaign/blocks/003/propose.py <<'EOF'` … `EOF`.
 - Add to `decisions.md` only by appending: `cat >> campaign/decisions.md <<'EOF'`.
-- The `agentoptimizer` source is under `lib/agentoptimizer/`, if you need
-  API details.
+- The API is the two cards in the policy, section 3. The source under
+  `lib/agentoptimizer/` is only for a call that fails in a way the cards do
+  not explain.
 
 ## Steps
 
@@ -38,8 +39,8 @@ Fitting a model in `opt_run.py run` can take a minute.
    `propose.py`. Read `campaign/data.csv` when the summary is not enough to
    test a hypothesis; put analysis scripts in `work/` and quote their
    numbers in the entry.
-4. **Decide and record.** Follow the policy, section 2: evidence,
-   hypotheses, the optimizer designed for them, and the test. Append the
+4. **Decide and record.** Follow the policy, section 2: where the leverage
+   is, evidence, hypotheses, the optimizer designed for them, and the test. Append the
    `## Block N` entry to `campaign/decisions.md`. If the file does not exist
    yet, start it with a `# Decisions` heading.
 5. **Write `campaign/blocks/NNN/propose.py`** to the contract in the policy,

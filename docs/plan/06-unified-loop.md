@@ -116,6 +116,17 @@ each one. The last round of a block may be smaller, to fit the block.
   numbers or it stays open, each decision names the alternatives it
   rejected, and the prompt no longer shows a tuned trust region as its
   example or the TuRBO schedule in its table (it stays in the docstring).
+- **Effort follows leverage; the API is two cards.** Opus and Sonnet at max
+  effort each spent about 8 minutes of block 1, with no data, engineering a
+  10-point design, and every block began by reading the whole package
+  (about 23k tokens). The policy now asks the agent to judge first what in
+  the scenario can most change the outcome and to spend its analysis
+  there (a `Leverage:` field records where), and section 3 carries two
+  reference cards, the campaign and `agentoptimizer.batch` with signatures
+  and defaults, listing building blocks before ready-made methods in
+  alphabetical order. The source is for calls that fail in ways the cards
+  do not explain. Still open: making the library a condition (full,
+  building blocks only, none) to measure how much it steers method choice.
 
 ## Status (2026-11-03)
 

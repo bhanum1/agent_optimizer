@@ -9,7 +9,8 @@ executor calls it once per round, on the data so far:
     SIZE = 12
 
     def propose(campaign, q):
-        return batch.qlognei(**campaign.inputs(), q=q, seed=100 * campaign.block + campaign.round)
+        seed = 100 * campaign.block + campaign.round
+        return batch.space_filling(**campaign.inputs(), q=q, seed=seed)
 
 The proposers in agentoptimizer.batch take inputs(): the data in the unit
 cube with the objective as a loss (negated when the problem maximizes) and,

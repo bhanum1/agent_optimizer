@@ -41,6 +41,15 @@ left, chosen on the evidence the results give. You are not trying to
 identify the function; you are learning what about its landscape the next
 method should exploit or guard against.
 
+**Spend effort where it has leverage.** First judge what in this scenario
+can most change the outcome: the budget left, the dimension, the noise,
+what the data already shows, what the next block could learn. Put your
+hypotheses, tests and tuning there, and skip analysis whose answer would
+not change the decision. With no results yet there is no landscape to
+test: choose a first design and move on. Do not tune settings whose effect
+is small next to the noise or the budget, and do not reread what the
+cards in section 3 describe.
+
 Each block:
 
 1. **Read the evidence:** what the data shows, with values and
@@ -117,6 +126,8 @@ runs. Never edit or remove earlier entries.
 **Budget:** <used> used, <pending> pending, <remaining> remaining of <total>.
 **Evidence:** <what the data shows, with values and uncertainty; for N > 1,
 what the last block was meant to show and whether it did>
+**Leverage:** <what in this scenario can most change the outcome, and so where
+this block's analysis went>
 **Hypotheses:** <each claim about the landscape: supported, refuted or open,
 the test behind that status with its numbers, and how confident you are>
 **Decision:** <continue, adjust, switch, hybridize, build or restart; the
@@ -135,8 +146,7 @@ no new block.
 **Then `blocks/<NNN>/propose.py`**, which sets the block's `SIZE` and
 defines `propose(campaign, q)`. That function returns the next `q` points
 as a `batch.Proposal`; `opt_run.py run` calls it for each round, with the
-data so far, and writes the proposals. When a proposer from
-`agentoptimizer.batch` suits the design, the script can be one line:
+data so far, and writes the proposals:
 
 ```python
 """Block <N>: <method>, <SIZE> experiments. <one-line reason; full entry in decisions.md>"""
@@ -146,54 +156,63 @@ SIZE = <SIZE>
 
 def propose(campaign, q):
     seed = 100 * campaign.block + campaign.round
-    return batch.<proposer>(**campaign.inputs(), q=q, seed=seed, <settings>)
+    ...  # build the points from the campaign's data
+    return batch.Proposal('<label>', U)
 ```
 
-The proposers rebuild their state from the data on every call and work the
-same for a `[pool]`, where they choose available rows. Each takes `q`,
-`seed` and the settings below, and records every setting it used, defaults
-included; `run` prints them into `propose.log`. Their docstrings, in
-`agentoptimizer/batch/`, give each setting's meaning and default:
+The two cards below are the whole API you need. Read the source under
+`agentoptimizer/` only when a call fails in a way they do not explain; the
+rest of the package is bookkeeping for `opt_run.py`.
 
-| Proposer | Use | Settings |
+### Card 1: `campaign`
+
+Unit-cube points have shape (n, d); a loss is the objective, negated when
+the problem maximizes, so lower is always better. `raw=True` gives the
+user's units and direction instead.
+
+| Call | Returns |
+| --- | --- |
+| `observations(raw=False)` | `(X, y)`: the done rows |
+| `pending(raw=False)`, `failed(raw=False)` | Points proposed but not measured; points that gave no value |
+| `incumbent(raw=False)` | `(x, y)` of the best done row, or `(None, None)` |
+| `inputs()` | Keyword arguments for any `batch` function: `X`, `y`, `pending`, `failed`, `dim`, `candidates` |
+| `dim`, `names`, `bounds`, `remaining`, `block`, `round` | Dimension, parameter names, raw bounds (d, 2), budget left, this block, this round (from 1) |
+| `candidates(raw=False)`, `available()`, `candidate_ids` | Pool only: every row's features, positions not yet done or pending, the ids |
+
+Unit coordinates map back per parameter: linearly, or in log space for
+`log = true`; each whole number of an integer parameter owns an equal slice
+of [0, 1]. Writing clips to the bounds, rounds integers, and rounds other
+values to 6 significant digits.
+
+### Card 2: `agentoptimizer.batch`
+
+**The result.** `Proposal(label, U, indices=None, settings={}, info={},
+labels=None)`: `U` (q, d) in the unit cube; for a pool, `U =
+candidates[positions]` and `indices = positions`, with `candidates =
+campaign.inputs()['candidates']` (the available rows). `labels` gives one
+label per row. `settings` and `info` are printed into `propose.log`.
+
+**Building blocks**, for methods of your own:
+
+| Call | Does |
+| --- | --- |
+| `fit_gp(X, y, seed=0)` | BoTorch `SingleTaskGP` with its defaults (ARD RBF, standardized y) fitted to loss `y`; returns `(model, info)` with `lengthscales`, `noise_share`, `loo_r2`, `n`. BoTorch acquisitions maximize: fit to `-y` to use one |
+| `snap(points, candidates, allowed=None)` | Positions of distinct candidates nearest to each point |
+| `combine(*proposals)` | One round from several proposals; each row keeps its label. Pass earlier parts as `pending` to later ones. With rounds of 1, mix across rounds instead, for example by `campaign.round` |
+
+**Ready-made methods.** Each is `method(X, y, q, *, pending=None,
+failed=None, candidates=None, dim=None, seed=0, **settings)`, called as
+`method(**campaign.inputs(), q=q, seed=seed, ...)`; each rebuilds its state
+from the data, chooses rows in a pool, and records every setting it used.
+
+| Method | Does | Settings (defaults) |
 | --- | --- | --- |
-| `space_filling` | A first design (scrambled Sobol), or points far from everything placed | `n_candidates` |
-| `random` | Uniform points or rows | — |
-| `qlognei` | Batch GP-BO by q-log noisy expected improvement; pending points count as chosen | `bounds` (a sub-box), `failed_as` (`'ignore'` or `'worst'`), `num_restarts`, `raw_samples` |
-| `trust_region` | `qlognei` in a box around the incumbent, scaled by the lengthscales (TuRBO-style) | `length`, `center`, `failed_as` |
-| `cma_es` | One CMA-ES generation centred on the best points | `mu`, `sigma` |
-| `de` | One differential-evolution generation from the best points | `population`, `F`, `CR`, `strategy` (`'rand1'` or `'best1'`) |
-
-To mix methods in one round (say, BO plus a replicate or a probe), give
-each later proposer the earlier parts as pending and join them; each row
-keeps its own method label. With rounds of 1, mix across rounds instead,
-for example by `campaign.round`.
-
-```python
-import numpy as np
-inputs = campaign.inputs()
-main = batch.<proposer>(**inputs, q=q - 1, seed=seed)
-probe = batch.space_filling(**{**inputs, "pending": np.vstack([inputs["pending"], main.X])}, q=1, seed=seed)
-return batch.combine(main, probe)
-```
-
-When none suits the design, write your own method:
-
-- `campaign.observations()` gives the done rows as (X, y): the unit cube,
-  with y as a loss (negated when the problem maximizes). `raw=True` gives
-  the user's units and direction. Also available: `campaign.pending()`,
-  `campaign.failed()`, `campaign.incumbent()`, `campaign.dim`,
-  `campaign.names`, `campaign.bounds` (raw), `campaign.remaining`,
-  `campaign.block` and `campaign.round`.
-- Return `batch.Proposal(label, U)`, with U in the unit cube (`labels=` for
-  one label per row). For a pool, choose positions in
-  `campaign.inputs()['candidates']` (the available rows) and return
-  `batch.Proposal(label, candidates[positions], indices=positions)`.
-- Unit coordinates map back per parameter: linearly, or in log space for
-  `log = true`; each whole number of an integer parameter owns an equal
-  slice of [0, 1]. Writing clips to the bounds, rounds integers, and rounds
-  other values to 6 significant digits.
-- BoTorch acquisition functions maximize; fit models to `-y`.
+| `cma_es` | One CMA-ES generation around the best points | `mu` (max(2, q // 2)), `sigma` (their spread, clipped to [0.01, 0.5]) |
+| `de` | One differential-evolution generation from the best points | `population` (max(q, 4)), `F` (0.8), `CR` (0.9), `strategy` (`'rand1'` or `'best1'`) |
+| `qlognei` | GP-BO by q-log noisy expected improvement; pending points count as chosen | `bounds` (a (2, d) sub-box; whole cube), `failed_as` (`'ignore'` or `'worst'`), `num_restarts` (10), `raw_samples` (512) |
+| `random` | Uniform points or rows | none |
+| `space_filling` | Scrambled Sobol when nothing is placed, else greedy maximin from a Sobol cloud or the pool | `n_candidates` (4096) |
+| `trust_region` | `qlognei` in a box around a centre, stretched along long lengthscales | `length` (0.4, the edge before stretching), `center` (the incumbent), and `qlognei`'s settings but `bounds` |
 
 For every script:
 

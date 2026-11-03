@@ -60,10 +60,11 @@ deciding anything. `scripts/opt_run.py` does all the bookkeeping (run it with
 5. **Read.** Read `prompts/advisor.md`, `problem.toml`,
    `blocks/NNN/summary.json`, `decisions.md` if it exists, the previous
    block's `propose.py`, and `data.csv` when the summary is not enough. Read
-   nothing else about the objective. The `agentoptimizer` source is fine for
-   API details.
-6. **Decide and record.** Follow the policy, section 2: evidence,
-   hypotheses, the optimizer designed for them, and the test. Append the
+   nothing else about the objective. The API is the two cards in the policy,
+   section 3; read the `agentoptimizer` source only when a call fails in a
+   way they do not explain.
+6. **Decide and record.** Follow the policy, section 2: where the leverage
+   is, evidence, hypotheses, the optimizer designed for them, and the test. Append the
    `## Block N` entry to `decisions.md`, creating the file with a
    `# Decisions` heading if needed.
 7. **Write `blocks/NNN/propose.py`** to the contract in the policy, section 3.
@@ -91,8 +92,7 @@ deciding anything. `scripts/opt_run.py` does all the bookkeeping (run it with
   `propose.py`, tested, and records its settings; use one when it suits the
   design, and write your own method when none does.
 
-- Read files with the Read tool, including `summary.json` and library source
-  under `.venv/lib/python3.11/site-packages/`. Bash is for `opt_run.py`.
+- Read files with the Read tool. Bash is for `opt_run.py`.
 - To test a hypothesis or look at a model before committing to it, print
   the analysis from `propose()`: `run` saves its output in
   `blocks/NNN/propose.log`. Revise the script and run it again as needed;
