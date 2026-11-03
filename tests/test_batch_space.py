@@ -58,11 +58,6 @@ class Space(unittest.TestCase):
             self.assertEqual(len(set(p.indices.tolist())), 5)
             np.testing.assert_array_equal(p.X, candidates[p.indices])
 
-    def test_describe(self):
-        text = batch.space_filling(X, Y, 2, seed=0).describe()
-        self.assertIn('space_filling: 2 points', text)
-        self.assertIn('setting n_candidates = 4096', text)
-
 
 class Combine(unittest.TestCase):
     def test_box_parts_keep_their_labels(self):

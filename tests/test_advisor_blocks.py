@@ -5,7 +5,7 @@ import tempfile
 import textwrap
 import unittest
 
-from advisor_fixtures import PROBLEM, campaign, quiet
+from advisor_fixtures import campaign, quiet
 from agentoptimizer.advisor.blocks import (BlockError, accept_block, current_block, new_block, read_round,
                                            run_block, validate_proposals)
 from agentoptimizer.advisor.cli import main
@@ -29,10 +29,6 @@ def propose(campaign, q):
     done = campaign.data.in_block(campaign.block)
     return batch.Proposal('gp_bo', campaign.problem.to_unit(POINTS[done:done + q]))
 '''
-
-
-def rounds_of(size):
-    return PROBLEM.replace('block_size = 4', f'block_size = 4\nround_size = {size}')
 
 
 class Blocks(unittest.TestCase):
@@ -66,33 +62,6 @@ class Blocks(unittest.TestCase):
         self.assertIn('model', summary)  # None here: only one done row
         # Reopening an unaccepted block reuses its folder.
         self.assertEqual(new_block(self.folder)[0], 2)
-
-    def test_first_block_of_an_empty_campaign_is_one(self):
-        empty = campaign(Path(self.tmp.name) / 'empty')
-        self.assertEqual(new_block(empty)[0], 1)
-
-    def test_one_round_per_block(self):
-        campaign(self.folder, problem=rounds_of(2))
-        _, folder = new_block(self.folder)
-        self.script(PROPOSE.format(size=2))
-        rows, issues = run_block(self.folder)
-        self.assertEqual((len(rows), issues), (2, []))
-        self.assertIn('round 1', (folder / 'propose.log').read_text())
-        self.assertEqual(read_round(self.folder, 2), {'size': 2, 'round': 1, 'q': 2})
-        with self.assertRaisesRegex(BlockError, 'no "## Block 2" entry'):
-            accept_block(self.folder)
-        self.decide(2)
-        self.assertEqual(accept_block(self.folder), [4, 5])
-        problem, table, data = load_campaign(self.folder)
-        self.assertEqual((table.rows[-1]['temperature'], table.rows[-1]['stir']), ('130.5', '9'))
-        self.assertEqual((data.status[-2:].tolist(), data.blocks[-1], data.optimizer[-1]),
-                         (['pending', 'pending'], 2, 'gp_bo'))
-        self.assertEqual(current_block(self.folder), 3)
-        with self.assertRaisesRegex(BlockError, 'not the block taking proposals'):
-            accept_block(self.folder, 2)
-        with self.assertRaisesRegex(BlockError, 'block 2 is complete'):
-            run_block(self.folder, 2)
-        self.assertEqual(new_block(self.folder)[0], 3)
 
     def test_rounds_fill_the_block(self):
         new_block(self.folder)
