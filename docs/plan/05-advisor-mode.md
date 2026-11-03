@@ -320,6 +320,31 @@ condition flags, fixed q and no summary, come after the base runner works.
 | 3 | Headless model advisor: `prompts/advisor_headless.md`, CLI commands, per-block logs, tool audit, usage | Command construction; one real replay |
 | 4 | Launch and status through `agent_runs.py`; conditions (fixed q, no summary) | Launch smoke test |
 
+**Status (2026-11-03): slices 1–4 done (`4e1af57`…`8c6c80d`), except the
+condition flags (fixed q, no summary).** The first live replay (sphere10,
+budget 24, Opus 5.5 at max effort) found a runner bug: the sandbox denies
+its TMPDIR (`.tmp/`), so reproduction could not read `propose.py`. It now
+runs in `work/`. That block alone cost $0.97, with 21 turns, 25k output
+tokens and 4.4 minutes; it built a custom low-correlation LHS. The rerun at
+medium effort finished cleanly:
+
+| Block | Decision | Rows | Turns | Cost |
+| --- | --- | --- | --- | --- |
+| 1 | Sobol, one point per dimension | 10 | 6 | $0.07 |
+| 2 | qLogNEI 6 + centre probe | 7 | 11 | $0.19 |
+| 3 | Trust region on the incumbent | 5 | 8 | $0.16 |
+| 4 | Trust region, length halved | 2 | 8 | $0.16 |
+
+24/24 evaluations; every block reproduced in the sandbox; the journal
+matches the data. The advisor chose its own block sizes (10, 7, 5, 2), not
+the preferred 8. A replay block costs well under an `/opt-run` block
+($0.07–0.19 against $0.27–0.46) because the headless call has no Claude
+Code system prompt or built-in tools, only the policy and two MCP tools.
+
+**Open for the experiments: effort.** The benchmark agent runs at max
+effort. Matching it costs about 5× per block (about $1 instead of $0.15–0.20).
+Choose before the C6 runs, and use the same setting for every condition.
+
 ## Decisions made (2026-11-02)
 
 - **Name.** The skill is `/opt-run` for now; the CLI is `scripts/opt_run.py`

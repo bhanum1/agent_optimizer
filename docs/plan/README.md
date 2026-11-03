@@ -40,7 +40,7 @@ that supports it and the figure or table that shows it.
 | Dynamic-selection baselines | | Planned | Confirm method list and fairness rules in 02 |
 | LLM-optimizer comparisons | | Planned | Check code availability for each method in 03 |
 | Reproducibility and release | | Planned | Choose data host and license in 04 |
-| Advisor mode (`/opt-run`) | | Phases 1–3 done; skill works end to end with batch proposers | Replay experiment (phase 4) (05) |
+| Advisor mode (`/opt-run`) | | Phases 1–3 done; replay runner works end to end (phase 4) | Choose replay effort; fixed-q and no-summary flags; first C6 runs on OPV and MOF pools (05) |
 
 ## Open decisions
 
@@ -53,4 +53,4 @@ the relevant document.
 3. Code and data licenses (04).
 4. Data host for results (04).
 5. Final method lists for 02 and 03.
-6. Advisor mode (05): domain context in replay.
+6. Advisor mode (05): domain context in replay; reasoning effort for replay runs.
