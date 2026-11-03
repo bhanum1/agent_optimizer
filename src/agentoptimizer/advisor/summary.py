@@ -55,7 +55,7 @@ def summarize(problem, data):
                     'dim': problem.dim, 'noise': problem.noise},
         'counts': {'done': int(done.sum()), 'pending': int(pending.sum()), 'failed': int(failed.sum())},
         'budget': {'total': total, 'used': used, 'pending': int(pending.sum()),
-                   'remaining': None if total is None else total - used - int(pending.sum())},
+                   'remaining': total - used - int(pending.sum())},
         'incumbent': None, 'top': [], 'blocks': [], 'blocks_since_improvement': None,
         'replicates': None, 'near_duplicate_pairs': 0, 'explored': {},
         'failures': {'count': int(failed.sum()), 'rate': _number(failed.sum() / max(used, 1)),
@@ -158,8 +158,8 @@ def format_summary(summary):
     s, counts, budget = summary['problem'], summary['counts'], summary['budget']
     lines = [f"{s['name']}: {s['direction']} {s['objective']} over {s['dim']} parameters; noise {s['noise']}",
              f"experiments: {counts['done']} done, {counts['pending']} pending, {counts['failed']} failed"
-             + (f"; budget {budget['total']}: {budget['used']} used, {budget['pending']} pending, "
-                f"{budget['remaining']} remaining" if budget['total'] else '')]
+             + f"; budget {budget['total']}: {budget['used']} used, {budget['pending']} pending, "
+             f"{budget['remaining']} remaining"]
     if 'pool' in summary:
         pool = summary['pool']
         lines.append(f"pool: {pool['size']} candidates in {pool['file']}; {pool['tested']} tested, "

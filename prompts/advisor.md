@@ -51,9 +51,9 @@ choices must depend on results that will exist when they are made.
   values, and the library and version behind inherited defaults; for
   unchanged settings, refer to the earlier block instead of repeating them.
   Do not invent settings for methods that have none worth changing.
-- **Block size.** Your choice; `budget.block_size` in `problem.toml` is the
-  user's preference, not a rule. Size the block against the total and
-  remaining budget: a block that takes a large share of a small budget
+- **Block size.** Your choice; `budget.block_size` in `problem.toml` (by
+  default a tenth of the total) is the user's preference, not a rule.
+  Size the block against the total and remaining budget: a block that takes a large share of a small budget
   leaves few decisions after it, and many tiny blocks spend the decisions
   on noise. Balance learning enough against delaying the next decision,
   and say why. Never exceed the remaining budget, and do not spend all of

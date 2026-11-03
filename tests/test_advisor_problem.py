@@ -13,7 +13,7 @@ from agentoptimizer.advisor.problem import TEMPLATE, ProblemError, load_problem,
 
 
 def spec(**changes):
-    data = {'objective': {'name': 'yield', 'direction': 'maximize'},
+    data = {'objective': {'name': 'yield', 'direction': 'maximize'}, 'budget': {'total': 40},
             'parameters': [{'name': 'temperature', 'low': 80, 'high': 200},
                            {'name': 'concentration', 'low': .001, 'high': 1., 'log': True},
                            {'name': 'stir', 'type': 'integer', 'low': 1, 'high': 30}]}
@@ -29,7 +29,9 @@ class Parsing(unittest.TestCase):
 
     def test_defaults(self):
         problem = parse_problem(spec(), default_name='folder')
-        self.assertEqual((problem.name, problem.noise, problem.total_budget), ('folder', 'unknown', None))
+        self.assertEqual((problem.name, problem.noise, problem.block_size, problem.round_size),
+                         ('folder', 'unknown', 4, 1))
+        self.assertEqual(parse_problem(spec(budget={'total': 4})).block_size, 1)
         self.assertEqual(problem.parameters[0].type, 'continuous')
 
     def test_errors_name_the_problem(self):
@@ -46,6 +48,7 @@ class Parsing(unittest.TestCase):
             (spec(parameters=[{'name': 'a', 'low': 0, 'high': 1}, {'name': 'a', 'low': 0, 'high': 1}]), 'unique'),
             (spec(budget={'total': 4, 'block_size': 8}), 'exceeds'),
             (spec(budget={'total': 0}), 'positive integer'),
+            (spec(budget={'block_size': 4}), 'with total'),
             (spec(noise='medium'), 'noise'),
         ]
         for data, message in cases:

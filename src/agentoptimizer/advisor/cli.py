@@ -44,10 +44,8 @@ def init(args):
 
 
 def describe(problem):
-    budget = ', '.join(part for part in [
-        f'{problem.total_budget} experiments' if problem.total_budget else '',
-        f'blocks of {problem.block_size}' if problem.block_size else '',
-        f'rounds of {problem.round_size}'] if part)
+    budget = (f'{problem.total_budget} experiments, blocks of {problem.block_size}, '
+              f'rounds of {problem.round_size}')
     lines = [f'{problem.name}: {problem.direction} {problem.objective}; noise {problem.noise}; budget {budget}']
     if problem.pool is not None:
         lines.append(f'pool: {len(problem.pool)} candidates in {problem.pool.file}')

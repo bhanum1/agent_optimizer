@@ -36,8 +36,8 @@ name = "yield"               # the column in data.csv that holds the result
 direction = "maximize"       # maximize | minimize
 
 [budget]
-total = 40                   # experiments you can afford in all (optional)
-block_size = 8               # experiments you prefer per decision (optional; the advisor chooses)
+total = 40                   # experiments you can afford in all (required)
+block_size = 4               # experiments you prefer per decision (default 10% of total; the advisor chooses)
 round_size = 1               # experiments measured together before results come back (default 1)
 
 # One [[parameters]] table per input you control.
@@ -122,8 +122,8 @@ class Problem:
     objective: str
     direction: str
     parameters: tuple[Parameter, ...]
-    total_budget: int | None = None
-    block_size: int | None = None
+    total_budget: int
+    block_size: int
     round_size: int = 1
     pool: Pool | None = field(default=None, compare=False)
 
@@ -276,13 +276,15 @@ def parse_problem(data, default_name='campaign', folder=None):
     if direction not in DIRECTIONS:
         raise ProblemError(f'[objective] direction must be one of {", ".join(DIRECTIONS)}, not {direction!r}')
 
-    budget = data.get('budget', {})
-    if not isinstance(budget, dict):
-        raise ProblemError('[budget] must be a table')
+    budget = data.get('budget')
+    if not isinstance(budget, dict) or 'total' not in budget:
+        raise ProblemError('[budget] is required, with total: the experiments you can afford in all')
     _keys(budget, ('total', 'block_size', 'round_size'), '[budget]')
-    total = _count(budget['total'], '[budget] total') if 'total' in budget else None
-    block = _count(budget['block_size'], '[budget] block_size') if 'block_size' in budget else None
-    if total and block and block > total:
+    total = _count(budget['total'], '[budget] total')
+    # The suggestion scales with the budget: a tenth of it, at least one.
+    block = _count(budget['block_size'], '[budget] block_size') if 'block_size' in budget \
+        else max(1, round(total / 10))
+    if block > total:
         raise ProblemError(f'[budget] block_size ({block}) exceeds total ({total})')
     round_size = _count(budget['round_size'], '[budget] round_size') if 'round_size' in budget else 1
 
@@ -309,7 +311,7 @@ def parse_problem(data, default_name='campaign', folder=None):
     duplicates = sorted({n for n in names if names.count(n) > 1})
     if duplicates:
         raise ProblemError(f'names must be unique across parameters and the objective: {", ".join(duplicates)}')
-    if pool is not None and total and total > len(pool):
+    if pool is not None and total > len(pool):
         raise ProblemError(f'[budget] total ({total}) exceeds the {len(pool)} candidates in the pool')
     return Problem(name, description.strip(), noise, objective_name, direction, parameters,
                    total, block, round_size, pool)

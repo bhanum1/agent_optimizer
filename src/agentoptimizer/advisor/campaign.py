@@ -85,9 +85,7 @@ class Campaign:
 
     @property
     def remaining(self):
-        """Experiments left in the budget after done, failed and pending ones; None without a total."""
-        if self.problem.total_budget is None:
-            return None
+        """Experiments left in the budget after done, failed and pending ones."""
         return self.problem.total_budget - len(self.data.ids)
 
     def _points(self, status, raw):

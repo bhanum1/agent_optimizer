@@ -97,7 +97,7 @@ def round_points(problem, data, number, size):
     is left of the block and the budget. A first round needs the whole block
     within the budget."""
     done = data.in_block(number)
-    remaining = problem.total_budget - len(data.ids) if problem.total_budget else size
+    remaining = problem.total_budget - len(data.ids)
     if done == 0 and size > remaining:
         raise BlockError(f'SIZE = {size} exceeds the remaining budget of {remaining}')
     if done >= size or remaining < 1:
@@ -214,9 +214,9 @@ def validate_proposals(campaign, number=None):
         elif key in known:
             issues.append(Issue('warning', where, f'repeats id {known[key][0]} (a replicate); fine if intended'))
         seen.setdefault(key, line)
-    remaining = problem.total_budget and problem.total_budget - int(
+    remaining = problem.total_budget - int(
         (data.where('done') | data.where('failed') | data.where('pending')).sum())
-    if problem.total_budget and len(rows) > remaining:
+    if len(rows) > remaining:
         issues.append(Issue('error', 'proposals.csv', f'{len(rows)} proposals exceed the remaining budget of {remaining}'))
     planned = read_round(campaign, number)
     if planned is None:

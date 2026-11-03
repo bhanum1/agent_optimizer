@@ -32,7 +32,7 @@ for what a run contains.
 | Agent CLI | `--agent claude` or `--agent codex` | `claude` |
 | Model | `--model` | `claude-opus-5-5` (claude), `gpt-6-astra` (codex) |
 | Reasoning effort | `--effort low`…`max` | `medium` |
-| Suggested block size, written to `problem.toml` | `--block-size` | `8` |
+| Suggested block size, written to `problem.toml` | `--block-size` | 10% of the budget |
 | Evaluations per round before results come back | `--round-size` | `1` |
 | Baseline sweep for comparison | none (see step 3) | off |
 

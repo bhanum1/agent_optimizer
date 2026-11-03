@@ -115,8 +115,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description='Run one blind campaign: a fresh headless advisor call per block.')
     parser.add_argument('--task', required=True, help='A key of src/agentoptimizer/tasks/registry.py')
     parser.add_argument('--budget', required=True, type=int)
-    parser.add_argument('--block-size', type=int, default=8,
-                        help='Preferred block size written to problem.toml (default 8); the advisor chooses')
+    parser.add_argument('--block-size', type=int,
+                        help='Preferred block size written to problem.toml (default 10%% of the budget); '
+                             'the advisor chooses')
     parser.add_argument('--round-size', type=int, default=1,
                         help='Evaluations per round before results come back (default 1: sequential)')
     parser.add_argument('--seed', type=int, default=0, help='Campaign seed and private observation-noise seed')
@@ -134,6 +135,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if sys.platform not in ('darwin', 'linux'):
         parser.error('The native executor currently supports macOS and Linux only.')
+    if args.block_size is None:
+        args.block_size = max(1, round(args.budget / 10))
     if min(args.budget, args.block_size, args.round_size) < 1 or args.seed < 0 or args.retries < 0 \
             or args.codex is None:
         parser.error('Use a positive budget, block and round size, nonnegative seed and retries, '

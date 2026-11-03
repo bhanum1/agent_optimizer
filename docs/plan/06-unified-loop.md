@@ -49,8 +49,8 @@ All in `problem.toml`; nothing else constrains the agent.
 
 | Setting | Meaning |
 | --- | --- |
-| `[budget] total` | Hard limit on evaluations |
-| `[budget] block_size` | Suggested block size; the agent sizes blocks against the total and remaining budget, and says why |
+| `[budget] total` | Hard limit on evaluations; required |
+| `[budget] block_size` | Suggested block size, default 10% of the total; the agent sizes blocks against the total and remaining budget, and says why |
 | `[budget] round_size` | Points the lab measures before results come back; default 1 (see Rounds) |
 | `view` | What the advisor is given: `summary`, `raw` or `both` |
 

@@ -193,7 +193,7 @@ One blind campaign on a registered task:
 
 ```bash
 .venv/bin/python scripts/run_agent.py --task sphere10 --budget 100
-.venv/bin/python scripts/run_agent.py --task mof_pool --budget 100 --block-size 8 --round-size 1
+.venv/bin/python scripts/run_agent.py --task mof_pool --budget 100 --block-size 10 --round-size 1
 ```
 
 The runner puts an anonymous campaign (`x0`…, minimize `y`) in a sandboxed
@@ -211,8 +211,8 @@ workspace and plays the lab:
    model call, until the block has `SIZE` experiments.
 
 Defaults: `--agent claude` (model `claude-opus-5-5`), `--effort medium`,
-`--block-size 8` (the suggestion written to `problem.toml`; the agent
-chooses), `--round-size 1`. `--agent codex` uses `gpt-6-astra`. Claude Code
+`--block-size` 10% of the budget (the suggestion written to `problem.toml`;
+the agent chooses), `--round-size 1`. `--agent codex` uses `gpt-6-astra`. Claude Code
 runs headless with no built-in tools, settings, memory, CLAUDE.md, skills or
 claude.ai connectors: its only tools are the sandboxed `run_command` and
 `write_stdin` MCP executor.
