@@ -231,6 +231,8 @@ class Loop(unittest.TestCase):
                 replay.advise = scripted(public, make(public))
                 with self.assertRaisesRegex(ReplayError, message):
                     replay.run()
+                self.assertEqual((replay.records[-1]['status'], replay.records[-1]['cost_usd']), ('refused', .5))
+                self.assertIn('refused', (replay.private / 'blocks.csv').read_text())
 
     def test_links_are_not_followed(self):
         replay, public = self.replay(Sphere())

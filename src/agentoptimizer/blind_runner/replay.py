@@ -55,7 +55,12 @@ if __name__ == '__main__':
 
 
 class ReplayError(RuntimeError):
-    """The advisor's output broke a replay rule; the campaign stops here."""
+    """The advisor's output broke a replay rule; the campaign stops here.
+    `usage` is that call's usage, when the call itself broke the rule."""
+
+    def __init__(self, message, usage=None):
+        super().__init__(message)
+        self.usage = usage or {}
 
 
 def install_advisor(workspace):
@@ -147,6 +152,7 @@ class Replay:
         self.evaluator, self.advise, self.sandbox = evaluator, advise, sandbox
         self.python, self.retries, self.campaign = python, retries, campaign
         self.problem = load_problem(self.truth)
+        self.records = []
 
     # Files in the workspace. The advisor could have replaced any of them with
     # a link, so the runner never follows one and caps what it reads.
@@ -184,11 +190,21 @@ class Replay:
 
     def run(self):
         """Advise, check and evaluate blocks until the budget is used or a block fails."""
-        records = []
+        records = self.records = []
         while self.remaining() > 0:
             number = open_block_number(load_campaign(self.truth)[2])
-            records.append(self.block(number))
-            self.write_records(records)
+            records.append({'block': number, 'attempts': 0, 'status': 'no proposals', 'rows': 0,
+                            'methods': '', 'propose_sha256': '', **dict.fromkeys(USAGE, 0)})
+            try:
+                self.block(records[-1])
+            except ReplayError as exc:
+                # The block's calls were made and paid for; keep their record.
+                records[-1]['status'] = 'refused'
+                for key in USAGE:
+                    records[-1][key] += exc.usage.get(key, 0)
+                raise
+            finally:
+                self.write_records(records)
             if records[-1]['status'] != 'evaluated':
                 break
         return records
@@ -198,10 +214,10 @@ class Replay:
             if (self.truth / name).exists():
                 self.write_public(self.public / name, (self.truth / name).read_text())
 
-    def block(self, number):
+    def block(self, record):
+        """Advise, check, reproduce and evaluate one block, filling in its record."""
+        number = record['block']
         logs = self.private / 'blocks' / f'{number:03d}'
-        record = {'block': number, 'attempts': 0, 'status': 'no proposals', 'rows': 0, 'methods': '',
-                  'propose_sha256': '', **dict.fromkeys(USAGE, 0)}
         rows = []
         for attempt in range(1 + self.retries):
             self.publish()
@@ -213,14 +229,13 @@ class Replay:
             if rows:
                 break
         if not rows:
-            return record
+            return
         script = self.reproduce(number, rows, decisions, logs)
         values = self.evaluate(number, rows, decisions)
         self.commit(rows, values, decisions)
         record.update(status='evaluated', rows=len(rows),
                       methods=' + '.join(dict.fromkeys(row['optimizer'] for row in rows)),
                       propose_sha256=hashlib.sha256(script.encode()).hexdigest())
-        return record
 
     def collect(self, number):
         """The block's new pending rows and decisions.md, checked against the truth."""
@@ -269,7 +284,8 @@ class Replay:
         logs.mkdir(parents=True, exist_ok=True)
         for name, text in files.items():
             (logs / name).write_text(text)
-        verify = self.workspace / '.tmp/verify'
+        # The sandbox denies its TMPDIR (.tmp/) to commands; work/ is readable and writable.
+        verify = self.workspace / 'work/.replay-verify'
         shutil.rmtree(verify, ignore_errors=True)
         folder = block_folder(verify / 'campaign', number)
         folder.mkdir(parents=True)
@@ -280,7 +296,7 @@ class Replay:
         for name, text in files.items():
             if name not in OUTPUTS:
                 (folder / name).write_text(text)
-        result = self.sandbox(f'{self.python} -I opt_run.py run .tmp/verify/campaign '
+        result = self.sandbox(f'{self.python} -I opt_run.py run work/.replay-verify/campaign '
                               f'--block {number} --no-verify')
         (logs / 'reproduce.log').write_text(result.stdout + result.stderr)
         output = self.read_public(folder / 'proposals.csv', LIMITS['data.csv'])
@@ -372,9 +388,10 @@ def cli_advisor(args, workspace, private, policy):
         launch(args, workspace, private, policy, prompt, system, logs)
         events = events_of(logs)
         tools = tool_calls(events)
+        usage = {**usage_of(events), 'tool_calls': len(tools), 'seconds': round(time.monotonic() - start, 1)}
         if not only_workspace_tools(tools, args.agent):
-            raise ReplayError(f'block {block}: the advisor used a tool outside the sandbox; see {logs}')
-        return {**usage_of(events), 'tool_calls': len(tools), 'seconds': round(time.monotonic() - start, 1)}
+            raise ReplayError(f'block {block}: the advisor used a tool outside the sandbox; see {logs}', usage)
+        return usage
     return advise
 
 
@@ -464,19 +481,19 @@ def main(argv=None):
         'retries': args.retries,
         **provenance(args, task, runtime, workspace, ['blind_runner', 'tasks', 'advisor', 'batch'])})
     print('Run directory: ' + str(root), flush=True)
-    records, error = [], ''
+    error = ''
     try:
         report = check(policy, forbidden_paths(task, root, private), private, REPLAY_PROBE)
         print(f"Isolation passed: {len(report['checks'])} checks, 0/{args.budget} evaluations.", flush=True)
         if not args.check_only:
             try:
-                records = replay.run()
+                replay.run()
             except ReplayError as exc:
                 error = str(exc)
                 print('Replay stopped: ' + error, flush=True)
     finally:
         if sys.exc_info()[0] is None:
-            report = audit(evaluator, replay, records, error, args.check_only)
+            report = audit(evaluator, replay, replay.records, error, args.check_only)
             (private / 'scored_trace.csv').write_text(evaluator.scored_trace('run'))
         evaluator.db.close()
     print(f"Finished: {report['evaluations_used']}/{args.budget} evaluations in {report['blocks']} blocks"
