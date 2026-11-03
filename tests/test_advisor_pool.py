@@ -1,4 +1,5 @@
 """Candidate pools: experiments are chosen from candidates.csv by candidate_id."""
+import json
 from pathlib import Path
 import re
 import tempfile
@@ -6,6 +7,7 @@ import textwrap
 import unittest
 
 from advisor_fixtures import quiet
+from agentoptimizer import batch
 from agentoptimizer.advisor import Campaign, ProblemError
 from agentoptimizer.advisor.blocks import accept_block, new_block, run_block, validate_proposals
 from agentoptimizer.advisor.data import check_table, load_campaign, read_table
@@ -53,13 +55,12 @@ def make(folder, problem=PROBLEM, candidates=None):
 
 
 PROPOSE = '''
-from agentoptimizer.advisor import Campaign
-from agentoptimizer.optimizers.pool_gp_bo import GPBO
-campaign = Campaign.load(__file__)
-X, y = campaign.observations(raw=True)
-gp = GPBO(campaign.bounds, seed=5, candidates=campaign.candidates(raw=True), direction='max')
-gp.tell(X, y)
-campaign.write_candidates([gp.ask_pool(campaign.available())], label='pool_gp_bo')
+from agentoptimizer import batch
+
+SIZE = 1
+
+def propose(campaign, q):
+    return batch.qlognei(**campaign.inputs(), q=q, seed=5)
 '''
 
 
@@ -133,21 +134,26 @@ class Pools(unittest.TestCase):
     def test_proposal_checks(self):
         import_rows(self.folder, self.results('candidate_id,score\nC001,1\n'))
         (self.folder / 'blocks/001').mkdir(parents=True)
+
+        def propose(text):
+            (self.folder / 'blocks/001/proposals.csv').write_text(text)
+            (self.folder / 'blocks/001/round.json').write_text(
+                json.dumps({'size': 5, 'round': 1, 'q': len(text.splitlines()) - 1}))
         cases = [
-            ('candidate_id\nZ999\n', "'Z999' is not in candidates.csv"),
-            ('candidate_id\nC002\nC002\n', 'repeats line 2'),
-            ('candidate_id,x1\nC002,9\n', 'x1: 9 differs from candidates.csv'),
-            ('x1,x2,x3\n1,1,7\n', 'missing column(s) candidate_id'),
+            ('candidate_id,optimizer\nZ999,m\n', "'Z999' is not in candidates.csv"),
+            ('candidate_id,optimizer\nC002,m\nC002,m\n', 'repeats line 2'),
+            ('candidate_id,x1,optimizer\nC002,9,m\n', 'x1: 9 differs from candidates.csv'),
+            ('x1,x2,x3,optimizer\n1,1,7,m\n', 'missing column(s) candidate_id'),
         ]
         for text, expected in cases:
             with self.subTest(expected=expected):
-                (self.folder / 'blocks/001/proposals.csv').write_text(text)
+                propose(text)
                 _, issues = validate_proposals(self.folder)
                 self.assertTrue(any(expected in str(i) and i.level == 'error' for i in issues), issues)
         # Same features as C000 but a different candidate: not a repeat.
-        (self.folder / 'blocks/001/proposals.csv').write_text('candidate_id\nC000\nC028\n')
+        propose('candidate_id,optimizer\nC000,m\nC028,m\n')
         self.assertEqual(validate_proposals(self.folder)[1], [])
-        (self.folder / 'blocks/001/proposals.csv').write_text('candidate_id\nC001\n')
+        propose('candidate_id,optimizer\nC001,m\n')
         self.assertIn('repeats id 1 (a replicate)', str(validate_proposals(self.folder)[1][0]))
 
     def test_campaign_api_modes(self):
@@ -155,12 +161,15 @@ class Pools(unittest.TestCase):
         (self.folder / 'blocks/001').mkdir(parents=True)
         c = Campaign.load(self.folder / 'blocks/001')
         self.assertEqual((len(c.candidate_ids), len(c.available()), c.candidates().shape), (30, 29, (30, 3)))
-        with self.assertRaisesRegex(ProblemError, 'write_candidates'):
-            c.write_proposals([[0, 0, 0]], label='x')
         stack, _ = quiet()
         with stack:
-            c.write_candidates([0, 5], label='pick')
+            with self.assertRaisesRegex(ProblemError, 'pass candidates'):
+                c.write(batch.Proposal('x', [[0, 0, 0]]))
+            c.write(batch.Proposal('pick', c.candidates()[c.available()][[0, 5]], indices=[0, 5]))
+        (self.folder / 'blocks/001/round.json').write_text(json.dumps({'size': 2, 'round': 1, 'q': 2}))
         self.assertEqual(validate_proposals(self.folder)[1], [])
+        self.assertEqual([r.split(',')[0] for r in
+                          (self.folder / 'blocks/001/proposals.csv').read_text().splitlines()[1:]], ['C000', 'C006'])
         box = Path(self.tmp.name) / 'box'
         box.mkdir()
         (box / 'problem.toml').write_text(PROBLEM.replace('[pool]\nfile = "candidates.csv"\n', '')

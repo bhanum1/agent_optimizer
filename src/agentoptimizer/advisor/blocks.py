@@ -1,10 +1,13 @@
-"""Block folders: blocks/NNN/, one per proposed block.
+"""Block folders: blocks/NNN/, one per decided block.
 
 new_block() opens the next block and saves the summary its decision is based
-on. The advisor writes propose.py there; run_block() runs it and
-validate_proposals() checks the proposals.csv it wrote. accept_block() adds
-the proposals to data.csv as pending rows, once decisions.md records the
-decision for that block.
+on. The advisor writes propose.py there: the block's SIZE and a function
+propose(campaign, q) that returns the next q points as a batch.Proposal. The
+lab measures [budget] round_size points at a time, so a block runs in rounds:
+run_block() calls propose() for the next round and writes proposals.csv and
+round.json, validate_proposals() checks them, and accept_block() adds them to
+data.csv as pending rows, once decisions.md records the block's decision.
+Later rounds repeat run and accept on the data so far, with no new decision.
 """
 from __future__ import annotations
 
@@ -14,8 +17,11 @@ import json
 from pathlib import Path
 import platform
 import re
+import runpy
 import subprocess
 import sys
+
+from .campaign import Campaign
 
 from .data import Issue, check_candidate, check_point, check_table, format_number, load_campaign, write_table
 from .summary import model_diagnostics, summarize
@@ -24,11 +30,13 @@ from .summary import model_diagnostics, summarize
 ENVIRONMENT = ('numpy', 'scipy', 'torch', 'botorch', 'gpytorch', 'cma', 'Py-BOBYQA', 'agentoptimizer')
 # Columns a proposals.csv may have besides the parameters.
 PROPOSAL_EXTRAS = ('optimizer', 'notes')
+# Files run_block() writes into the block folder.
+OUTPUTS = ('proposals.csv', 'round.json', 'propose.log')
 # propose.py imports the agentoptimizer that runs this code, also when that is
 # a copy outside any environment (replay puts one in the sandbox).
 LIBRARY = str(Path(__file__).resolve().parents[2])
-BOOTSTRAP = ("import runpy, sys; sys.path.insert(0, sys.argv.pop(1)); sys.argv[0] = 'propose.py'; "
-             "runpy.run_path('propose.py', run_name='__main__')")
+BOOTSTRAP = ("import sys; sys.path.insert(0, sys.argv.pop(1)); "
+             "from agentoptimizer.advisor.blocks import propose_round; propose_round()")
 
 
 class BlockError(ValueError):
@@ -39,15 +47,28 @@ def block_folder(campaign, number):
     return Path(campaign) / 'blocks' / f'{number:03d}'
 
 
-def open_block_number(data):
-    """The block after the last one in data.csv: the block being prepared."""
-    return int(data.blocks.max()) + 1 if len(data.blocks) else 1
+def block_size(campaign, number):
+    """The block's SIZE, as its last run recorded it; None before the first run."""
+    planned = read_round(campaign, number)
+    return planned['size'] if planned else None
+
+
+def current_block(campaign, data=None):
+    """The block taking proposals: the last one in data.csv while it has rounds
+    left, else the next one."""
+    data = data if data is not None else load_campaign(campaign)[2]
+    last = int(data.blocks.max()) if len(data.blocks) else 0
+    size = block_size(campaign, last) if last else None
+    return last if size and data.in_block(last) < size else last + 1
 
 
 def new_block(campaign):
     """Open the next block (or reopen it, if it was never accepted) and save its summary."""
     problem, _, data = load_campaign(campaign)
-    number = open_block_number(data)
+    number = current_block(campaign, data)
+    if data.in_block(number):
+        raise BlockError(f'block {number} still has rounds to run ({data.in_block(number)} of '
+                         f'{block_size(campaign, number)} experiments so far); continue it with run and accept')
     folder = block_folder(campaign, number)
     folder.mkdir(parents=True, exist_ok=True)
     summary = {'block': number, **summarize(problem, data),
@@ -68,14 +89,46 @@ def environment():
 
 
 def _number(campaign, number):
-    if number is not None:
-        return number
-    return open_block_number(load_campaign(campaign)[2])
+    return number if number is not None else current_block(campaign)
+
+
+def round_points(problem, data, number, size):
+    """How many points the block's next round has: the round size, cut to what
+    is left of the block and the budget. A first round needs the whole block
+    within the budget."""
+    done = data.in_block(number)
+    remaining = problem.total_budget - len(data.ids) if problem.total_budget else size
+    if done == 0 and size > remaining:
+        raise BlockError(f'SIZE = {size} exceeds the remaining budget of {remaining}')
+    if done >= size or remaining < 1:
+        raise BlockError(f'block {number} is complete ({done} of {size}, {remaining} left in the budget); '
+                         'open the next with new-block')
+    return min(problem.round_size, size - done, remaining)
+
+
+def propose_round():
+    """Run from the block folder, in a fresh interpreter: propose the next round
+    with propose.py and write proposals.csv and round.json."""
+    from ..batch import Proposal  # imports torch: only where a script runs
+    script = runpy.run_path('propose.py', run_name='propose')
+    size, propose = script.get('SIZE'), script.get('propose')
+    if isinstance(size, bool) or not isinstance(size, int) or size < 1:
+        raise BlockError(f'propose.py must set SIZE, the block size, to a positive integer, not {size!r}')
+    if not callable(propose):
+        raise BlockError('propose.py must define propose(campaign, q)')
+    campaign = Campaign.load('propose.py')
+    q = round_points(campaign.problem, campaign.data, campaign.block, size)
+    proposal = propose(campaign, q)
+    if not isinstance(proposal, Proposal) or len(proposal.X) != q:
+        raise BlockError(f'propose(campaign, {q}) must return a batch.Proposal of {q} points, not {proposal!r}')
+    campaign.write(proposal)
+    Path('round.json').write_text(json.dumps({'size': size, 'round': campaign.round, 'q': q}) + '\n')
 
 
 def _execute(folder, timeout):
-    # A stale file must not pass for this run's output.
-    (folder / 'proposals.csv').unlink(missing_ok=True)
+    # Stale files must not pass for this run's output.
+    for name in ['proposals.csv', 'round.json']:
+        (folder / name).unlink(missing_ok=True)
     try:
         result = subprocess.run([sys.executable, '-I', '-c', BOOTSTRAP, LIBRARY], cwd=folder,
                                 capture_output=True, text=True, timeout=timeout)
@@ -90,7 +143,7 @@ def _execute(folder, timeout):
 
 
 def run_block(campaign, number=None, timeout=600, verify=True):
-    """Run the block's propose.py with this interpreter, then validate its proposals.
+    """Propose the block's next round with this interpreter, then validate it.
     With verify, run it twice: a script whose proposals differ between runs
     cannot be reproduced later, so it is an error."""
     number = _number(campaign, number)
@@ -124,7 +177,7 @@ def validate_proposals(campaign, number=None):
             if row.get('candidate_id') in positions:
                 for name, value in zip(problem.names, pool.X[positions[row['candidate_id']]]):
                     row.setdefault(name, repr(float(value)))
-    required = ['candidate_id'] if pool is not None else problem.names
+    required = [*(['candidate_id'] if pool is not None else problem.names), 'optimizer']
     extras = [*PROPOSAL_EXTRAS, *(problem.names if pool is not None else []), 'candidate_id']
     missing = [name for name in required if name not in columns]
     unknown = [c for c in columns if c not in problem.names and c not in extras]
@@ -149,7 +202,7 @@ def validate_proposals(campaign, number=None):
         point, problems = check_point(problem, row)
         problems += check_candidate(problem, row, point)
         issues += [Issue('error', f'{where}, {column}', message) for column, message in problems]
-        if 'optimizer' in columns and not row['optimizer']:
+        if not row['optimizer']:
             issues.append(Issue('error', f'{where}, optimizer', 'is empty'))
         if problems:
             continue
@@ -165,7 +218,20 @@ def validate_proposals(campaign, number=None):
         (data.where('done') | data.where('failed') | data.where('pending')).sum())
     if problem.total_budget and len(rows) > remaining:
         issues.append(Issue('error', 'proposals.csv', f'{len(rows)} proposals exceed the remaining budget of {remaining}'))
+    planned = read_round(campaign, number)
+    if planned is None:
+        issues.append(Issue('error', 'round.json', 'not found; run propose.py with opt_run.py run'))
+    elif len(rows) != planned['q']:
+        issues.append(Issue('error', 'proposals.csv', f'has {len(rows)} rows; this round has {planned["q"]}'))
+    elif data.in_block(number) + len(rows) > planned['size']:
+        issues.append(Issue('error', 'proposals.csv', f'would take block {number} past its SIZE of {planned["size"]}'))
     return rows, sorted(issues, key=lambda issue: issue.level != 'error')
+
+
+def read_round(campaign, number):
+    """What the block's last run proposed: {'size', 'round', 'q'}, or None."""
+    path = block_folder(campaign, number) / 'round.json'
+    return json.loads(path.read_text()) if path.exists() else None
 
 
 def has_decision(campaign, number):
@@ -173,12 +239,12 @@ def has_decision(campaign, number):
     return path.exists() and re.search(rf'^##\s+Block\s+0*{number}\b', path.read_text(), re.M) is not None
 
 
-def accept_block(campaign, number=None, optimizer=None):
-    """Append the block's proposals to data.csv as pending rows; returns their ids."""
+def accept_block(campaign, number=None):
+    """Append the round's proposals to data.csv as pending rows; returns their ids."""
     problem, table, data = load_campaign(campaign)
     number = _number(campaign, number)
-    if (data.blocks == number).any():
-        raise BlockError(f'block {number} is already in data.csv')
+    if number != current_block(campaign, data):
+        raise BlockError(f'block {number} is not the block taking proposals ({current_block(campaign, data)})')
     if not has_decision(campaign, number):
         raise BlockError(f'decisions.md has no "## Block {number}" entry; '
                          'record the decision before accepting its proposals')
@@ -186,13 +252,11 @@ def accept_block(campaign, number=None, optimizer=None):
     errors = [issue for issue in issues if issue.level == 'error']
     if errors:
         raise BlockError('proposals are not valid:\n' + '\n'.join(map(str, errors)))
-    if not optimizer and not all(row.get('optimizer') for row in rows):
-        raise BlockError('proposals.csv has no optimizer column; pass the method label')
     first = int(data.ids.max()) + 1 if len(data.ids) else 1
     for i, row in enumerate(rows):
         table.rows.append({
             'id': str(first + i), 'block': str(number), 'status': 'pending', 'source': 'advisor',
-            'optimizer': row.get('optimizer') or optimizer,
+            'optimizer': row['optimizer'],
             **({'candidate_id': row['candidate_id']} if problem.pool is not None else {}),
             **{p.name: format_number(p, float(row[p.name])) for p in problem.parameters},
             problem.objective: '', 'notes': row.get('notes', '')})

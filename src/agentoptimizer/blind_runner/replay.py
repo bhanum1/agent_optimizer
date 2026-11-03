@@ -1,9 +1,12 @@
 """Advisor replay: run advisor mode as a blind benchmark campaign.
 
 The runner plays the lab. Each block, a fresh advisor call in the sandbox
-proposes the next block in workspace/campaign/ exactly as /opt-run does; the
-runner checks it, reproduces it, evaluates it privately and records the
-results. See docs/plan/05-advisor-mode.md, "Phase 4 design".
+decides the next block in workspace/campaign/ exactly as /opt-run does and
+accepts its first round; the runner checks it, reproduces it, evaluates it
+privately and records the results. It then proposes the block's later rounds
+itself, by running the block's propose.py in the sandbox on the data so far,
+until the block is full. See docs/plan/05-advisor-mode.md, "Phase 4 design",
+and docs/plan/06-unified-loop.md for rounds.
 
 private/campaign/ holds the truth: problem.toml, candidates.csv, data.csv and
 decisions.md as of the last evaluated block. The workspace copy is rewritten
@@ -24,7 +27,7 @@ import sys
 import time
 import uuid
 
-from ..advisor.blocks import block_folder, has_decision, open_block_number
+from ..advisor.blocks import OUTPUTS, block_folder, current_block, has_decision
 from ..advisor.data import DataError, Table, format_number, load_campaign, read_table, standard_columns, write_table
 from ..advisor.problem import ProblemError, load_problem
 from .evaluator import Evaluator
@@ -40,8 +43,6 @@ USAGE = ('turns', 'tool_calls', 'seconds', 'cost_usd',
          'input_tokens', 'cache_write_tokens', 'cache_read_tokens', 'output_tokens')
 # Files of a public campaign the runner reads back, and their size limits.
 LIMITS = {'data.csv': 20_000_000, 'decisions.md': 1_000_000, 'block file': 1_000_000}
-# Block files that are outputs of propose.py, not inputs to reproducing it.
-OUTPUTS = ('proposals.csv', 'propose.log')
 OPT_RUN = '''"""Advisor mode: manage the campaign folder. See --help."""
 from pathlib import Path
 import sys
@@ -75,12 +76,12 @@ def install_advisor(workspace):
     (workspace / 'opt_run.py').write_text(OPT_RUN)
 
 
-def problem_toml(task, budget, block_size, seed):
+def problem_toml(task, budget, block_size, round_size, seed):
     """An anonymous campaign for the task: x0..x{d-1}, minimize y."""
     indexed = getattr(task, 'indexed_pool', False)
     notes = ['An anonymous black-box objective. The names x0, x1, ... carry no meaning, and nothing '
-             'is known about the function beyond the results in data.csv. Each block is evaluated '
-             'in full before the next decision.']
+             'is known about the function beyond the results in data.csv. Results come back after '
+             'every round; the next decision comes when the block is complete.']
     if task.noisy:
         notes.append('Observations are noisy. The campaign is scored by the noise-free value at the '
                      'point with the lowest observed y.')
@@ -95,7 +96,7 @@ def problem_toml(task, budget, block_size, seed):
     noise = 'unknown' if task.noisy or (task.pool and not indexed) else 'none'
     lines = ['name = "replay"', 'description = """', *notes, '"""', f'noise = "{noise}"', '',
              '[objective]', 'name = "y"', 'direction = "minimize"', '',
-             '[budget]', f'total = {budget}', f'block_size = {block_size}']
+             '[budget]', f'total = {budget}', f'block_size = {block_size}', f'round_size = {round_size}']
     if indexed:
         lines += ['', '[pool]', 'file = "candidates.csv"']
     for i, (low, high) in enumerate(task.bounds):
@@ -115,7 +116,7 @@ def candidates_csv(task):
     return output.getvalue()
 
 
-def build_campaign(root, task, budget, block_size, seed):
+def build_campaign(root, task, budget, block_size, round_size, seed):
     """workspace/ and private/ for a replay, with the empty campaign in both."""
     if task.n_constraints:
         raise ValueError('Replay does not support constrained tasks yet (phase 5).')
@@ -125,7 +126,7 @@ def build_campaign(root, task, budget, block_size, seed):
         folder.mkdir(parents=True, exist_ok=True)
     install_advisor(workspace)
     truth = private / 'campaign'
-    (truth / 'problem.toml').write_text(problem_toml(task, budget, block_size, seed))
+    (truth / 'problem.toml').write_text(problem_toml(task, budget, block_size, round_size, seed))
     if getattr(task, 'indexed_pool', False):
         (truth / 'candidates.csv').write_text(candidates_csv(task))
     write_table(truth, Table(standard_columns(load_problem(truth))))
@@ -192,9 +193,9 @@ class Replay:
         """Advise, check and evaluate blocks until the budget is used or a block fails."""
         records = self.records = []
         while self.remaining() > 0:
-            number = open_block_number(load_campaign(self.truth)[2])
-            records.append({'block': number, 'attempts': 0, 'status': 'no proposals', 'rows': 0,
-                            'methods': '', 'propose_sha256': '', **dict.fromkeys(USAGE, 0)})
+            number = current_block(self.truth)
+            records.append({'block': number, 'attempts': 0, 'status': 'no proposals', 'size': 0, 'rounds': 0,
+                            'rows': 0, 'methods': '', 'propose_sha256': '', **dict.fromkeys(USAGE, 0)})
             try:
                 self.block(records[-1])
             except ReplayError as exc:
@@ -215,7 +216,7 @@ class Replay:
                 self.write_public(self.public / name, (self.truth / name).read_text())
 
     def block(self, record):
-        """Advise, check, reproduce and evaluate one block, filling in its record."""
+        """Advise, check, reproduce and evaluate one block, round by round, filling in its record."""
         number = record['block']
         logs = self.private / 'blocks' / f'{number:03d}'
         rows = []
@@ -230,47 +231,57 @@ class Replay:
                 break
         if not rows:
             return
-        script = self.reproduce(number, rows, decisions, logs)
-        values = self.evaluate(number, rows, decisions)
-        self.commit(rows, values, decisions)
-        record.update(status='evaluated', rows=len(rows),
-                      methods=' + '.join(dict.fromkeys(row['optimizer'] for row in rows)),
-                      propose_sha256=hashlib.sha256(script.encode()).hexdigest())
+        files = self.block_files(number, logs)
+        size = self.reproduce(number, files, rows, decisions, logs)
+        methods = []
+        while rows:
+            self.commit(rows, self.evaluate(number, rows, decisions if not record['rounds'] else None), decisions)
+            record['rounds'] += 1
+            methods += [row['optimizer'] for row in rows]
+            done = load_campaign(self.truth)[2].in_block(number)
+            rows = self.next_round(number, files, decisions, size, logs) if done < size and self.remaining() else []
+        record.update(status='evaluated', size=size, rows=len(methods), methods=' + '.join(dict.fromkeys(methods)),
+                      propose_sha256=hashlib.sha256(files['propose.py'].encode()).hexdigest())
 
     def collect(self, number):
-        """The block's new pending rows and decisions.md, checked against the truth."""
-        inbox = self.private / 'inbox'
-        shutil.rmtree(inbox, ignore_errors=True)
-        shutil.copytree(self.truth, inbox)
-        text = self.read_public(self.public / 'data.csv', LIMITS['data.csv'])
-        if text is None:
-            raise ReplayError('campaign/data.csv was removed')
-        (inbox / 'data.csv').write_text(text)
-        try:
-            _, table, _ = load_campaign(inbox)
-        except (DataError, ProblemError) as exc:
-            raise ReplayError(f'campaign/data.csv is not valid: {exc}') from None
-        truth = read_table(self.truth, self.problem)
-        if table.columns != truth.columns or table.rows[:len(truth.rows)] != truth.rows:
-            raise ReplayError('campaign/data.csv changed rows or columns that were already recorded')
-        rows = table.rows[len(truth.rows):]
-        for row in rows:
-            if (row['status'], row['block'], row['source']) != ('pending', str(number), 'advisor'):
-                raise ReplayError(f'campaign/data.csv row {row["id"]} is not a pending advisor row of block '
-                                  f'{number}; only accepted proposals may be added')
-        if len(rows) > self.remaining():
-            raise ReplayError(f'block {number} has {len(rows)} rows, over the remaining budget')
+        """The block's first round as the advisor accepted it, and decisions.md, checked against the truth."""
         decisions = self.read_public(self.public / 'decisions.md', LIMITS['decisions.md']) or ''
         if not decisions.startswith((self.truth / 'decisions.md').read_text()):
             raise ReplayError('decisions.md changed earlier entries; it is append-only')
-        (inbox / 'decisions.md').write_text(decisions)
-        if rows and not has_decision(inbox, number):
+        rows = self.new_rows(self.public / 'data.csv', number, decisions)
+        if rows and not has_decision(self.private / 'inbox', number):
             raise ReplayError(f'decisions.md has no entry for block {number}')
         return rows, decisions
 
-    def reproduce(self, number, rows, decisions, logs):
-        """Rerun the block's propose.py in the sandbox on the data the block saw;
-        its proposals must be the rows accepted. Returns the script."""
+    def new_rows(self, path, number, decisions):
+        """Rows a data.csv in the workspace adds to the truth: only pending advisor rows of
+        the block, within the budget; every recorded row and column unchanged."""
+        inbox = self.private / 'inbox'
+        shutil.rmtree(inbox, ignore_errors=True)
+        shutil.copytree(self.truth, inbox)
+        text = self.read_public(path, LIMITS['data.csv'])
+        if text is None:
+            raise ReplayError(f'{path.relative_to(self.workspace)} was removed')
+        (inbox / 'data.csv').write_text(text)
+        (inbox / 'decisions.md').write_text(decisions)
+        try:
+            _, table, _ = load_campaign(inbox)
+        except (DataError, ProblemError) as exc:
+            raise ReplayError(f'{path.relative_to(self.workspace)} is not valid: {exc}') from None
+        truth = read_table(self.truth, self.problem)
+        if table.columns != truth.columns or table.rows[:len(truth.rows)] != truth.rows:
+            raise ReplayError(f'{path.relative_to(self.workspace)} changed rows or columns that were already recorded')
+        rows = table.rows[len(truth.rows):]
+        for row in rows:
+            if (row['status'], row['block'], row['source']) != ('pending', str(number), 'advisor'):
+                raise ReplayError(f'{path.relative_to(self.workspace)} row {row["id"]} is not a pending advisor row '
+                                  f'of block {number}; only accepted proposals may be added')
+        if len(rows) > self.remaining():
+            raise ReplayError(f'block {number} has {len(rows)} rows, over the remaining budget')
+        return rows
+
+    def block_files(self, number, logs):
+        """The block folder's inputs as the advisor left them, kept for every round."""
         source = block_folder(self.public, number)
         self._check_path(source)
         if not source.is_dir():
@@ -284,7 +295,11 @@ class Replay:
         logs.mkdir(parents=True, exist_ok=True)
         for name, text in files.items():
             (logs / name).write_text(text)
-        # The sandbox denies its TMPDIR (.tmp/) to commands; work/ is readable and writable.
+        return {name: text for name, text in files.items() if name not in OUTPUTS}
+
+    def stage(self, number, files, decisions):
+        """A copy of the truth campaign in work/ with the block's files, for the sandbox.
+        The sandbox denies its TMPDIR (.tmp/) to commands; work/ is readable and writable."""
         verify = self.workspace / 'work/.replay-verify'
         shutil.rmtree(verify, ignore_errors=True)
         folder = block_folder(verify / 'campaign', number)
@@ -294,20 +309,44 @@ class Replay:
                 shutil.copyfile(self.truth / name, verify / 'campaign' / name)
         (verify / 'campaign/decisions.md').write_text(decisions)
         for name, text in files.items():
-            if name not in OUTPUTS:
-                (folder / name).write_text(text)
+            (folder / name).write_text(text)
+        return verify, folder
+
+    def reproduce(self, number, files, rows, decisions, logs):
+        """Rerun the block's propose.py in the sandbox on the data the block saw;
+        its first round must be the rows accepted. Returns the block's SIZE."""
+        verify, folder = self.stage(number, files, decisions)
         result = self.sandbox(f'{self.python} -I opt_run.py run work/.replay-verify/campaign '
                               f'--block {number} --no-verify')
         (logs / 'reproduce.log').write_text(result.stdout + result.stderr)
         output = self.read_public(folder / 'proposals.csv', LIMITS['data.csv'])
-        if result.returncode or output is None:
+        planned = self.read_public(folder / 'round.json', LIMITS['block file'])
+        if result.returncode or output is None or planned is None:
             raise ReplayError(f'block {number}: propose.py did not run again; see {logs / "reproduce.log"}')
         proposals = list(csv.DictReader(io.StringIO(output)))
         if [self.identity(row) for row in proposals] != [self.identity(row) for row in rows]:
             raise ReplayError(f'block {number}: the accepted rows are not what propose.py proposes '
                               'from the data the block saw')
         shutil.rmtree(verify)
-        return files['propose.py']
+        return int(json.loads(planned)['size'])
+
+    def next_round(self, number, files, decisions, size, logs):
+        """Propose and accept the block's next round in the sandbox, on the data so far."""
+        data = load_campaign(self.truth)[2]
+        expected = min(self.problem.round_size, size - data.in_block(number), self.remaining())
+        verify, folder = self.stage(number, files, decisions)
+        campaign = 'work/.replay-verify/campaign'
+        result = self.sandbox(f'{self.python} -I opt_run.py run {campaign} --block {number} --no-verify && '
+                              f'{self.python} -I opt_run.py accept {campaign} --block {number}')
+        log = logs / f'round{data.in_block(number) + 1:03d}.log'
+        log.write_text(result.stdout + result.stderr)
+        if result.returncode:
+            raise ReplayError(f'block {number}: a later round failed; see {log}')
+        rows = self.new_rows(verify / 'campaign/data.csv', number, decisions)
+        if len(rows) != expected:
+            raise ReplayError(f'block {number}: a round of {len(rows)} rows, not {expected}')
+        shutil.rmtree(verify)
+        return rows
 
     def identity(self, row):
         """What a row asks to evaluate: its candidate in a pool, else its values as accepted."""
@@ -321,9 +360,9 @@ class Replay:
             raise ReplayError(f'evaluator refused {op}: {reply["error"]}')
         return reply['result']
 
-    def evaluate(self, number, rows, decisions):
-        """Evaluate the rows in order, journaling the decisions with the first."""
-        values, label, documents = [], None, {'documents': {'decisions.md': decisions}}
+    def evaluate(self, number, rows, decisions=None):
+        """Evaluate the rows in order, journaling the decisions, if given, with the first."""
+        values, label, documents = [], None, {'documents': {'decisions.md': decisions}} if decisions else {}
         for row in rows:
             if label_for(number, row['optimizer']) != label:
                 label = label_for(number, row['optimizer'])
@@ -419,6 +458,8 @@ def main(argv=None):
     parser.add_argument('--budget', required=True, type=int)
     parser.add_argument('--block-size', type=int, default=8,
                         help='Preferred block size written to problem.toml (default 8); the advisor chooses')
+    parser.add_argument('--round-size', type=int, default=1,
+                        help='Evaluations per round before results come back (default 1: sequential)')
     parser.add_argument('--seed', type=int, default=0, help='Campaign seed and private observation-noise seed')
     parser.add_argument('--agent', default='claude', choices=['codex', 'claude'], help='CLI that drives the model')
     parser.add_argument('--model', help='Default: gpt-6-astra (codex), claude-opus-5-5 (claude)')
@@ -434,8 +475,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if sys.platform not in ('darwin', 'linux'):
         parser.error('The native executor currently supports macOS and Linux only.')
-    if args.budget < 1 or args.block_size < 1 or args.seed < 0 or args.retries < 0 or args.codex is None:
-        parser.error('Use a positive budget and block size, nonnegative seed and retries, and install Codex CLI.')
+    if min(args.budget, args.block_size, args.round_size) < 1 or args.seed < 0 or args.retries < 0 \
+            or args.codex is None:
+        parser.error('Use a positive budget, block and round size, nonnegative seed and retries, '
+                     'and install Codex CLI.')
     if args.agent == 'claude' and args.claude is None:
         parser.error('Install and sign in to Claude Code CLI, or pass --claude.')
     args.model = args.model or {'codex': 'gpt-6-astra', 'claude': 'claude-opus-5-5'}[args.agent]
@@ -459,7 +502,8 @@ def main(argv=None):
     root = args.runs_dir.resolve() / ('replay-' + uuid.uuid4().hex[:12])
     root.mkdir(parents=True, mode=0o700)
     (root / 'private').mkdir(mode=0o700)
-    workspace, private = build_campaign(root, task, args.budget, min(args.block_size, args.budget), args.seed)
+    workspace, private = build_campaign(root, task, args.budget, min(args.block_size, args.budget),
+                                        args.round_size, args.seed)
     (workspace / 'AGENTS.md').write_text(system_prompt(args.agent))
     runtime_view(workspace, runtime)
     policy = {'codex': str(args.codex), 'python': str(args.agent_python), 'workspace': str(workspace),
@@ -477,6 +521,7 @@ def main(argv=None):
     replay.publish()
     write_json(private / 'manifest.json', {
         'mode': 'replay', 'task': args.task, 'budget': args.budget, 'block_size': args.block_size,
+        'round_size': args.round_size,
         'seed': args.seed, 'agent': args.agent, 'model': args.model, 'reasoning_effort': args.effort,
         'retries': args.retries,
         **provenance(args, task, runtime, workspace, ['blind_runner', 'tasks', 'advisor', 'batch'])})

@@ -1,11 +1,13 @@
 # Advisor — one block, headless
 
-You are called once to propose **one block** of the campaign in `campaign/`,
-following the policy above. Nobody is watching this call: do not ask
-questions, and finish when the block is accepted. When you are done, the
-runner evaluates the accepted rows, records the results in
-`campaign/data.csv` and calls a fresh advisor for the next block. Nothing
-carries over to that call except the campaign folder.
+You are called once to decide **one block** of the campaign in `campaign/`,
+following the policy above, and to accept its first round. Nobody is
+watching this call: do not ask questions, and finish when the round is
+accepted. When you are done, the runner evaluates the round, records the
+results in `campaign/data.csv`, and runs your `propose.py` for each later
+round on the data so far, until the block has `SIZE` experiments. Then it
+calls a fresh advisor for the next block. Nothing carries over to that call
+except the campaign folder.
 
 This follows the steps of the `/opt-run` skill
 (`.claude/skills/opt-run/SKILL.md`); keep the two in step.
@@ -39,13 +41,13 @@ Fitting a model in `opt_run.py run` can take a minute.
    yet, start it with a `# Decisions` heading.
 5. **Write `campaign/blocks/NNN/propose.py`** to the contract in the policy,
    section 3.
-6. **Run** `opt_run.py run campaign`. It runs the script twice, refuses
-   proposals that differ, and validates them. If it fails, fix the script
+6. **Run** `opt_run.py run campaign`. It proposes the first round, runs the
+   script twice, refuses proposals that differ, and validates them. If it fails, fix the script
    and run again. If the fix changes the decision (method, size or
    settings), append a `**Revision:**` line saying what changed and why. To
    look at a model before committing to it, print diagnostics from
    `propose.py`; they are saved to `propose.log`.
-7. **Accept** with `opt_run.py accept campaign`.
+7. **Accept** the first round with `opt_run.py accept campaign`.
 8. **Report** in two or three sentences: the block number, the method, and
    what this block should show.
 
@@ -55,6 +57,6 @@ Fitting a model in `opt_run.py run` can take a minute.
   in `decisions.md`. The runner refuses a block if any recorded row or
   earlier decision changed, or if any row was added other than by `accept`.
 - The runner reruns the block's `propose.py` on the data you saw and
-  evaluates only proposals it reproduces. Points written by hand belong in
+  evaluates only proposals it reproduces. Points chosen by hand belong in
   `propose.py` too.
-- Propose exactly one block, and stop after `accept`.
+- Decide exactly one block, and stop after the first `accept`.

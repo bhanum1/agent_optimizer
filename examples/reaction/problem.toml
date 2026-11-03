@@ -15,6 +15,7 @@ direction = "maximize"
 [budget]
 total = 40
 block_size = 8
+round_size = 8               # vials run in parallel
 
 [[parameters]]
 name = "temperature"

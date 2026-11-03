@@ -4,15 +4,18 @@
     check      validate problem.toml and data.csv
     summarize  print the data summary the advisor reads (--json for the raw form)
     new-block  open the next block folder and save its summary
-    run        run the open block's propose.py twice (it must be deterministic), then validate
-    validate   validate the open block's proposals.csv
-    accept     add the open block's proposals to data.csv as pending rows
+    run        propose the block's next round with propose.py, twice (it must be
+               deterministic), then validate
+    validate   validate the round's proposals.csv
+    accept     add the round's proposals to data.csv as pending rows
     record     fill in pending rows from a results CSV (id, value or status failed);
                rows without an id are added as manual experiments
     import     add prior results from a CSV as block 0
 
 A block's flow: new-block -> write "## Block N" in decisions.md and
 blocks/NNN/propose.py -> run -> accept -> run the experiments -> record.
+A block of SIZE points runs in rounds of [budget] round_size: after each
+record, run and accept propose the next round, until the block is full.
 """
 from __future__ import annotations
 
@@ -21,7 +24,8 @@ import json
 from pathlib import Path
 import sys
 
-from .blocks import BlockError, accept_block, new_block, run_block, validate_proposals
+from .blocks import (BlockError, accept_block, current_block, new_block, read_round, run_block,
+                     validate_proposals)
 from .data import DataError, check_table, load_campaign, read_table
 from .problem import TEMPLATE, ProblemError, load_problem
 from .results import ResultsError, import_rows, record_results
@@ -42,7 +46,8 @@ def init(args):
 def describe(problem):
     budget = ', '.join(part for part in [
         f'{problem.total_budget} experiments' if problem.total_budget else '',
-        f'blocks of {problem.block_size}' if problem.block_size else ''] if part) or 'not set'
+        f'blocks of {problem.block_size}' if problem.block_size else '',
+        f'rounds of {problem.round_size}'] if part)
     lines = [f'{problem.name}: {problem.direction} {problem.objective}; noise {problem.noise}; budget {budget}']
     if problem.pool is not None:
         lines.append(f'pool: {len(problem.pool)} candidates in {problem.pool.file}')
@@ -98,7 +103,12 @@ def show_proposals(rows, issues):
 
 
 def run_command(args):
-    return show_proposals(*run_block(args.campaign, args.block, args.timeout, verify=not args.no_verify))
+    number = args.block or current_block(args.campaign)
+    rows, issues = run_block(args.campaign, number, args.timeout, verify=not args.no_verify)
+    planned = read_round(args.campaign, number)
+    if planned:
+        print(f"Block {number}, round {planned['round']}: {planned['q']} of SIZE {planned['size']}.")
+    return show_proposals(rows, issues)
 
 
 def validate_command(args):
@@ -106,9 +116,13 @@ def validate_command(args):
 
 
 def accept_command(args):
-    ids = accept_block(args.campaign, args.block, args.optimizer)
-    print(f'Added ids {ids[0]}-{ids[-1]} to data.csv as pending. '
-          'Run the experiments, then record the results.')
+    number = args.block or current_block(args.campaign)
+    ids = accept_block(args.campaign, number)
+    planned, done = read_round(args.campaign, number), load_campaign(args.campaign)[2].in_block(number)
+    left = (f'Block {number} is complete.' if done >= planned['size'] else
+            f'Block {number} has {done} of {planned["size"]}; after recording, run and accept its next round.')
+    print(f'Added ids {ids[0]}-{ids[-1]} to data.csv as pending. Run the experiments, then record the results. '
+          + left)
     return 0
 
 
@@ -142,17 +156,15 @@ def main(argv=None):
     sub.add_argument('--json', action='store_true', help='print the summary as JSON')
     sub.add_argument('--model', action='store_true', help='add GP diagnostics (lengthscales, leave-one-out fit)')
     command('new-block', new_block_command, 'open the next block')
-    for name, function, text in [('run', run_command, "run the block's propose.py and validate"),
-                                 ('validate', validate_command, "validate the block's proposals"),
-                                 ('accept', accept_command, "add the block's proposals as pending rows")]:
+    for name, function, text in [('run', run_command, "propose the block's next round and validate"),
+                                 ('validate', validate_command, "validate the round's proposals"),
+                                 ('accept', accept_command, "add the round's proposals as pending rows")]:
         sub = command(name, function, text)
         sub.add_argument('--block', type=int, help='block number (default: the open block)')
         if name == 'run':
             sub.add_argument('--timeout', type=float, default=600, help='seconds per run (default 600)')
             sub.add_argument('--no-verify', action='store_true',
                              help='run once, without checking that a second run gives the same proposals')
-        if name == 'accept':
-            sub.add_argument('--optimizer', help='method label, if proposals.csv has no optimizer column')
     command('record', record_command, 'fill in results for pending rows').add_argument(
         'file', type=Path, help='CSV with id and the objective (or status failed), optional notes')
     command('import', import_command, 'add prior results as block 0').add_argument(

@@ -141,18 +141,21 @@ In Claude Code, from the repository root:
 
 ```text
 /opt-run init my_campaign                        # interview -> problem.toml; optional import of old results
-/opt-run my_campaign                             # decide, write and run the next block's propose.py
+/opt-run my_campaign                             # decide the next block, or propose its next round
 /opt-run record my_campaign results.csv          # results back (or fill them in data.csv)
 /opt-run status my_campaign
 ```
 
 Each call decides one block (method, settings, size) under the policy in
 [prompts/advisor.md](prompts/advisor.md), records why in `decisions.md`, and
-writes `blocks/NNN/propose.py`, a deterministic script that produces the
-block. Most scripts are one line calling a proposer from
-`agentoptimizer.batch`. The proposals land in `data.csv` as pending experiments. To try it
-without a lab, use the [reaction example](examples/reaction/README.md) and
-its simulated lab.
+writes `blocks/NNN/propose.py`: the block's `SIZE` and a deterministic
+`propose(campaign, q)` that returns the next q points, usually by calling a
+proposer from `agentoptimizer.batch`. The lab measures `round_size` points
+at a time (`problem.toml`, default 1), so a block runs in rounds:
+`propose()` is called once per round on the data so far, with no new
+decision, and each round lands in `data.csv` as pending experiments. To try
+it without a lab, use the [reaction example](examples/reaction/README.md)
+and its simulated lab.
 
 The skill drives `scripts/opt_run.py`, which also works on its own:
 
@@ -161,17 +164,18 @@ The skill drives `scripts/opt_run.py`, which also works on its own:
 .venv/bin/python scripts/opt_run.py import my_campaign old.csv # optional: earlier results, as block 0
 .venv/bin/python scripts/opt_run.py new-block my_campaign      # opens blocks/001/ with summary.json
 # write "## Block 1" in decisions.md and blocks/001/propose.py, then:
-.venv/bin/python scripts/opt_run.py run my_campaign            # runs propose.py, validates proposals.csv
-.venv/bin/python scripts/opt_run.py accept my_campaign         # adds them to data.csv as pending
+.venv/bin/python scripts/opt_run.py run my_campaign            # proposes the next round, validates it
+.venv/bin/python scripts/opt_run.py accept my_campaign         # adds it to data.csv as pending
 .venv/bin/python scripts/opt_run.py record my_campaign results.csv
+# repeat run, accept, record until the block is full; then new-block again
 .venv/bin/python scripts/opt_run.py summarize my_campaign
 ```
 
 A campaign is a folder: `problem.toml` (parameters, objective, budget,
 context; an optional `[pool]` of candidates), `data.csv` (one row per
 experiment), `decisions.md`, and `blocks/NNN/` with each block's summary,
-script and proposals. A `propose.py` uses `agentoptimizer.advisor.Campaign`
-to read the data and write its proposals; see
+script and latest round. `propose()` reads the data through
+`agentoptimizer.advisor.Campaign`; see
 [campaign.py](src/agentoptimizer/advisor/campaign.py).
 
 ### Advisor replay
@@ -193,7 +197,9 @@ sandboxed `run_command` and `write_stdin` tools. The runner then:
 - refuses changed results, rows added other than by `accept`, and rewritten
   decisions;
 - reruns the block's `propose.py` on the data it saw;
-- evaluates the accepted rows through the private evaluator.
+- evaluates the accepted round through the private evaluator;
+- runs `propose()` in the sandbox for each later round of the block
+  (`--round-size`, default 1), with no model call.
 
 Outputs are in `runs/replay-<id>/`:
 

@@ -37,7 +37,8 @@ direction = "maximize"       # maximize | minimize
 
 [budget]
 total = 40                   # experiments you can afford in all (optional)
-block_size = 8               # experiments you prefer to run per block (optional)
+block_size = 8               # experiments you prefer per decision (optional; the advisor chooses)
+round_size = 1               # experiments measured together before results come back (default 1)
 
 # One [[parameters]] table per input you control.
 [[parameters]]
@@ -123,6 +124,7 @@ class Problem:
     parameters: tuple[Parameter, ...]
     total_budget: int | None = None
     block_size: int | None = None
+    round_size: int = 1
     pool: Pool | None = field(default=None, compare=False)
 
     @property
@@ -277,11 +279,12 @@ def parse_problem(data, default_name='campaign', folder=None):
     budget = data.get('budget', {})
     if not isinstance(budget, dict):
         raise ProblemError('[budget] must be a table')
-    _keys(budget, ('total', 'block_size'), '[budget]')
+    _keys(budget, ('total', 'block_size', 'round_size'), '[budget]')
     total = _count(budget['total'], '[budget] total') if 'total' in budget else None
     block = _count(budget['block_size'], '[budget] block_size') if 'block_size' in budget else None
     if total and block and block > total:
         raise ProblemError(f'[budget] block_size ({block}) exceeds total ({total})')
+    round_size = _count(budget['round_size'], '[budget] round_size') if 'round_size' in budget else 1
 
     tables = data.get('parameters')
     if not isinstance(tables, list) or not tables:
@@ -308,7 +311,8 @@ def parse_problem(data, default_name='campaign', folder=None):
         raise ProblemError(f'names must be unique across parameters and the objective: {", ".join(duplicates)}')
     if pool is not None and total and total > len(pool):
         raise ProblemError(f'[budget] total ({total}) exceeds the {len(pool)} candidates in the pool')
-    return Problem(name, description.strip(), noise, objective_name, direction, parameters, total, block, pool)
+    return Problem(name, description.strip(), noise, objective_name, direction, parameters,
+                   total, block, round_size, pool)
 
 
 def load_problem(folder):

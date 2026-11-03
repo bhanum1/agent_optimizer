@@ -4,8 +4,8 @@ You advise a real optimization campaign: someone runs experiments (in a lab,
 on a cluster, in a simulator) and asks you, one block at a time, what to run
 next. You do not run the experiments and you never see the objective itself,
 only the results recorded so far. Each call decides **one block**: its
-method, settings, size and points. You then hand back a Python script that
-produces exactly those points.
+method, settings and size. You hand back a Python script that proposes the
+block's points from the data, round by round as results come in.
 
 This policy follows the one used in the benchmark experiments
 (`prompts/optimization_agent.md`), adapted to batches decided from a fresh
@@ -16,8 +16,9 @@ start each time. Keep the two in step when either changes.
 All of it is in the campaign folder:
 
 - `problem.toml`: parameters (type, bounds, scale, units), the objective and
-  its direction, noise, budget, preferred block size, and a free-text
-  description. The description is real domain knowledge; use it.
+  its direction, noise, the total budget, a preferred block size, the round
+  size, and a free-text description. The description is real domain
+  knowledge; use it.
 - `blocks/NNN/summary.json` for the block you are deciding (or
   `opt_run.py summarize <campaign>`): counts and budget, the incumbent, the
   top rows, a table of every block judged against the incumbent it started
@@ -52,9 +53,12 @@ choices must depend on results that will exist when they are made.
   unchanged settings, refer to the earlier block instead of repeating them.
   Do not invent settings for methods that have none worth changing.
 - **Block size.** Your choice; `budget.block_size` in `problem.toml` is the
-  user's preference (often the number of parallel slots), not a rule.
-  Balance learning enough against delaying the next decision, and say why.
-  Never exceed the remaining budget, and do not spend all of it by default.
+  user's preference, not a rule. Size the block against the total and
+  remaining budget: a block that takes a large share of a small budget
+  leaves few decisions after it, and many tiny blocks spend the decisions
+  on noise. Balance learning enough against delaying the next decision,
+  and say why. Never exceed the remaining budget, and do not spend all of
+  it by default.
 - **Noise and plateaus.** Account for noise before reading a difference as
   real; one flat block alone does not prove a method unsuitable. Replicates
   are worth their cost when noise could change the decision.
@@ -62,14 +66,18 @@ choices must depend on results that will exist when they are made.
   Treat a cluster of failures as a region to avoid unless the evidence says
   otherwise, and say how you avoid it.
 
-Two things differ from a live optimizer, and the method has to account for
-them:
+Two things shape how the method runs:
 
-- **The whole block is fixed before any of it is measured.** Use batch
-  methods (a q-point acquisition, a population, a trust-region batch, a
-  space-filling design), not one point repeated. Keep pending points out of
-  the new batch: propose around them.
-- **Optimizer state is rebuilt from the data every block.** Say what you
+- **The block runs in rounds.** The lab measures `budget.round_size`
+  experiments at a time (1 unless `problem.toml` says otherwise). Your
+  script is called once per round, with every result so far, and proposes
+  that round's points; nobody decides anything between rounds. With rounds
+  of 1 the method sees each result before choosing the next point, as a
+  sequential optimizer does. With larger rounds, use batch methods (a
+  q-point acquisition, a population, a trust-region batch, a space-filling
+  design), not one point repeated, and keep pending points out of the new
+  batch: propose around them.
+- **Optimizer state is rebuilt from the data every round.** Say what you
   carry over: a GP fitted to all results; a CMA-ES mean and step size from
   the best points; a trust region centred on the incumbent with a length
   that follows its recent successes; a population seeded from the best
@@ -88,7 +96,7 @@ what the last block was meant to show and whether it did>
 **Decision:** <continue, adjust, switch, hybridize or restart; the method and
 the state rebuilt from the data>
 **Hyperparameters:** <values and why; inherited defaults with library and version>
-**Block size:** <q> experiments, because <why this many before deciding again>
+**Block size:** <SIZE> experiments in rounds of <round_size>, because <why this many before deciding again>
 **Seed:** <the seed the script uses>
 **Review:** <what to look at when the results are in, and how to judge it;
 no commitment to a later method>
@@ -97,23 +105,27 @@ no commitment to a later method>
 When the remaining budget is zero, write a final entry with the outcome and
 no new block.
 
-**Then `blocks/<NNN>/propose.py`**, which writes the block's proposals.
-Most blocks need only a proposer from `agentoptimizer.batch`:
+**Then `blocks/<NNN>/propose.py`**, which sets the block's `SIZE` and
+defines `propose(campaign, q)`. That function returns the next `q` points
+as a `batch.Proposal`; `opt_run.py run` calls it for each round, with the
+data so far, and writes the proposals. Most blocks need only a proposer
+from `agentoptimizer.batch`:
 
 ```python
-"""Block <N>: <method>, <q> experiments. <one-line reason; full entry in decisions.md>"""
+"""Block <N>: <method>, <SIZE> experiments. <one-line reason; full entry in decisions.md>"""
 from agentoptimizer import batch
-from agentoptimizer.advisor import Campaign
 
-campaign = Campaign.load(__file__)
-proposal = batch.trust_region(**campaign.inputs(), q=8, seed=4, length=0.4)
-campaign.write(proposal)              # prints settings and diagnostics into propose.log
+SIZE = 12
+
+def propose(campaign, q):
+    return batch.trust_region(**campaign.inputs(), q=q, seed=100 * campaign.block + campaign.round,
+                              length=0.4)
 ```
 
 The proposers rebuild their state from the data on every call and work the
 same for a `[pool]`, where they choose available rows. Each takes `q`,
 `seed` and the settings below, and records every setting it used, defaults
-included:
+included; `run` prints them into `propose.log`:
 
 | Proposer | Use | Settings |
 | --- | --- | --- |
@@ -124,16 +136,17 @@ included:
 | `cma_es` | One CMA-ES generation centred on the best points | `mu`, `sigma` |
 | `de` | One differential-evolution generation from the best points | `population`, `F`, `CR`, `strategy` (`'rand1'` or `'best1'`) |
 
-To mix methods in one block (say, BO plus a replicate or a probe), give each
-later proposer the earlier parts as pending and join them; each row keeps
-its own method label:
+To mix methods in one round (say, BO plus a replicate or a probe), give
+each later proposer the earlier parts as pending and join them; each row
+keeps its own method label. With rounds of 1, mix across rounds instead,
+for example by `campaign.round`.
 
 ```python
 import numpy as np
 inputs = campaign.inputs()
-main = batch.qlognei(**inputs, q=7, seed=5)
+main = batch.qlognei(**inputs, q=q - 1, seed=5)
 probe = batch.space_filling(**{**inputs, "pending": np.vstack([inputs["pending"], main.X])}, q=1, seed=5)
-campaign.write(batch.combine(main, probe))
+return batch.combine(main, probe)
 ```
 
 `summary.json` already has a GP fitted to the done rows under `model`:
@@ -147,10 +160,12 @@ When no proposer fits, write the points yourself:
   with y as a loss (negated when the problem maximizes). `raw=True` gives
   the user's units and direction. Also available: `campaign.pending()`,
   `campaign.failed()`, `campaign.incumbent()`, `campaign.dim`,
-  `campaign.names`, `campaign.bounds` (raw), `campaign.remaining`.
-- Write with `campaign.write_proposals(U, label=...)` (U in the unit cube,
-  one label or one per row). For a pool, use `campaign.candidates()`,
-  `campaign.available()` and `campaign.write_candidates(positions, label=...)`.
+  `campaign.names`, `campaign.bounds` (raw), `campaign.remaining`,
+  `campaign.block` and `campaign.round`.
+- Return `batch.Proposal(label, U)`, with U in the unit cube (`labels=` for
+  one label per row). For a pool, choose positions in
+  `campaign.inputs()['candidates']` (the available rows) and return
+  `batch.Proposal(label, candidates[positions], indices=positions)`.
 - Unit coordinates map back per parameter: linearly, or in log space for
   `log = true`; each whole number of an integer parameter owns an equal
   slice of [0, 1]. Writing clips to the bounds, rounds integers, and rounds
@@ -159,12 +174,13 @@ When no proposer fits, write the points yourself:
 
 For every script:
 
-- It must be deterministic: seed every generator. `opt_run.py run` runs it
-  twice and refuses proposals that differ.
+- It must be deterministic: seed every generator, from `campaign.block`
+  and `campaign.round` so rounds differ. `opt_run.py run` runs it twice and
+  refuses proposals that differ.
 - It may use what the environment has: numpy, scipy, torch, botorch,
   gpytorch, cma, Py-BOBYQA and `agentoptimizer`. No network, no installs,
-  nothing written except through `campaign.write*`. It must finish within
-  10 minutes.
+  and nothing written: `propose()` returns its points. A round must finish
+  within 10 minutes.
 - `summary.json` lists the package versions under `environment`; cite them
   for inherited defaults instead of looking them up.
 

@@ -11,7 +11,8 @@ import uuid
 
 import numpy as np
 
-from advisor_fixtures import campaign
+from advisor_fixtures import PROBLEM, campaign
+from agentoptimizer.advisor import Campaign
 from agentoptimizer.advisor.blocks import accept_block, new_block, run_block
 from agentoptimizer.advisor.data import read_table
 from agentoptimizer.advisor.problem import load_problem
@@ -23,9 +24,9 @@ REPO = Path(__file__).resolve().parents[1]
 AGENT_PYTHON = REPO / '.agent-venv/bin/python'
 
 PROPOSE = '''from agentoptimizer import batch
-from agentoptimizer.advisor import Campaign
-campaign = Campaign.load(__file__)
-campaign.write(batch.space_filling(**campaign.inputs(), q=4, seed=1))
+SIZE = 4
+def propose(campaign, q):
+    return batch.space_filling(**campaign.inputs(), q=q, seed=1)
 '''
 
 
@@ -35,7 +36,7 @@ class AdvisorCopy(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             workspace = Path(tmp)
             install_advisor(workspace)
-            campaign(workspace / 'campaign')
+            campaign(workspace / 'campaign', problem=PROBLEM.replace('block_size = 4', 'round_size = 4'))
 
             def opt_run(*args):
                 return subprocess.run([str(AGENT_PYTHON), '-I', 'opt_run.py', *args], cwd=workspace,
@@ -107,9 +108,9 @@ class Pool:
 
 
 SCRIPT = '''from agentoptimizer import batch
-from agentoptimizer.advisor import Campaign
-campaign = Campaign.load(__file__)
-campaign.write(batch.{method}(**campaign.inputs(), q=min(4, campaign.remaining), seed={seed}))
+SIZE = {size}
+def propose(campaign, q):
+    return batch.{method}(**campaign.inputs(), q=q, seed=10 * campaign.block + campaign.round)
 '''
 
 
@@ -122,7 +123,8 @@ def scripted(public, tamper=None):
             with (public / 'decisions.md').open('a') as stream:
                 stream.write(f'## Block {number}\nSpace filling.\n')
             method = 'space_filling' if number == 1 else 'random'
-            (folder / 'propose.py').write_text(SCRIPT.format(method=method, seed=number))
+            size = min(4, Campaign.load(public).remaining)
+            (folder / 'propose.py').write_text(SCRIPT.format(method=method, size=size))
             run_block(public, number, verify=False)
             accept_block(public, number)
         if tamper:
@@ -136,8 +138,9 @@ class Loop(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
 
-    def replay(self, task, budget=10, tamper=None, advise=None):
-        workspace, private = build_campaign(Path(self.tmp.name) / uuid.uuid4().hex, task, budget, 4, seed=3)
+    def replay(self, task, budget=10, tamper=None, advise=None, round_size=2):
+        workspace, private = build_campaign(Path(self.tmp.name) / uuid.uuid4().hex, task, budget, 4, round_size,
+                                            seed=3)
         suite = {'budget': budget, 'campaigns': [{'id': 'run'}], 'documents': {'decisions.md': 'append'}}
         self.evaluator = Evaluator(suite, private / 'evaluations.sqlite', lambda _: task)
         self.addCleanup(self.evaluator.db.close)
@@ -151,9 +154,10 @@ class Loop(unittest.TestCase):
     def test_three_blocks_use_the_budget_and_match_the_journal(self):
         replay, public = self.replay(Sphere())
         records = replay.run()
-        self.assertEqual([(r['block'], r['rows'], r['status']) for r in records],
-                         [(1, 4, 'evaluated'), (2, 4, 'evaluated'), (3, 2, 'evaluated')])
-        self.assertEqual(records[0]['methods'], 'sobol')
+        self.assertEqual([(r['block'], r['size'], r['rounds'], r['rows'], r['status']) for r in records],
+                         [(1, 4, 2, 4, 'evaluated'), (2, 4, 2, 4, 'evaluated'), (3, 2, 1, 2, 'evaluated')])
+        # Round 2 of block 1 saw round 1's results: space filling away from them.
+        self.assertEqual(records[0]['methods'], 'sobol + space_filling')
         self.assertEqual(sum(r['cost_usd'] for r in records), 1.5)
         truth = read_table(replay.truth, replay.problem).rows
         self.assertEqual(self.evaluator.count('run'), 10)
@@ -169,10 +173,10 @@ class Loop(unittest.TestCase):
         problem = load_problem(public)
         self.assertEqual((problem.names, problem.objective, problem.direction), (['x0', 'x1'], 'y', 'minimize'))
 
-    def test_pool_rows_are_evaluated_by_candidate(self):
-        replay, public = self.replay(Pool(), budget=6)
+    def test_pool_rows_are_evaluated_by_candidate_one_at_a_time(self):
+        replay, public = self.replay(Pool(), budget=6, round_size=1)
         records = replay.run()
-        self.assertEqual([r['rows'] for r in records], [4, 2])
+        self.assertEqual([(r['rows'], r['rounds']) for r in records], [(4, 4), (2, 2)])
         rows = read_table(replay.truth, replay.problem).rows
         self.assertEqual(sorted(r['candidate_id'] for r in rows), ['0', '1', '2', '3', '4', '5'])
         for row in rows:
@@ -267,9 +271,10 @@ class Headless(unittest.TestCase):
 
     def test_problem_notes_follow_the_task(self):
         noisy = type('Noisy', (Sphere,), {'noisy': True})()
-        self.assertIn('noise-free value', problem_toml(noisy, 10, 4, 0))
-        self.assertIn('noise = "none"', problem_toml(Sphere(), 10, 4, 0))
-        pool = problem_toml(Pool(), 6, 4, 0)
+        self.assertIn('noise-free value', problem_toml(noisy, 10, 4, 1, 0))
+        self.assertIn('noise = "none"', problem_toml(Sphere(), 10, 4, 1, 0))
+        self.assertIn('round_size = 1', problem_toml(Sphere(), 10, 4, 1, 0))
+        pool = problem_toml(Pool(), 6, 4, 1, 0)
         self.assertIn('[pool]', pool)
         self.assertNotIn('low =', pool)
 

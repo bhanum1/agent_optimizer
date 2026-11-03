@@ -51,7 +51,7 @@ All in `problem.toml`; nothing else constrains the agent.
 | --- | --- |
 | `[budget] total` | Hard limit on evaluations |
 | `[budget] block_size` | Suggested block size; the agent sizes blocks against the total and remaining budget, and says why |
-| `[lab] round_size` | Points the lab measures before results come back; default 1 (see Rounds) |
+| `[budget] round_size` | Points the lab measures before results come back; default 1 (see Rounds) |
 | `view` | What the advisor is given: `summary`, `raw` or `both` |
 
 ## Rounds inside a block (decided 2026-11-03)
@@ -68,12 +68,13 @@ people running the campaign, in `problem.toml`:
   `round_size`, so many points go out and come back together. A round as
   large as the block is pure batch.
 
-`round_size` defaults to 1, and every task so far uses 1. That restores the
+`round_size` defaults to 1, and every benchmark task uses 1 (the parallel-vial
+reaction example uses 8). That restores the
 benchmark agent's feedback within a block. It also changes replay, whose
 blocks have so far been a single batch, so the 2026-11-03 MOF replays
 become the batch-only condition (05).
 
-`propose.py` defines `propose(campaign, n)`, returning the next n points,
+`propose.py` sets `SIZE` and defines `propose(campaign, q)`, returning the next q points,
 instead of writing `proposals.csv` once. It stays a stateless function of
 the data, as `agentoptimizer.batch` already is. Methods with internal state
 (CMA-ES path, TuRBO length) rebuild it from the block's rounds. Reproduction
@@ -109,7 +110,7 @@ the rest unless runs show a need.
 | `runner.py` (benchmark main, bridge, harness copy) | Goes; its CLI and audit helpers move into the loop runner |
 | `agent_harness/`, `.bridge/`, `write_stdin` keep-alive | Go |
 | `optimizers/` | See open decision 2 |
-| `advisor/`, `batch/` | Stay; `advisor` gains `[lab]`, `view`, constraints |
+| `advisor/`, `batch/` | Stay; `advisor` gains `view` and constraints |
 | `run_agent.py`, `run_replay.py` | One entry point, `scripts/run_loop.py` |
 | `/optimize`, `/opt-run` | `/opt-run` for real campaigns; `/optimize` launches and reports loop runs |
 | `run_campaign.py`, `run_sweep.py` (non-LLM baselines) | Stay; `run_batch_baselines.py` folds into them |
@@ -126,7 +127,7 @@ unless marked otherwise.
 
 | Slice | Adds | Tests |
 | --- | --- | --- |
-| 1 | `[lab] round_size` and `propose(campaign, n)`; the executor loops rounds; reproduction replays them; the policy sizes blocks against the budget | Scripted block of 20 in rounds of 1 matches a hand-run loop; tampered values refused |
+| 1 | `[budget] round_size` and `propose(campaign, q)`; the executor loops rounds; reproduction replays them; the policy sizes blocks against the budget | Scripted block of 20 in rounds of 1 matches a hand-run loop; tampered values refused |
 | 2 | `view` setting: summary, raw or both | Raw view writes no summary and `summarize` refuses |
 | 3 | Constraints through problem, data, summary, `batch` and the lab | A constrained task runs three blocks |
 | 4 | One policy prompt; one runner and entry point; `agent_runs.py` and the skills on it | Launch smoke test; benchmark preflight passes on the loop workspace |

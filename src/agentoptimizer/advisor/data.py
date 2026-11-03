@@ -60,6 +60,10 @@ class Data:
     def where(self, status):
         return self.status == status
 
+    def in_block(self, number):
+        """Advisor rows already accepted into the block."""
+        return int(((self.blocks == number) & (self.source == 'advisor')).sum())
+
 
 def _pool_column(problem):
     return ['candidate_id'] if problem.pool is not None else []

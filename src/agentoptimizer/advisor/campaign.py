@@ -1,24 +1,24 @@
 """What a proposal script sees of its campaign.
 
-    from agentoptimizer.advisor import Campaign
-
-    campaign = Campaign.load(__file__)      # from blocks/NNN/propose.py
-    X, y = campaign.observations()          # done rows: unit cube, y to minimize
-    ...                                     # choose points U in [0, 1]^dim
-    campaign.write_proposals(U, label='gp_bo')
-
-With a [pool], choose rows instead: candidates(), available() and
-write_candidates(positions, label).
-
-The batch proposers in agentoptimizer.batch take inputs() and return a
-Proposal that write() records, in either mode:
+blocks/NNN/propose.py sets the block's SIZE and defines propose(campaign, q),
+which returns the next q points as an agentoptimizer.batch Proposal. The
+executor calls it once per round, on the data so far:
 
     from agentoptimizer import batch
-    campaign.write(batch.space_filling(**campaign.inputs(), q=8, seed=1))
 
-The optimizers in agentoptimizer.optimizers minimize over a box, so the
-default view is the unit cube with the objective as a loss: negated when the
-problem maximizes. raw=True gives the user's units and direction instead.
+    SIZE = 12
+
+    def propose(campaign, q):
+        return batch.qlognei(**campaign.inputs(), q=q, seed=100 * campaign.block + campaign.round)
+
+The proposers in agentoptimizer.batch take inputs(): the data in the unit
+cube with the objective as a loss (negated when the problem maximizes) and,
+with a [pool], the available rows as candidates. For points of your own,
+return batch.Proposal(label, U) with U in the unit cube, or for a pool
+batch.Proposal(label, candidates[positions], indices=positions), with
+positions into inputs()['candidates']. observations(), incumbent() and
+friends give the same data directly; raw=True gives the user's units and
+direction instead.
 """
 from __future__ import annotations
 
@@ -79,6 +79,11 @@ class Campaign:
         return np.array([[0., 1.]] * self.dim)
 
     @property
+    def round(self):
+        """The round being proposed within this block, from 1; derive seeds from it."""
+        return self.data.in_block(self.block) // self.problem.round_size + 1
+
+    @property
     def remaining(self):
         """Experiments left in the budget after done, failed and pending ones; None without a total."""
         if self.problem.total_budget is None:
@@ -119,14 +124,14 @@ class Campaign:
                 'candidates': self.candidates()[self.available()] if pool else None}
 
     def write(self, proposal, notes=None):
-        """Write an agentoptimizer.batch Proposal made from inputs(); prints its settings
-        and diagnostics, which `opt_run.py run` keeps in propose.log. Returns the path."""
+        """Write the round's proposals.csv from a Proposal made from inputs(); prints its
+        settings and diagnostics, which `opt_run.py run` keeps in propose.log. Returns the path."""
         print(proposal.describe())
         if self.problem.pool is not None:
             if proposal.indices is None:
                 raise ProblemError('this campaign has a [pool]; pass candidates=inputs()["candidates"]')
-            return self.write_candidates(self.available()[proposal.indices], proposal.row_labels(), notes)
-        return self.write_proposals(proposal.X, proposal.row_labels(), notes=notes)
+            return self._write_candidates(self.available()[proposal.indices], proposal.row_labels(), notes)
+        return self._write_points(proposal.X, proposal.row_labels(), notes=notes)
 
     @property
     def candidate_ids(self):
@@ -145,10 +150,10 @@ class Campaign:
 
     def _pool(self):
         if self.problem.pool is None:
-            raise ProblemError('this campaign has no [pool]; propose points with write_proposals()')
+            raise ProblemError('this campaign has no [pool]')
         return self.problem.pool
 
-    def write_candidates(self, positions, label, notes=None):
+    def _write_candidates(self, positions, label, notes=None):
         """Pool mode: write proposals.csv naming the pool rows at `positions`. Returns the path."""
         pool = self._pool()
         positions = [int(i) for i in np.atleast_1d(positions)]
@@ -167,17 +172,16 @@ class Campaign:
             raise ProblemError('proposals are written from a script inside blocks/NNN/')
         return self.root / 'blocks' / f'{self.block:03d}' / 'proposals.csv'
 
-    def write_proposals(self, X, label, raw=False, notes=None):
+    def _write_points(self, X, label, notes=None):
         """Write blocks/NNN/proposals.csv: one row per point, rounded to DIGITS significant
         digits (integers to whole numbers) and kept in bounds. Returns the path."""
         if self.problem.pool is not None:
-            raise ProblemError('this campaign has a [pool]; propose rows with write_candidates()')
+            raise ProblemError('this campaign has a [pool]; propose rows of it')
         path = self._proposals_path()
         X = np.atleast_2d(np.asarray(X, dtype=float))
         if X.shape[1] != self.dim:
             raise ValueError(f'expected points with {self.dim} coordinates, got shape {X.shape}')
-        if not raw:
-            X = self.problem.from_unit(X)
+        X = self.problem.from_unit(X)
         X = np.array([[float(f'{v:.{DIGITS}g}') for v in row] for row in X]).reshape(X.shape)
         X = np.clip(X, self.bounds[:, 0], self.bounds[:, 1])
         notes = notes if notes is not None else [''] * len(X)
