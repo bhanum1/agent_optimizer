@@ -347,6 +347,36 @@ $0.15–0.20). Replay uses medium for every condition, and `run_replay.py`
 defaults to it. The comparison with the benchmark agent therefore differs
 in effort as well as in batching and fresh context; the paper says so.
 
+**First C6 check (2026-11-03): MOF pool, budget 100, 3 seeds.** The replay
+used Claude Opus 5.5 at medium effort. The benchmark agent runs being
+compared are the 2026-10-22 runs in the old repository (GPT-6 Astra, max
+effort, same data hash), so the comparison differs in model as well as
+effort. Mean ± sd regret (pool maximum minus best raw score):
+
+| Method | Seeds | @25 | @50 | @100 | Found the best |
+| --- | --- | --- | --- | --- | --- |
+| Benchmark agent (live, sequential) | 3 | 2.17 ± 1.49 | 0.29 ± 0.17 | 0.16 ± 0.28 | 2/3 |
+| Advisor replay | 3 | 1.96 ± 2.59 | 1.88 ± 2.64 | 0.25 ± 0.43 | 2/3 |
+| GP-BO, sequential | 10 | 3.40 ± 2.07 | 1.89 ± 2.04 | 0.34 ± 0.79 | 7/10 |
+| TuRBO, sequential | 10 | 2.87 ± 2.07 | 1.61 ± 1.79 | 0.63 ± 0.90 | 4/10 |
+| Sobol → qLogNEI, q=8 | 10 | 3.96 ± 0.00 | 3.44 ± 1.24 | 1.82 ± 1.32 | 2/10 |
+| Sobol → trust region, q=8 | 10 | 3.89 ± 0.21 | 3.66 ± 0.39 | 3.01 ± 0.68 | 0/10 |
+| Random, q=8 | 10 | 3.49 ± 1.58 | 3.09 ± 1.48 | 2.84 ± 1.34 | 1/10 |
+
+Caveats:
+- Replay seed 0 stopped at 92/100 when the account's usage limit was hit;
+  its @100 value is its value at 92.
+- Each replay block cost about $0.40, against about $0.15 on sphere10,
+  because the 193-feature summaries are large. The three runs cost $14.4.
+- **Bug found:** `batch.space_filling` ignores its seed on pools. Every
+  baseline seed and replay seed 1 drew the same first block, which
+  understates the batch baselines' spread. Fix it and rerun the batch
+  baselines (no model calls) before reading these numbers as final.
+
+Reading: the advisor ends close to the live agent and ahead of every batch
+baseline at the same q. It is slower to start in two of three seeds. Three
+seeds show direction, not a difference.
+
 ## Decisions made (2026-11-02)
 
 - **Name.** The skill is `/opt-run` for now; the CLI is `scripts/opt_run.py`
