@@ -96,6 +96,19 @@ each one. The last round of a block may be smaller, to fit the block.
   so none is ported until runs show the need.
 - **Defaults.** `run_agent.py` defaults to Claude Opus 5.5 at medium effort,
   the C6 setting; `--agent codex` uses GPT-6 Astra.
+- **Methods are designed from hypotheses about the landscape.** A first
+  live run (sphere10, Opus at max effort, `runs/run-de54a5ff0684`, stopped
+  after 2 blocks at $2.80) built its own design and compared methods in
+  simulation, but checked only how well a GP fit, never what the data said
+  about structure: a bowl with a free centre fits its first 12 points
+  exactly, and it never tried one. The policy now asks, each block, for
+  hypotheses about the landscape that bear on the choice of optimizer,
+  tested on the data, and for a method designed for them. The aim is still
+  the best optimizer, not identifying the function, and the policy names
+  no model families, so it hints nothing about the tasks. The GP
+  diagnostic in `summary.json` is removed: it chose the agent's first view
+  of the data for it. Structure-seeking may favour the synthetic tasks, so
+  synthetic and real tasks are reported separately.
 
 ## Status (2026-11-03)
 

@@ -35,21 +35,23 @@ Fitting a model in `opt_run.py run` can take a minute.
    block number N and its folder, `campaign/blocks/NNN/`.
 3. **Read** `campaign/problem.toml`, `campaign/blocks/NNN/summary.json`,
    `campaign/decisions.md` if it exists, and the previous block's
-   `propose.py`. Read `campaign/data.csv` only when the summary is not enough.
-4. **Decide and record.** Follow the policy, section 2. Append the
+   `propose.py`. Read `campaign/data.csv` when the summary is not enough to
+   test a hypothesis; put analysis scripts in `work/`.
+4. **Decide and record.** Follow the policy, section 2: evidence,
+   hypotheses, the optimizer designed for them, and the test. Append the
    `## Block N` entry to `campaign/decisions.md`. If the file does not exist
    yet, start it with a `# Decisions` heading.
 5. **Write `campaign/blocks/NNN/propose.py`** to the contract in the policy,
    section 3.
 6. **Run** `opt_run.py run campaign`. It proposes the first round, runs the
-   script twice, refuses proposals that differ, and validates them. If it fails, fix the script
-   and run again. If the fix changes the decision (method, size or
+   script twice, refuses proposals that differ, and validates them. If it
+   fails, fix the script and run again. If the fix changes the decision (method, size or
    settings), append a `**Revision:**` line saying what changed and why. To
    look at a model before committing to it, print diagnostics from
    `propose.py`; they are saved to `propose.log`.
 7. **Accept** the first round with `opt_run.py accept campaign`.
-8. **Report** in two or three sentences: the block number, the method, and
-   what this block should show.
+8. **Report** in two or three sentences: the block number, the method, the
+   hypotheses it relies on, and what this block tests.
 
 ## Rules
 

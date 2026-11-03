@@ -62,7 +62,8 @@ deciding anything. `scripts/opt_run.py` does all the bookkeeping (run it with
    block's `propose.py`, and `data.csv` when the summary is not enough. Read
    nothing else about the objective. The `agentoptimizer` source is fine for
    API details.
-6. **Decide and record.** Follow the policy, section 2. Append the
+6. **Decide and record.** Follow the policy, section 2: evidence,
+   hypotheses, the optimizer designed for them, and the test. Append the
    `## Block N` entry to `decisions.md`, creating the file with a
    `# Decisions` heading if needed.
 7. **Write `blocks/NNN/propose.py`** to the contract in the policy, section 3.
@@ -76,8 +77,8 @@ deciding anything. `scripts/opt_run.py` does all the bookkeeping (run it with
    - the block number;
    - the round's proposals as a table in the user's units, with their new ids,
      and how many of the block's `SIZE` remain;
-   - the decision in two or three sentences: the method, why, and what this
-     block should show;
+   - the decision in two or three sentences: the method, the hypotheses it
+     relies on, and what this block tests;
    - how to send results back. Either fill in the objective (and status
      `done`, or `failed` with an empty value) for those ids in `data.csv`, or
      put `id,<objective>[,status,notes]` rows in a CSV and call
@@ -86,14 +87,14 @@ deciding anything. `scripts/opt_run.py` does all the bookkeeping (run it with
 
 ## Working notes
 
-- Prefer a proposer from `agentoptimizer.batch` (policy, section 3): one
-  line of `propose.py`, tested, and it records its settings. Write points
-  by hand only when none fits the decision.
+- A proposer from `agentoptimizer.batch` (policy, section 3) is one line of
+  `propose.py`, tested, and records its settings; use one when it suits the
+  design, and write your own method when none does.
 
 - Read files with the Read tool, including `summary.json` and library source
   under `.venv/lib/python3.11/site-packages/`. Bash is for `opt_run.py`.
-- To look at a model before committing to it (lengthscales, fit quality),
-  print those from `propose()`: `run` saves its output in
+- To test a hypothesis or look at a model before committing to it, print
+  the analysis from `propose()`: `run` saves its output in
   `blocks/NNN/propose.log`. Revise the script and run it again as needed;
   only the final version's proposals are accepted.
 

@@ -36,16 +36,39 @@ results that are not in `data.csv`.
 
 ## 2. How to decide
 
+The aim is the optimizer that will do best on this campaign with the budget
+left, chosen on the evidence the results give. You are not trying to
+identify the function; you are learning what about its landscape the next
+method should exploit or guard against.
+
+Each block:
+
+1. **Read the evidence:** what the data shows, with values and
+   uncertainty; for N > 1, what the last block was meant to show and
+   whether it did.
+2. **State hypotheses about the landscape** that bear on the choice of
+   optimizer: how smooth it is, which parameters matter and whether they
+   interact, whether there is one promising region or several, where good
+   results lie relative to the bounds, how noisy results are, where runs
+   fail. Each rests on the data or the description and says how confident
+   you are. Test them on the data with whatever analysis fits, and carry
+   them forward as supported, refuted or open.
+3. **Design the optimizer for them:** choose or build the method that suits
+   the hypotheses and the budget left, and say which hypotheses it relies
+   on. The options include space filling, model-based (Gaussian-process
+   BO, trust-region BO), evolutionary (CMA-ES, DE), local search around the
+   incumbent, replicates to measure noise, hybrids, and methods of your
+   own. Continuing and switching are both valid; neither has to match an
+   earlier expectation. Switching is an option, not a goal, and so is
+   writing your own method.
+4. **Plan the test:** say which hypotheses this block's results will test,
+   and what result would refute each.
+
 Decide **one block**: execute it, inspect the evidence, decide the next.
 Do not write a method schedule for the rest of the campaign, allocate the
 budget across future phases, or choose what follows this block. Future
 choices must depend on results that will exist when they are made.
 
-- **Method.** Choose what suits the evidence and the budget left: space
-  filling, model-based (Gaussian-process BO, trust-region BO), evolutionary
-  (CMA-ES, DE), local (around the incumbent), replicates to measure noise,
-  or a hybrid. Continuing and switching are both valid; neither has to
-  match an earlier expectation. Switching is an option, not a goal.
 - **Hyperparameters.** Reconsider the relevant ones every block, including
   when you continue a method. Defaults are starting points. Record the
   values, and the library and version behind inherited defaults; for
@@ -53,8 +76,8 @@ choices must depend on results that will exist when they are made.
   Do not invent settings for methods that have none worth changing.
 - **Block size.** Your choice; `budget.block_size` in `problem.toml` (by
   default a tenth of the total) is the user's preference, not a rule.
-  Size the block against the total and remaining budget: a block that takes a large share of a small budget
-  leaves few decisions after it, and many tiny blocks spend the decisions
+  Size the block against the total and remaining budget: a block that
+  takes a large share of a small budget leaves few decisions after it, and many tiny blocks spend the decisions
   on noise. Balance learning enough against delaying the next decision,
   and say why. Never exceed the remaining budget, and do not spend all of
   it by default.
@@ -92,13 +115,15 @@ runs. Never edit or remove earlier entries.
 **Budget:** <used> used, <pending> pending, <remaining> remaining of <total>.
 **Evidence:** <what the data shows, with values and uncertainty; for N > 1,
 what the last block was meant to show and whether it did>
-**Decision:** <continue, adjust, switch, hybridize or restart; the method and
-the state rebuilt from the data>
+**Hypotheses:** <each claim about the landscape: supported, refuted or open,
+the test behind that status, and how confident you are>
+**Decision:** <continue, adjust, switch, hybridize, build or restart; the
+method, the hypotheses it relies on, and the state rebuilt from the data>
 **Hyperparameters:** <values and why; inherited defaults with library and version>
 **Block size:** <SIZE> experiments in rounds of <round_size>, because <why this many before deciding again>
 **Seed:** <the seed the script uses>
-**Review:** <what to look at when the results are in, and how to judge it;
-no commitment to a later method>
+**Review:** <which hypotheses the results will test, what would refute each,
+and how to judge the method; no commitment to a later method>
 ```
 
 When the remaining budget is zero, write a final entry with the outcome and
@@ -107,8 +132,8 @@ no new block.
 **Then `blocks/<NNN>/propose.py`**, which sets the block's `SIZE` and
 defines `propose(campaign, q)`. That function returns the next `q` points
 as a `batch.Proposal`; `opt_run.py run` calls it for each round, with the
-data so far, and writes the proposals. Most blocks need only a proposer
-from `agentoptimizer.batch`:
+data so far, and writes the proposals. When a proposer from
+`agentoptimizer.batch` suits the design, the script can be one line:
 
 ```python
 """Block <N>: <method>, <SIZE> experiments. <one-line reason; full entry in decisions.md>"""
@@ -148,12 +173,7 @@ probe = batch.space_filling(**{**inputs, "pending": np.vstack([inputs["pending"]
 return batch.combine(main, probe)
 ```
 
-`summary.json` already has a GP fitted to the done rows under `model`:
-leave-one-out R^2, noise share and lengthscales, most sensitive first. Use
-it to judge whether a model is worth trusting before choosing a model-based
-method.
-
-When no proposer fits, write the points yourself:
+When none suits the design, write your own method:
 
 - `campaign.observations()` gives the done rows as (X, y): the unit cube,
   with y as a loss (negated when the problem maximizes). `raw=True` gives

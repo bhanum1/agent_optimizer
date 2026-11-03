@@ -129,22 +129,6 @@ def summarize(problem, data):
     return summary
 
 
-def model_diagnostics(problem, data, seed=0):
-    """How well a GP fits the done rows, and which parameters it finds the loss
-    most sensitive to (short lengthscales). None with fewer than 3 done rows."""
-    done = data.where('done')
-    if done.sum() < 3:
-        return None
-    from ..batch.gp import fit_gp  # torch is slow to import; only load it when asked
-    try:
-        _, fit = fit_gp(problem.to_unit(data.X[done]), problem.sign * data.y[done], seed)
-    except Exception as exc:  # a degenerate table should not stop a summary
-        return {'error': f'{type(exc).__name__}: {exc}'}
-    ranking = sorted(zip(problem.names, fit['lengthscales']), key=lambda pair: pair[1])
-    return {'n': fit['n'], 'loo_r2': fit['loo_r2'], 'noise_share': fit['noise_share'],
-            'lengthscales': dict(ranking)}
-
-
 def _g(value):
     return '-' if value is None else f'{value:.4g}'
 
@@ -196,13 +180,6 @@ def format_summary(summary):
         lines.append('explored (done or failed): ' + '; '.join(
             f"{name} {_g(e['low'])} to {_g(e['high'])} ({e['unit_span']:.0%} of range)"
             for name, e in summary['explored'].items()))
-    model = summary.get('model')
-    if model and 'error' in model:
-        lines.append(f"model: GP fit failed ({model['error']})")
-    elif model:
-        lines.append(f"model (GP on {model['n']} done rows): leave-one-out R2 {model['loo_r2']:.2f}, "
-                     f"noise {model['noise_share']:.0%} of variance; lengthscales, most sensitive first: "
-                     + ', '.join(f'{name} {value:.2g}' for name, value in model['lengthscales'].items()))
     if summary['failures']['count']:
         f = summary['failures']
         lines.append(f"failures: {f['count']} ({f['rate']:.0%} of runs), by block "
