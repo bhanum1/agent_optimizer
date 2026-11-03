@@ -112,6 +112,58 @@ print(json.dumps({'prefix':sys.prefix,'base_prefix':sys.base_prefix,
     return info
 
 
+def runtime_view(workspace, runtime):
+    # A read-only venv view removes installation aliases (e.g. uv's versionless
+    # symlink) without granting access to their parent directories on macOS.
+    venv = workspace / '.venv'
+    (venv / 'bin').mkdir(parents=True)
+    executable = Path(runtime['executable']).resolve()
+    (venv / 'bin/python').symlink_to(executable)
+    (venv / 'pyvenv.cfg').write_text(
+        f'home = {executable.parent}\ninclude-system-site-packages = false\n')
+    (venv / 'lib').symlink_to(Path(runtime['prefix']).resolve() / 'lib', target_is_directory=True)
+    if (Path(runtime['prefix']) / 'lib64').exists():
+        (venv / 'lib64').symlink_to('lib', target_is_directory=True)
+
+
+def readable_roots(args, runtime):
+    roots = {runtime['prefix'], runtime['base_prefix'],
+             str(Path(runtime['prefix']).resolve()), str(Path(runtime['base_prefix']).resolve())}
+    if sys.platform.startswith('linux'):
+        # Codex's Linux sandbox re-executes the codex binary inside bubblewrap, so its
+        # package (bin/, codex-resources/, codex-path/; no credentials) must be readable.
+        roots.add(str(Path(args.codex).resolve().parents[1]))
+    return sorted(roots)
+
+
+def provenance(args, task, runtime, workspace, folders):
+    """What a run was made from: source commit, CLI and runtime versions, hashes."""
+    return {
+        'source_commit': subprocess.check_output(['git', '-C', str(REPO), 'rev-parse', 'HEAD'], text=True).strip(),
+        'source_status': subprocess.check_output(['git', '-C', str(REPO), 'status', '--short'], text=True),
+        'codex_version': subprocess.check_output([str(args.codex), '--version'], text=True).strip(),
+        **({'claude_version': subprocess.check_output([str(args.claude), '--version'], text=True).strip()}
+           if args.agent == 'claude' else {}),
+        'agent_runtime': runtime,
+        'private_data_sha256': {str(Path(p).relative_to(REPO)): hashlib.sha256(Path(p).read_bytes()).hexdigest()
+                                for p in getattr(task, 'private_data_paths', ())},
+        'source_sha256': {str(p.relative_to(REPO)): hashlib.sha256(p.read_bytes()).hexdigest()
+                          for folder in folders for p in (PACKAGE / folder).glob('*.py')},
+        'public_sha256': {str(p.relative_to(workspace)): hashlib.sha256(p.read_bytes()).hexdigest()
+                         for p in workspace.rglob('*') if p.is_file() and not p.is_symlink()},
+    }
+
+
+def forbidden_paths(task, root, private):
+    """Paths the preflight must fail to read from inside the sandbox."""
+    (private / 'canary.txt').write_text('Private evaluator data: access must fail.')
+    (root / 'sibling_canary.txt').write_text('Another campaign: access must fail.')
+    return [private / 'canary.txt', root / 'sibling_canary.txt', REPO / 'README.md',
+            Path(inspect.getfile(type(task))), private / 'evaluations.sqlite',
+            Path.home() / '.codex/auth.json', Path.home() / '.claude.json', Path(__file__),
+            *getattr(task, 'private_data_paths', ())]
+
+
 def prepare(args, task, runtime):
     # An opaque basename keeps the task identity out of paths visible to the model.
     root = args.runs_dir.resolve() / ('run-' + uuid.uuid4().hex[:12])
@@ -136,17 +188,7 @@ def prepare(args, task, runtime):
         import numpy as np
         # Deliberately export only features, with anonymous row positions.
         np.save(workspace / 'candidates.npy', task.candidates, allow_pickle=False)
-    # A read-only venv view removes installation aliases (e.g. uv's versionless
-    # symlink) without granting access to their parent directories on macOS.
-    venv = workspace / '.venv'
-    (venv / 'bin').mkdir(parents=True)
-    executable = Path(runtime['executable']).resolve()
-    (venv / 'bin/python').symlink_to(executable)
-    (venv / 'pyvenv.cfg').write_text(
-        f'home = {executable.parent}\ninclude-system-site-packages = false\n')
-    (venv / 'lib').symlink_to(Path(runtime['prefix']).resolve() / 'lib', target_is_directory=True)
-    if (Path(runtime['prefix']) / 'lib64').exists():
-        (venv / 'lib64').symlink_to('lib', target_is_directory=True)
+    runtime_view(workspace, runtime)
     # Scripts in work/ can import the public src package without modifying it.
     (workspace / 'work/src').symlink_to('../src', target_is_directory=True)
     bounds = [[float(v) for v in pair] for pair in task.bounds]
@@ -223,34 +265,13 @@ or write adapters in work/. Network access and dependency installation are disab
 On an evaluator error, stop and report; do not retry an unknown evaluation.
 '''
     (workspace / 'PUBLIC_EVALUATOR.md').write_text(public)
-    (private / 'canary.txt').write_text('Private evaluator data: access must fail.')
-    (root / 'sibling_canary.txt').write_text('Another campaign: access must fail.')
-    roots = {runtime['prefix'], runtime['base_prefix'],
-             str(Path(runtime['prefix']).resolve()), str(Path(runtime['base_prefix']).resolve())}
-    if sys.platform.startswith('linux'):
-        # Codex's Linux sandbox re-executes the codex binary inside bubblewrap, so its
-        # package (bin/, codex-resources/, codex-path/; no credentials) must be readable.
-        roots.add(str(Path(args.codex).resolve().parents[1]))
-    roots = sorted(roots)
     policy = {'codex': str(args.codex), 'python': str(args.agent_python),
-              'workspace': str(workspace), 'permissions': permissions(workspace, roots)}
+              'workspace': str(workspace), 'permissions': permissions(workspace, readable_roots(args, runtime))}
     write_json(private / 'execution.json', policy)
     manifest = {
         'task': args.task, 'budget': args.budget, 'seed': args.seed, 'agent': args.agent,
         'model': args.model, 'reasoning_effort': args.effort,
-        'source_commit': subprocess.check_output(['git', '-C', str(REPO), 'rev-parse', 'HEAD'], text=True).strip(),
-        'source_status': subprocess.check_output(['git', '-C', str(REPO), 'status', '--short'], text=True),
-        'codex_version': subprocess.check_output([str(args.codex), '--version'], text=True).strip(),
-        **({'claude_version': subprocess.check_output([str(args.claude), '--version'], text=True).strip()}
-           if args.agent == 'claude' else {}),
-        'agent_runtime': runtime,
-        'private_data_sha256': {str(Path(p).relative_to(REPO)): hashlib.sha256(Path(p).read_bytes()).hexdigest()
-                                for p in getattr(task, 'private_data_paths', ())},
-        'source_sha256': {str(p.relative_to(REPO)): hashlib.sha256(p.read_bytes()).hexdigest()
-                          for folder in ['blind_runner', 'tasks']
-                          for p in (PACKAGE / folder).glob('*.py')},
-        'public_sha256': {str(p.relative_to(workspace)): hashlib.sha256(p.read_bytes()).hexdigest()
-                         for p in workspace.rglob('*') if p.is_file() and not p.is_symlink()},
+        **provenance(args, task, runtime, workspace, ['blind_runner', 'tasks']),
     }
     write_json(private / 'manifest.json', manifest)
     return root, workspace, private, policy
@@ -277,10 +298,10 @@ def executor_args(private):
     return ['-B', str(Path(__file__).with_name('execution.py')), str(private / 'execution.json')]
 
 
-def codex_command(args, workspace, private, policy):
+def codex_command(args, workspace, private, policy, system, logs):
     config = dict(policy['permissions'])
     config.update({
-        'developer_instructions': instructions(args, workspace),
+        'developer_instructions': system,
         'model_reasoning_effort': args.effort,
         'mcp_servers': {'workspace': {'command': sys.executable, 'args': executor_args(private),
             'enabled': True, 'required': True, 'startup_timeout_sec': 30, 'tool_timeout_sec': 45,
@@ -292,44 +313,48 @@ def codex_command(args, workspace, private, policy):
                     'image_generation', 'skill_search', 'workspace_dependencies', 'code_mode']:
         config['features.' + feature] = False
     config['features.code_mode_host'] = True
-    write_json(private / 'effective_overrides.json', config)
+    write_json(logs / 'effective_overrides.json', config)
     return [str(args.codex), '--no-daemon', 'exec', '--ignore-user-config', '--ignore-rules',
             '--ephemeral', '--skip-git-repo-check', '--json', '--color', 'never',
             '-m', args.model, '-C', str(workspace), *overrides(config),
-            '-o', str(private / 'agent_final.txt'), '-'], cli_environment()
+            '-o', str(logs / 'agent_final.txt'), '-'], cli_environment()
 
 
-def claude_command(args, workspace, private):
+def claude_command(args, workspace, private, system, logs):
     # No built-in tools, settings, memory, CLAUDE.md, skills or connectors: the only
     # tools are the sandboxed MCP executor's, and anything else is denied unprompted.
     config = {'mcpServers': {SERVER['claude']: {'type': 'stdio', 'command': sys.executable,
                                                 'args': executor_args(private)}}}
-    write_json(private / 'claude_mcp.json', config)
+    write_json(logs / 'claude_mcp.json', config)
     command = [str(args.claude), '-p', '--output-format', 'stream-json', '--verbose',
                '--model', args.model, '--effort', args.effort, '--tools', '',
-               '--strict-mcp-config', '--mcp-config', str(private / 'claude_mcp.json'),
+               '--strict-mcp-config', '--mcp-config', str(logs / 'claude_mcp.json'),
                '--allowedTools', ','.join(f"mcp__{SERVER['claude']}__{t}" for t in TOOLS),
                '--permission-mode', 'dontAsk', '--setting-sources', '', '--disable-slash-commands',
-               '--no-session-persistence', '--system-prompt', instructions(args, workspace)]
+               '--no-session-persistence', '--system-prompt', system]
     # The ceiling keeps the enclosing repository's git status out of the CLI's context.
     env = {**cli_environment(), 'ENABLE_CLAUDEAI_MCP_SERVERS': 'false', 'CLAUDE_CODE_DISABLE_AUTO_MEMORY': '1',
            'GIT_CEILING_DIRECTORIES': str(workspace.parent)}
-    write_json(private / 'effective_overrides.json', {'command': command[1:], 'mcp': config})
+    write_json(logs / 'effective_overrides.json', {'command': command[1:], 'mcp': config})
     return command, env
 
 
-def launch(args, workspace, private, policy):
+PROMPT = ('Carry out the fully authorized optimization campaign in PUBLIC_EVALUATOR.md, following '
+          'AGENTS.md. Choose and execute only one bounded block at a time, then review your '
+          'observations and decide again. You choose relevant hyperparameters and block lengths. '
+          'Work autonomously without asking for confirmation between blocks. Use the available '
+          'budget thoughtfully and finish with the four required campaign files and a brief summary.')
+
+
+def launch(args, workspace, private, policy, prompt, system, logs):
+    """One CLI call with the sandboxed executor as its only tools; logs go to `logs`."""
+    logs.mkdir(parents=True, exist_ok=True)
     if args.agent == 'codex':
-        command, env = codex_command(args, workspace, private, policy)
+        command, env = codex_command(args, workspace, private, policy, system, logs)
     else:
-        command, env = claude_command(args, workspace, private)
-    prompt = ('Carry out the fully authorized optimization campaign in PUBLIC_EVALUATOR.md, following '
-              'AGENTS.md. Choose and execute only one bounded block at a time, then review your '
-              'observations and decide again. You choose relevant hyperparameters and block lengths. '
-              'Work autonomously without asking for confirmation between blocks. Use the available '
-              'budget thoughtfully and finish with the four required campaign files and a brief summary.')
-    (private / 'initial_prompt.txt').write_text(prompt)
-    with (private / 'cli_events.jsonl').open('w') as events, (private / 'cli_stderr.log').open('w') as errors:
+        command, env = claude_command(args, workspace, private, system, logs)
+    (logs / 'initial_prompt.txt').write_text(prompt)
+    with (logs / 'cli_events.jsonl').open('w') as events, (logs / 'cli_stderr.log').open('w') as errors:
         process = subprocess.Popen(command, cwd=workspace, env=env, stdin=subprocess.PIPE,
                                    stdout=events, stderr=errors, text=True)
         try:
@@ -342,25 +367,22 @@ def launch(args, workspace, private, policy):
                 process.kill()
                 process.wait()
             raise
-    write_json(private / 'cli_exit.json', {'returncode': process.returncode})
+    write_json(logs / 'cli_exit.json', {'returncode': process.returncode})
     if args.agent == 'claude':
-        results = [e for e in events_of(private) if e.get('type') == 'result']
-        (private / 'agent_final.txt').write_text((results[-1].get('result') or '') if results else '')
+        results = [e for e in events_of(logs) if e.get('type') == 'result']
+        (logs / 'agent_final.txt').write_text((results[-1].get('result') or '') if results else '')
     return process.returncode
 
 
-def events_of(private):
-    path = private / 'cli_events.jsonl'
+def events_of(logs):
+    path = logs / 'cli_events.jsonl'
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
 
 
-def audit(evaluator, workspace, private, agent):
-    expected = evaluator.artifacts('run')
-    matches = all((workspace / 'results/agent_run' / name).read_bytes() == content.encode()
-                  for name, content in expected.items())
-    unknown = evaluator.db.execute('SELECT COUNT(*) FROM evaluations WHERE y IS NULL').fetchone()[0]
+def tool_calls(events):
+    """(server, tool) for every tool the model called; anything outside MCP is 'unexpected'."""
     tools = []
-    for event in events_of(private):
+    for event in events:
         # Codex reports completed items; Claude reports tool_use blocks named mcp__<server>__<tool>.
         item = event.get('item', {}) if event.get('type') == 'item.completed' else {}
         if item.get('type') == 'mcp_tool_call':
@@ -372,10 +394,23 @@ def audit(evaluator, workspace, private, agent):
                 if block.get('type') in ('tool_use', 'server_tool_use'):
                     _, server, tool = (block.get('name', '').split('__', 2) + ['', ''])[:3]
                     tools.append((server, tool) if block['type'] == 'tool_use' else ('unexpected', block['name']))
+    return tools
+
+
+def only_workspace_tools(tools, agent):
+    return all(s == SERVER[agent] and t in TOOLS for s, t in tools)
+
+
+def audit(evaluator, workspace, private, agent):
+    expected = evaluator.artifacts('run')
+    matches = all((workspace / 'results/agent_run' / name).read_bytes() == content.encode()
+                  for name, content in expected.items())
+    unknown = evaluator.db.execute('SELECT COUNT(*) FROM evaluations WHERE y IS NULL').fetchone()[0]
+    tools = tool_calls(events_of(private))
     report = {
         **evaluator.status('run'), 'unknown_evaluations': unknown,
         'artifacts_match_journal': matches,
-        'only_workspace_execution_tools': all(s == SERVER[agent] and t in TOOLS for s, t in tools),
+        'only_workspace_execution_tools': only_workspace_tools(tools, agent),
         'tool_calls': len(tools),
     }
     write_json(private / 'integrity_audit.json', report)
@@ -431,14 +466,10 @@ def main(argv=None):
     bridge.start()
     exit_code = 0
     try:
-        forbidden = [private / 'canary.txt', root / 'sibling_canary.txt', REPO / 'README.md',
-                     Path(inspect.getfile(type(task))), private / 'evaluations.sqlite',
-                     Path.home() / '.codex/auth.json', Path.home() / '.claude.json', Path(__file__)]
-        forbidden.extend(getattr(task, 'private_data_paths', ()))
-        report = check(policy, forbidden, private)
+        report = check(policy, forbidden_paths(task, root, private), private)
         print(f"Isolation passed: {len(report['checks'])} checks, 0/{args.budget} evaluations.", flush=True)
         if not args.check_only:
-            exit_code = launch(args, workspace, private, policy)
+            exit_code = launch(args, workspace, private, policy, PROMPT, instructions(args, workspace), private)
     finally:
         bridge.close()
         # The private journal remains recoverable on failure. Do not overwrite

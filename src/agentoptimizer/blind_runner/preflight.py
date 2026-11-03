@@ -7,7 +7,9 @@ import shlex
 from .execution import run
 
 
-PROBE = r'''
+# Shared by both probes: argv is the forbidden paths (JSON), the supervisor's
+# pid and a listening local port.
+COMMON = r'''
 import errno, importlib.util, json, os, pathlib, socket, subprocess, sys
 root = pathlib.Path.cwd()
 checks = []
@@ -24,15 +26,8 @@ def denied(label, fn):
         raise AssertionError('Isolation failure: ' + label)
 for value in json.loads(sys.argv[1]):
     denied('private read denied', lambda p=pathlib.Path(value): p.read_bytes())
-for name in ['AGENTS.md', 'PUBLIC_EVALUATOR.md', 'src/agent_harness/harness.py',
-             'results/agent_run/trace.csv', 'results/agent_run/meta.json']:
-    denied(name + ' protected', lambda p=root/name: p.open('a'))
-denied('trace removal denied', lambda: (root/'results/agent_run/trace.csv').unlink())
-denied('trace replacement denied', lambda: (root/'results/agent_run/trace.csv').rename(root/'work/stolen_trace.csv'))
-denied('response forgery denied', lambda: (root/'.bridge/responses/forged.json').write_text('{}'))
 denied('home configuration protected', lambda: (root/'.home/agent_config').write_text('override'))
 denied('project configuration protected', lambda: (root/'.codex').mkdir())
-denied('bridge replacement denied', lambda: (root/'.bridge').rename(root/'work/moved_bridge'))
 link = root/'work/escape'
 link.symlink_to(json.loads(sys.argv[1])[0])
 denied('symlink escape denied', lambda: link.read_bytes())
@@ -58,6 +53,17 @@ assert importlib.util.find_spec('cocoex') is None, 'Use an optimizer-only runtim
 assert importlib.util.find_spec('agentoptimizer') is None, 'Use a runtime without the agentoptimizer package'
 checks.append('objective sources and backends absent')
 import numpy, scipy, cma, torch, botorch, gpytorch, pybobyqa
+'''
+
+# The benchmark workspace: the harness talks to the evaluator through .bridge/.
+PROBE = COMMON + r'''
+for name in ['AGENTS.md', 'PUBLIC_EVALUATOR.md', 'src/agent_harness/harness.py',
+             'results/agent_run/trace.csv', 'results/agent_run/meta.json']:
+    denied(name + ' protected', lambda p=root/name: p.open('a'))
+denied('trace removal denied', lambda: (root/'results/agent_run/trace.csv').unlink())
+denied('trace replacement denied', lambda: (root/'results/agent_run/trace.csv').rename(root/'work/stolen_trace.csv'))
+denied('response forgery denied', lambda: (root/'.bridge/responses/forged.json').write_text('{}'))
+denied('bridge replacement denied', lambda: (root/'.bridge').rename(root/'work/moved_bridge'))
 from src.agent_harness.harness import AgentTaskHarness
 h = AgentTaskHarness()
 assert h.evaluations_used == 0
@@ -78,14 +84,32 @@ h.save()
 print(json.dumps({'checks': checks, 'evaluations': 0, 'budget': h.budget}))
 '''
 
+# The replay workspace: no evaluator access at all; the campaign folder is the
+# only place the advisor writes besides work/ and .tmp/.
+REPLAY_PROBE = COMMON + r'''
+for name in ['AGENTS.md', 'opt_run.py', 'lib/agentoptimizer/advisor/cli.py']:
+    denied(name + ' protected', lambda p=root/name: p.open('a'))
+denied('campaign replacement denied', lambda: (root/'campaign').rename(root/'work/moved_campaign'))
+denied('library replacement denied', lambda: (root/'lib').rename(root/'work/moved_lib'))
+assert not (root/'lib/agentoptimizer/tasks').exists() and not (root/'.bridge').exists()
+probe = root/'campaign/.write_probe'
+probe.write_text('probe')
+probe.unlink()
+checks.append('campaign writable')
+result = subprocess.run([sys.executable, '-I', 'opt_run.py', 'check', 'campaign'], capture_output=True, text=True)
+assert result.returncode == 0, result.stdout + result.stderr
+checks.append('advisor runs on the campaign')
+print(json.dumps({'checks': checks, 'evaluations': 0}))
+'''
 
-def check(policy, forbidden, private):
+
+def check(policy, forbidden, private, probe=PROBE):
     import socket
     # A listening socket distinguishes actual denial from "nothing listening".
     with socket.socket() as listener:
         listener.bind(('127.0.0.1', 0))
         listener.listen()
-        script = '.venv/bin/python -B -c ' + shlex.quote(PROBE)
+        script = '.venv/bin/python -B -c ' + shlex.quote(probe)
         script += ' ' + shlex.quote(json.dumps([str(p) for p in forbidden]))
         script += ' ' + str(os.getpid()) + ' ' + str(listener.getsockname()[1])
         result = run(policy, script, timeout=120)

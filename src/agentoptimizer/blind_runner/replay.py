@@ -10,21 +10,34 @@ decisions.md as of the last evaluated block. The workspace copy is rewritten
 from it before every call, and everything read back from the workspace is
 checked against it.
 """
+import argparse
 import csv
 import hashlib
 import io
+import json
 import os
 from pathlib import Path
 import re
 import shutil
 import stat
+import sys
+import time
 import uuid
 
 from ..advisor.blocks import block_folder, has_decision, open_block_number
 from ..advisor.data import DataError, Table, format_number, load_campaign, read_table, standard_columns, write_table
 from ..advisor.problem import ProblemError, load_problem
+from .evaluator import Evaluator
+from .execution import permissions, run
+from .preflight import REPLAY_PROBE, check
+from .runner import (SERVER, events_of, forbidden_paths, launch, only_workspace_tools, provenance,
+                     readable_roots, runtime_info, runtime_view, tool_calls, write_json)
 
 PACKAGE = Path(__file__).resolve().parents[1]
+REPO = PACKAGE.parents[1]
+# What the runner records about each advisor call, summed over a block's attempts.
+USAGE = ('turns', 'tool_calls', 'seconds', 'cost_usd',
+         'input_tokens', 'cache_write_tokens', 'cache_read_tokens', 'output_tokens')
 # Files of a public campaign the runner reads back, and their size limits.
 LIMITS = {'data.csv': 20_000_000, 'decisions.md': 1_000_000, 'block file': 1_000_000}
 # Block files that are outputs of propose.py, not inputs to reproducing it.
@@ -188,13 +201,13 @@ class Replay:
     def block(self, number):
         logs = self.private / 'blocks' / f'{number:03d}'
         record = {'block': number, 'attempts': 0, 'status': 'no proposals', 'rows': 0, 'methods': '',
-                  'propose_sha256': '', 'turns': 0, 'cost_usd': 0., 'input_tokens': 0, 'output_tokens': 0}
+                  'propose_sha256': '', **dict.fromkeys(USAGE, 0)}
         rows = []
         for attempt in range(1 + self.retries):
             self.publish()
             usage = self.advise(number, attempt, logs / f'attempt{attempt + 1}') or {}
             record['attempts'] += 1
-            for key in ('turns', 'cost_usd', 'input_tokens', 'output_tokens'):
+            for key in USAGE:
                 record[key] += usage.get(key, 0)
             rows, decisions = self.collect(number)
             if rows:
@@ -319,3 +332,152 @@ class Replay:
             writer = csv.DictWriter(stream, fieldnames=list(records[0]), lineterminator='\n')
             writer.writeheader()
             writer.writerows(records)
+
+
+def system_prompt(agent):
+    """The advisor's instructions: the policy, then the headless procedure."""
+    return ((REPO / 'prompts/advisor.md').read_text() + '\n'
+            + (REPO / 'prompts/advisor_headless.md').read_text()
+            + f'\nAll commands and file access use the {SERVER[agent]} MCP tools.\n')
+
+
+def usage_of(events):
+    """Turns, cost and tokens of one CLI call, from its event stream (Claude or Codex)."""
+    usage = dict.fromkeys(USAGE, 0)
+    for event in events:
+        if event.get('type') == 'result':  # Claude: one per call
+            tokens = event.get('usage', {})
+            usage.update(turns=event.get('num_turns', 0), cost_usd=event.get('total_cost_usd', 0.),
+                         input_tokens=tokens.get('input_tokens', 0),
+                         cache_write_tokens=tokens.get('cache_creation_input_tokens', 0),
+                         cache_read_tokens=tokens.get('cache_read_input_tokens', 0),
+                         output_tokens=tokens.get('output_tokens', 0))
+        elif event.get('type') == 'turn.completed':  # Codex: input tokens include cached ones
+            tokens = event.get('usage', {})
+            cached = tokens.get('cached_input_tokens', 0)
+            usage['turns'] += 1
+            usage['input_tokens'] += tokens.get('input_tokens', 0) - cached
+            usage['cache_read_tokens'] += cached
+            usage['output_tokens'] += tokens.get('output_tokens', 0)
+    return usage
+
+
+def cli_advisor(args, workspace, private, policy):
+    """advise() for Replay: one fresh headless CLI call per attempt."""
+    system = system_prompt(args.agent)
+
+    def advise(block, attempt, logs):
+        prompt = f'Propose block {block} of the campaign in campaign/, following your instructions.'
+        start = time.monotonic()
+        launch(args, workspace, private, policy, prompt, system, logs)
+        events = events_of(logs)
+        tools = tool_calls(events)
+        if not only_workspace_tools(tools, args.agent):
+            raise ReplayError(f'block {block}: the advisor used a tool outside the sandbox; see {logs}')
+        return {**usage_of(events), 'tool_calls': len(tools), 'seconds': round(time.monotonic() - start, 1)}
+    return advise
+
+
+def audit(evaluator, replay, records, error):
+    """The journal and the private campaign agree; the run is complete or says why not."""
+    journal = evaluator.db.execute("SELECT y FROM evaluations WHERE campaign='run' ORDER BY idx").fetchall()
+    rows = read_table(replay.truth, replay.problem).rows
+    report = {**evaluator.status('run'),
+              'complete': evaluator.count('run') == evaluator.suite['budget'],
+              'stopped': error or (records[-1]['status'] if records and records[-1]['status'] != 'evaluated' else ''),
+              'unknown_evaluations': sum(y is None for (y,) in journal),
+              'data_matches_journal': [float(r[replay.problem.objective]) for r in rows] == [y for (y,) in journal],
+              'blocks': len(records), **{key: sum(r[key] for r in records) for key in USAGE}}
+    report.pop('available_indices', None)
+    write_json(replay.private / 'integrity_audit.json', report)
+    if report['unknown_evaluations'] or not report['data_matches_journal']:
+        raise RuntimeError('Integrity audit failed; see ' + str(replay.private / 'integrity_audit.json'))
+    return report
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description='Replay advisor mode blind: a fresh advisor call per block.')
+    parser.add_argument('--task', required=True, help='A key of src/agentoptimizer/tasks/registry.py')
+    parser.add_argument('--budget', required=True, type=int)
+    parser.add_argument('--block-size', type=int, default=8,
+                        help='Preferred block size written to problem.toml (default 8); the advisor chooses')
+    parser.add_argument('--seed', type=int, default=0, help='Campaign seed and private observation-noise seed')
+    parser.add_argument('--agent', default='claude', choices=['codex', 'claude'], help='CLI that drives the model')
+    parser.add_argument('--model', help='Default: gpt-6-astra (codex), claude-opus-5-5 (claude)')
+    parser.add_argument('--effort', default='max', choices=['low', 'medium', 'high', 'xhigh', 'max'],
+                        help='Reasoning effort (default: max, as in the benchmark).')
+    parser.add_argument('--retries', type=int, default=1, help='Fresh calls for a block that accepted nothing')
+    parser.add_argument('--agent-python', type=Path, default=REPO / '.agent-venv/bin/python')
+    parser.add_argument('--codex', type=Path, default=shutil.which('codex'),
+                        help='Codex CLI; also the per-command sandbox for both agents')
+    parser.add_argument('--claude', type=Path, default=shutil.which('claude'))
+    parser.add_argument('--runs-dir', type=Path, default=REPO / 'runs')
+    parser.add_argument('--check-only', action='store_true', help='Validate isolation with no model call')
+    args = parser.parse_args(argv)
+    if sys.platform not in ('darwin', 'linux'):
+        parser.error('The native executor currently supports macOS and Linux only.')
+    if args.budget < 1 or args.block_size < 1 or args.seed < 0 or args.retries < 0 or args.codex is None:
+        parser.error('Use a positive budget and block size, nonnegative seed and retries, and install Codex CLI.')
+    if args.agent == 'claude' and args.claude is None:
+        parser.error('Install and sign in to Claude Code CLI, or pass --claude.')
+    args.model = args.model or {'codex': 'gpt-6-astra', 'claude': 'claude-opus-5-5'}[args.agent]
+    # Preserve the venv executable path: resolving its symlink would bypass the venv.
+    args.agent_python = args.agent_python.expanduser().absolute()
+    args.codex = args.codex.expanduser().absolute()
+    if args.claude is not None:
+        args.claude = args.claude.expanduser().absolute()
+    from ..tasks.registry import TASKS
+    if args.task not in TASKS:
+        parser.error('Unknown task. See src/agentoptimizer/tasks/registry.py.')
+    task = TASKS[args.task]()
+    if task.n_constraints:
+        parser.error('Replay does not support constrained tasks yet.')
+    if task.pool and args.budget > task.n_candidates:
+        parser.error(f'A pool task allows at most {task.n_candidates} evaluations.')
+    task.reseed(args.seed)
+    runtime = runtime_info(args.agent_python)
+
+    # An opaque basename keeps the task identity out of paths visible to the model.
+    root = args.runs_dir.resolve() / ('replay-' + uuid.uuid4().hex[:12])
+    root.mkdir(parents=True, mode=0o700)
+    (root / 'private').mkdir(mode=0o700)
+    workspace, private = build_campaign(root, task, args.budget, min(args.block_size, args.budget), args.seed)
+    (workspace / 'AGENTS.md').write_text(system_prompt(args.agent))
+    runtime_view(workspace, runtime)
+    policy = {'codex': str(args.codex), 'python': str(args.agent_python), 'workspace': str(workspace),
+              'permissions': permissions(workspace, readable_roots(args, runtime),
+                                         writable=('campaign', 'work', '.tmp'), read_only=(), marker='AGENTS.md')}
+    write_json(private / 'execution.json', policy)
+    suite = {'budget': args.budget, 'seed': args.seed, 'campaigns': [{'id': 'run', 'task': args.task}],
+             'documents': {'decisions.md': 'append'}}
+    evaluator = Evaluator(suite, private / 'evaluations.sqlite', lambda _: task)
+    write_json(private / 'scoring.json', {'task': args.task, 'task_name': task.name, 'f_opt': float(task.f_opt),
+                                          'noisy': task.noisy, 'n_constraints': task.n_constraints,
+                                          'seed': args.seed})
+    replay = Replay(workspace, private, evaluator, cli_advisor(args, workspace, private, policy),
+                    lambda command: run(policy, command, timeout=900), retries=args.retries)
+    replay.publish()
+    write_json(private / 'manifest.json', {
+        'mode': 'replay', 'task': args.task, 'budget': args.budget, 'block_size': args.block_size,
+        'seed': args.seed, 'agent': args.agent, 'model': args.model, 'reasoning_effort': args.effort,
+        'retries': args.retries,
+        **provenance(args, task, runtime, workspace, ['blind_runner', 'tasks', 'advisor', 'batch'])})
+    print('Run directory: ' + str(root), flush=True)
+    records, error = [], ''
+    try:
+        report = check(policy, forbidden_paths(task, root, private), private, REPLAY_PROBE)
+        print(f"Isolation passed: {len(report['checks'])} checks, 0/{args.budget} evaluations.", flush=True)
+        if not args.check_only:
+            try:
+                records = replay.run()
+            except ReplayError as exc:
+                error = str(exc)
+                print('Replay stopped: ' + error, flush=True)
+    finally:
+        if sys.exc_info()[0] is None:
+            report = audit(evaluator, replay, records, error)
+            (private / 'scored_trace.csv').write_text(evaluator.scored_trace('run'))
+        evaluator.db.close()
+    print(f"Finished: {report['evaluations_used']}/{args.budget} evaluations in {report['blocks']} blocks"
+          f" (${report['cost_usd']:.2f}). Campaign: {workspace / 'campaign'}")
+    return 0 if report['complete'] else 1

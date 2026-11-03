@@ -16,7 +16,8 @@ from agentoptimizer.advisor.blocks import accept_block, new_block, run_block
 from agentoptimizer.advisor.data import read_table
 from agentoptimizer.advisor.problem import load_problem
 from agentoptimizer.blind_runner.evaluator import Evaluator
-from agentoptimizer.blind_runner.replay import Replay, ReplayError, build_campaign, install_advisor
+from agentoptimizer.blind_runner.replay import (Replay, ReplayError, build_campaign, install_advisor, problem_toml,
+                                                system_prompt, usage_of)
 
 REPO = Path(__file__).resolve().parents[1]
 AGENT_PYTHON = REPO / '.agent-venv/bin/python'
@@ -240,6 +241,35 @@ class Loop(unittest.TestCase):
         replay.advise = advise
         with self.assertRaisesRegex(ReplayError, 'is a link'):
             replay.run()
+
+
+
+class Headless(unittest.TestCase):
+    def test_usage_from_claude_and_codex_events(self):
+        claude = [{'type': 'assistant'}, {'type': 'result', 'num_turns': 12, 'total_cost_usd': .27,
+                   'usage': {'input_tokens': 18, 'cache_creation_input_tokens': 20488,
+                             'cache_read_input_tokens': 249269, 'output_tokens': 2790}}]
+        self.assertEqual({k: v for k, v in usage_of(claude).items() if v},
+                         {'turns': 12, 'cost_usd': .27, 'input_tokens': 18, 'cache_write_tokens': 20488,
+                          'cache_read_tokens': 249269, 'output_tokens': 2790})
+        codex = [{'type': 'turn.completed', 'usage': {'input_tokens': 1000, 'cached_input_tokens': 600,
+                                                      'output_tokens': 50}}] * 2
+        self.assertEqual({k: v for k, v in usage_of(codex).items() if v},
+                         {'turns': 2, 'input_tokens': 800, 'cache_read_tokens': 1200, 'output_tokens': 100})
+
+    def test_instructions_carry_the_policy_and_the_procedure(self):
+        text = system_prompt('claude')
+        self.assertIn('Optimization Advisor', text)
+        self.assertIn('one block, headless', text)
+        self.assertIn('isolated MCP tools', text)
+
+    def test_problem_notes_follow_the_task(self):
+        noisy = type('Noisy', (Sphere,), {'noisy': True})()
+        self.assertIn('noise-free value', problem_toml(noisy, 10, 4, 0))
+        self.assertIn('noise = "none"', problem_toml(Sphere(), 10, 4, 0))
+        pool = problem_toml(Pool(), 6, 4, 0)
+        self.assertIn('[pool]', pool)
+        self.assertNotIn('low =', pool)
 
 
 if __name__ == '__main__':

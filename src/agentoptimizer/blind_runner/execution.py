@@ -34,16 +34,22 @@ def environment(workspace, python):
     }
 
 
-def permissions(workspace, runtime_roots):
+# The benchmark workspace: the agent writes scripts, scratch files, bridge
+# requests and its decision documents; the evaluator's artifacts stay read-only.
+WRITABLE = ('work', '.tmp', '.bridge/requests', 'results/agent_run')
+READ_ONLY = ('results/agent_run/trace.csv', 'results/agent_run/meta.json')
+
+
+def permissions(workspace, runtime_roots, writable=WRITABLE, read_only=READ_ONLY, marker='PUBLIC_EVALUATOR.md'):
     files = {':root': 'deny', ':minimal': 'read', ':tmpdir': 'deny', ':slash_tmp': 'deny'}
     files.update({str(path): 'read' for path in runtime_roots})
     files[str(workspace)] = 'read'
     # Writable subdirectories have immutable parents. An agent cannot replace
     # the bridge/results directories with symlinks and redirect trusted writes.
-    for path in ['work', '.tmp', '.bridge/requests', 'results/agent_run']:
+    for path in writable:
         files[str(workspace / path)] = 'write'
-    for path in ['trace.csv', 'meta.json']:
-        files[str(workspace / 'results/agent_run' / path)] = 'read'
+    for path in read_only:
+        files[str(workspace / path)] = 'read'
     return {
         'default_permissions': 'blind',
         'permissions.blind.filesystem': files,
@@ -51,7 +57,7 @@ def permissions(workspace, runtime_roots):
         'approval_policy': 'never', 'allow_login_shell': False,
         'shell_environment_policy.inherit': 'none',
         'web_search': 'disabled', 'project_doc_max_bytes': 0,
-        'project_root_markers': ['PUBLIC_EVALUATOR.md'],
+        'project_root_markers': [marker],
         'memories.use_memories': False, 'memories.generate_memories': False,
         'mcp_servers': {}, 'features.skip_host_skill_discovery': True,
     }
