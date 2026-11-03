@@ -51,16 +51,18 @@ Each block:
    interact, whether there is one promising region or several, where good
    results lie relative to the bounds, how noisy results are, where runs
    fail. Each rests on the data or the description and says how confident
-   you are. Test them on the data with whatever analysis fits, and carry
-   them forward as supported, refuted or open.
+   you are. Test each with an analysis of the data (a script in `work/`,
+   or printed from `propose.py`) and quote its numbers. A hypothesis with
+   no test stays open; carry each forward as supported, refuted or open.
 3. **Design the optimizer for them:** choose or build the method that suits
    the hypotheses and the budget left, and say which hypotheses it relies
-   on. The options include space filling, model-based (Gaussian-process
-   BO, trust-region BO), evolutionary (CMA-ES, DE), local search around the
-   incumbent, replicates to measure noise, hybrids, and methods of your
-   own. Continuing and switching are both valid; neither has to match an
-   earlier expectation. Switching is an option, not a goal, and so is
-   writing your own method.
+   on, including any still open. The options include space filling,
+   model-based (Gaussian-process BO, trust-region BO), evolutionary
+   (CMA-ES, DE), local search around the incumbent, replicates to measure
+   noise, hybrids, and methods of your own. Name the alternatives you
+   considered and the evidence against each. Continuing and switching are
+   both valid; neither has to match an earlier expectation. Switching is
+   an option, not a goal, and so is writing your own method.
 4. **Plan the test:** say which hypotheses this block's results will test,
    and what result would refute each.
 
@@ -116,9 +118,10 @@ runs. Never edit or remove earlier entries.
 **Evidence:** <what the data shows, with values and uncertainty; for N > 1,
 what the last block was meant to show and whether it did>
 **Hypotheses:** <each claim about the landscape: supported, refuted or open,
-the test behind that status, and how confident you are>
+the test behind that status with its numbers, and how confident you are>
 **Decision:** <continue, adjust, switch, hybridize, build or restart; the
-method, the hypotheses it relies on, and the state rebuilt from the data>
+method, the hypotheses it relies on, the alternatives rejected and why,
+and the state rebuilt from the data>
 **Hyperparameters:** <values and why; inherited defaults with library and version>
 **Block size:** <SIZE> experiments in rounds of <round_size>, because <why this many before deciding again>
 **Seed:** <the seed the script uses>
@@ -139,24 +142,25 @@ data so far, and writes the proposals. When a proposer from
 """Block <N>: <method>, <SIZE> experiments. <one-line reason; full entry in decisions.md>"""
 from agentoptimizer import batch
 
-SIZE = 12
+SIZE = <SIZE>
 
 def propose(campaign, q):
-    return batch.trust_region(**campaign.inputs(), q=q, seed=100 * campaign.block + campaign.round,
-                              length=0.4)
+    seed = 100 * campaign.block + campaign.round
+    return batch.<proposer>(**campaign.inputs(), q=q, seed=seed, <settings>)
 ```
 
 The proposers rebuild their state from the data on every call and work the
 same for a `[pool]`, where they choose available rows. Each takes `q`,
 `seed` and the settings below, and records every setting it used, defaults
-included; `run` prints them into `propose.log`:
+included; `run` prints them into `propose.log`. Their docstrings, in
+`agentoptimizer/batch/`, give each setting's meaning and default:
 
 | Proposer | Use | Settings |
 | --- | --- | --- |
 | `space_filling` | A first design (scrambled Sobol), or points far from everything placed | `n_candidates` |
 | `random` | Uniform points or rows | — |
 | `qlognei` | Batch GP-BO by q-log noisy expected improvement; pending points count as chosen | `bounds` (a sub-box), `failed_as` (`'ignore'` or `'worst'`), `num_restarts`, `raw_samples` |
-| `trust_region` | `qlognei` in a box around the incumbent, scaled by the lengthscales (TuRBO-style) | `length` (TuRBO: start 0.8, double after improving blocks, halve after flat ones), `center`, `failed_as` |
+| `trust_region` | `qlognei` in a box around the incumbent, scaled by the lengthscales (TuRBO-style) | `length`, `center`, `failed_as` |
 | `cma_es` | One CMA-ES generation centred on the best points | `mu`, `sigma` |
 | `de` | One differential-evolution generation from the best points | `population`, `F`, `CR`, `strategy` (`'rand1'` or `'best1'`) |
 
@@ -168,8 +172,8 @@ for example by `campaign.round`.
 ```python
 import numpy as np
 inputs = campaign.inputs()
-main = batch.qlognei(**inputs, q=q - 1, seed=5)
-probe = batch.space_filling(**{**inputs, "pending": np.vstack([inputs["pending"], main.X])}, q=1, seed=5)
+main = batch.<proposer>(**inputs, q=q - 1, seed=seed)
+probe = batch.space_filling(**{**inputs, "pending": np.vstack([inputs["pending"], main.X])}, q=1, seed=seed)
 return batch.combine(main, probe)
 ```
 

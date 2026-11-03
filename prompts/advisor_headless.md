@@ -36,7 +36,8 @@ Fitting a model in `opt_run.py run` can take a minute.
 3. **Read** `campaign/problem.toml`, `campaign/blocks/NNN/summary.json`,
    `campaign/decisions.md` if it exists, and the previous block's
    `propose.py`. Read `campaign/data.csv` when the summary is not enough to
-   test a hypothesis; put analysis scripts in `work/`.
+   test a hypothesis; put analysis scripts in `work/` and quote their
+   numbers in the entry.
 4. **Decide and record.** Follow the policy, section 2: evidence,
    hypotheses, the optimizer designed for them, and the test. Append the
    `## Block N` entry to `campaign/decisions.md`. If the file does not exist

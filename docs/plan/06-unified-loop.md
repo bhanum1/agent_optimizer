@@ -109,6 +109,13 @@ each one. The last round of a block may be smaller, to fit the block.
   diagnostic in `summary.json` is removed: it chose the agent's first view
   of the data for it. Structure-seeking may favour the synthetic tasks, so
   synthetic and real tasks are reported separately.
+  A Sonnet 5.5 rerun at medium effort (`runs/run-9d4c1123e80a`, stopped
+  after 6 blocks at $0.30, best 79.66 against 79.48) filled in the
+  hypotheses as prose and tested none, and every model so far reached for
+  GP-BO and trust regions. So each hypothesis now needs a test with
+  numbers or it stays open, each decision names the alternatives it
+  rejected, and the prompt no longer shows a tuned trust region as its
+  example or the TuRBO schedule in its table (it stays in the docstring).
 
 ## Status (2026-11-03)
 
