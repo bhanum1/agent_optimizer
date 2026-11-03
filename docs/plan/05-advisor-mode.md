@@ -261,6 +261,65 @@ lower effort, restricting headless runs to the tools the skill uses
 (`--tools "Bash,Read,Write,Edit"`), and fewer turns (for example,
 `new-block` printing everything the decision needs).
 
+### Phase 4 design: the replay runner
+
+`scripts/run_replay.py` (`blind_runner/replay.py`) runs one task as an
+advisor campaign. The runner plays the lab; the advisor never touches the
+evaluator.
+
+```text
+runs/replay-<random>/
+  private/     task, evaluations.sqlite, truth copy of the campaign, per-block CLI logs,
+               scored_trace.csv, integrity_audit.json, blocks.csv (turns, tokens, cost)
+  workspace/   AGENTS.md (advisor policy + headless procedure), opt_run.py,
+               lib/agentoptimizer/{advisor,batch}/, .venv (agent runtime view),
+               campaign/  problem.toml (x0…x{d-1}, task bounds, minimize y),
+                          data.csv, decisions.md, candidates.csv (indexed pools), blocks/
+```
+
+Each block:
+
+1. The runner writes `campaign/data.csv` from its private copy.
+2. A fresh headless CLI call (`claude -p` or `codex exec`, the benchmark's
+   model and effort) follows the same steps as `/opt-run`: check, summarize,
+   new-block, decide, write `propose.py`, run, accept. As in the benchmark,
+   its only tools are `run_command` and `write_stdin`, both run in the OS
+   sandbox, so it cannot read `private/` or reach the network.
+3. The runner checks what came back:
+   - done rows are unchanged;
+   - the only new rows are block N's pending rows, within the remaining
+     budget;
+   - `decisions.md` is append-only (journaled as a document, as the
+     changelog is).
+4. It reruns the block's `propose.py` in the sandbox against the data that
+   block saw, and requires the same proposals.
+5. It evaluates the rows in order through the private evaluator, labelled
+   with the block and method, records the values, and loops until the budget
+   is used. A call that accepts no block gets one fresh retry, then the run
+   stops and is marked incomplete.
+
+The scored trace has the benchmark's format, so the figure pipeline reads both.
+
+Supported for now:
+- continuous tasks;
+- indexed pools, as `[pool]` campaigns with candidate ids equal to row
+  positions;
+- non-indexed pools, as continuous campaigns with the benchmark's "not
+  repeatable" note.
+
+Constrained tasks wait for constraints in advisor mode (phase 5). Replay uses
+`.agent-venv` like the benchmark: `advisor/` and `batch/` use only relative
+imports and libraries from the `agent` group, so they are copied in the way
+`optimizers/` is, and `propose.py` finds them through the copy. The
+condition flags, fixed q and no summary, come after the base runner works.
+
+| Slice | Adds | Tests |
+| --- | --- | --- |
+| 1 | Advisor and batch code that runs from a copy in the agent runtime; evaluator documents configurable per suite | A copied `propose.py` runs under `.agent-venv`; append-only documents |
+| 2 | Replay runner loop with an injected advisor and sandbox: workspace, truth copy, checks, reproduction, evaluation | Scripted advisor over three blocks; tampering with results or decisions is refused |
+| 3 | Headless model advisor: `prompts/advisor_headless.md`, CLI commands, per-block logs, tool audit, usage | Command construction; one real replay |
+| 4 | Launch and status through `agent_runs.py`; conditions (fixed q, no summary) | Launch smoke test |
+
 ## Decisions made (2026-11-02)
 
 - **Name.** The skill is `/opt-run` for now; the CLI is `scripts/opt_run.py`

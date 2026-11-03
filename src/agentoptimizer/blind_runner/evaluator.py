@@ -18,6 +18,12 @@ import traceback
 from ..tasks.base import FEASIBILITY_TOL
 
 
+# Decision documents a campaign journals, and the rule for each: "fixed" is
+# written before the first evaluation and never changed; "append" only grows.
+# A suite may name its own (replay journals decisions.md).
+DOCUMENTS = {'roadmap_initial.md': 'fixed', 'changelog.md': 'append'}
+
+
 class BudgetExhausted(Exception):
     pass
 
@@ -40,6 +46,7 @@ def incumbents(db, campaign):
 class Evaluator:
     def __init__(self, suite, database, task_factory):
         self.suite = suite
+        self.rules = suite.get('documents', DOCUMENTS)
         self.lock = threading.Lock()
         self.tasks = {c['id']: task_factory(c) for c in suite['campaigns']}
         self.error_log = Path(database).parent / 'evaluator_errors.log'
@@ -92,7 +99,7 @@ class Evaluator:
         return state
 
     def documents(self, campaign, docs):
-        if not isinstance(docs, dict) or set(docs) != {'roadmap_initial.md', 'changelog.md'}:
+        if not isinstance(docs, dict) or set(docs) != set(self.rules):
             raise ValueError('Invalid decision documents.')
         for name, content in docs.items():
             if not isinstance(content, str) or len(content.encode()) > 200000:
@@ -100,10 +107,10 @@ class Evaluator:
             old = self.db.execute('SELECT content FROM documents WHERE campaign=? AND name=?',
                                   (campaign, name)).fetchone()
             old = old[0] if old else ''
-            if name == 'roadmap_initial.md' and old and content != old:
-                raise ValueError('The initial decision is immutable.')
-            if name == 'changelog.md' and not content.startswith(old):
-                raise ValueError('The changelog must be append-only.')
+            if self.rules[name] == 'fixed' and old and content != old:
+                raise ValueError(f'{name} is immutable once written.')
+            if self.rules[name] == 'append' and not content.startswith(old):
+                raise ValueError(f'{name} must be append-only.')
             if content != old:
                 self.db.execute('INSERT OR REPLACE INTO documents VALUES(?,?,?)', (campaign, name, content))
                 self.db.execute('INSERT INTO snapshots VALUES(?,?,?,?,?)',
@@ -208,9 +215,10 @@ class Evaluator:
                     or not lo <= v <= hi for v, (lo, hi) in zip(x, bounds)):
                     raise ValueError('Expected finite coordinates within the public bounds.')
                 label = self.db.execute('SELECT label FROM labels WHERE campaign=?', (campaign,)).fetchone()
-                initial = self.db.execute('SELECT content FROM documents WHERE campaign=? AND name=?',
-                                          (campaign, 'roadmap_initial.md')).fetchone()
-                if not label or not initial or not initial[0].strip():
+                written = dict(self.db.execute('SELECT name,content FROM documents WHERE campaign=?',
+                                               (campaign,)))
+                fixed = [name for name, rule in self.rules.items() if rule == 'fixed']
+                if not label or not all(written.get(name, '').strip() for name in fixed):
                     raise ValueError('Record the first decision and optimizer label before evaluating.')
                 # Reserve a charged slot durably before calling the objective. A crash cannot reset it.
                 self.db.execute('INSERT INTO evaluations(campaign,idx,request_id,x,label,wall_ns,candidate_index) '

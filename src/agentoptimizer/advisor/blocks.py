@@ -24,6 +24,11 @@ from .summary import model_diagnostics, summarize
 ENVIRONMENT = ('numpy', 'scipy', 'torch', 'botorch', 'gpytorch', 'cma', 'Py-BOBYQA', 'agentoptimizer')
 # Columns a proposals.csv may have besides the parameters.
 PROPOSAL_EXTRAS = ('optimizer', 'notes')
+# propose.py imports the agentoptimizer that runs this code, also when that is
+# a copy outside any environment (replay puts one in the sandbox).
+LIBRARY = str(Path(__file__).resolve().parents[2])
+BOOTSTRAP = ("import runpy, sys; sys.path.insert(0, sys.argv.pop(1)); sys.argv[0] = 'propose.py'; "
+             "runpy.run_path('propose.py', run_name='__main__')")
 
 
 class BlockError(ValueError):
@@ -72,8 +77,8 @@ def _execute(folder, timeout):
     # A stale file must not pass for this run's output.
     (folder / 'proposals.csv').unlink(missing_ok=True)
     try:
-        result = subprocess.run([sys.executable, '-I', 'propose.py'], cwd=folder, capture_output=True,
-                                text=True, timeout=timeout)
+        result = subprocess.run([sys.executable, '-I', '-c', BOOTSTRAP, LIBRARY], cwd=folder,
+                                capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         raise BlockError(f'propose.py ran longer than {timeout:g} s') from None
     (folder / 'propose.log').write_text(result.stdout + result.stderr)
