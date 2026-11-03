@@ -378,7 +378,7 @@ def cli_advisor(args, workspace, private, policy):
     return advise
 
 
-def audit(evaluator, replay, records, error):
+def audit(evaluator, replay, records, error, check_only=False):
     """The journal and the private campaign agree; the run is complete or says why not."""
     journal = evaluator.db.execute("SELECT y FROM evaluations WHERE campaign='run' ORDER BY idx").fetchall()
     rows = read_table(replay.truth, replay.problem).rows
@@ -387,7 +387,8 @@ def audit(evaluator, replay, records, error):
               'stopped': error or (records[-1]['status'] if records and records[-1]['status'] != 'evaluated' else ''),
               'unknown_evaluations': sum(y is None for (y,) in journal),
               'data_matches_journal': [float(r[replay.problem.objective]) for r in rows] == [y for (y,) in journal],
-              'blocks': len(records), **{key: sum(r[key] for r in records) for key in USAGE}}
+              'blocks': len(records), 'check_only': check_only,
+              **{key: sum(r[key] for r in records) for key in USAGE}}
     report.pop('available_indices', None)
     write_json(replay.private / 'integrity_audit.json', report)
     if report['unknown_evaluations'] or not report['data_matches_journal']:
@@ -475,7 +476,7 @@ def main(argv=None):
                 print('Replay stopped: ' + error, flush=True)
     finally:
         if sys.exc_info()[0] is None:
-            report = audit(evaluator, replay, records, error)
+            report = audit(evaluator, replay, records, error, args.check_only)
             (private / 'scored_trace.csv').write_text(evaluator.scored_trace('run'))
         evaluator.db.close()
     print(f"Finished: {report['evaluations_used']}/{args.budget} evaluations in {report['blocks']} blocks"

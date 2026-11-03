@@ -15,7 +15,7 @@ sys.path.insert(0, str(REPO))
 
 from agentoptimizer.blind_runner.evaluator import Evaluator
 from agentoptimizer.blind_runner.runner import cli_environment
-from scripts.agent_runs import progress, state, summary
+from scripts.agent_runs import progress, run_dirs, state, summary
 
 
 class Noisy:
@@ -76,6 +76,19 @@ class Reports(unittest.TestCase):
             self.assertEqual(state(root), 'finished')
             (private / 'integrity_audit.json').write_text(json.dumps({**audit, 'unknown_evaluations': 1}))
             self.assertEqual(state(root), 'audit failed')
+
+    def test_replay_states(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            private = Path(tmp) / 'replay-000000000000/private'
+            private.mkdir(parents=True)
+            (private / 'manifest.json').write_text('{}')
+            audit = {'unknown_evaluations': 0, 'data_matches_journal': True, 'check_only': True, 'complete': False}
+            for changes, expected in [({}, 'check only'), ({'check_only': False}, 'stopped early'),
+                                      ({'check_only': False, 'complete': True}, 'finished'),
+                                      ({'data_matches_journal': False}, 'audit failed')]:
+                (private / 'integrity_audit.json').write_text(json.dumps({**audit, **changes}))
+                self.assertEqual(state(private.parent), expected)
+            self.assertEqual(run_dirs([], tmp), [private.parent])
 
 
 class CliEnvironment(unittest.TestCase):

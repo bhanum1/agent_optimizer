@@ -1,7 +1,8 @@
 """Launch agent campaigns in the background and report on them.
 
-    launch  start one detached run_agent.py per seed; return once each has
-            passed the isolation preflight, printing its run directory
+    launch  start one detached run_agent.py per seed (run_replay.py with
+            --replay); return once each has passed the isolation preflight,
+            printing its run directory
     wait    block until the given runs end, then report on them
     status  one line per run under runs/, or a full report on the given runs
     tasks   list the task keys
@@ -15,12 +16,14 @@ Usage
 -----
     .venv/bin/python scripts/agent_runs.py launch --task sphere10 --budget 100 --seeds 0 1 2
     .venv/bin/python scripts/agent_runs.py launch --task mof_pool --budget 100 --agent claude
+    .venv/bin/python scripts/agent_runs.py launch --replay --task mof_pool --budget 100 --block-size 8
     .venv/bin/python scripts/agent_runs.py status
     .venv/bin/python scripts/agent_runs.py wait runs/run-1a2b3c4d5e6f
     .venv/bin/python scripts/agent_runs.py status runs/run-1a2b3c4d5e6f --baselines runs/baselines
 
-Flags that `launch` does not know (--agent, --model, --effort, ...) go to
-run_agent.py unchanged.
+Flags that `launch` does not know (--agent, --model, --effort, --block-size,
+...) go to run_agent.py or run_replay.py unchanged. Replay runs are the
+replay-* directories; their advisor calls are summarized from blocks.csv.
 """
 
 from __future__ import annotations
@@ -89,7 +92,8 @@ def launch(args, passthrough):
     runs_dir.mkdir(parents=True, exist_ok=True)
     started = []
     for seed in args.seeds:
-        command = [sys.executable, str(REPO / 'scripts/run_agent.py'), '--task', args.task,
+        script = 'run_replay.py' if args.replay else 'run_agent.py'
+        command = [sys.executable, str(REPO / 'scripts' / script), '--task', args.task,
                    '--budget', str(args.budget), '--seed', str(seed),
                    '--runs-dir', str(runs_dir), *passthrough]
         # The run directory's name is only known once the runner prints it.
@@ -118,9 +122,28 @@ def launch(args, passthrough):
 
 # ---------------------------------------------------------------- reading runs
 
+def is_replay(root):
+    return root.name.startswith('replay-')
+
+
+def replay_blocks(root):
+    """blocks.csv of a replay run: one row per advisor block."""
+    path = root / 'private/blocks.csv'
+    if not path.exists():
+        return []
+    with path.open() as stream:
+        return list(csv.DictReader(stream))
+
+
 def state(root):
     private = root / 'private'
     audit = read_json(private / 'integrity_audit.json')
+    if audit is not None and is_replay(root):
+        if audit.get('unknown_evaluations') or not audit.get('data_matches_journal'):
+            return 'audit failed'
+        if audit.get('check_only'):
+            return 'check only'
+        return 'finished' if audit.get('complete') else 'stopped early'
     if audit is not None:
         if (audit.get('unknown_evaluations') or not audit.get('artifacts_match_journal')
                 or not audit.get('only_workspace_execution_tools')):
@@ -137,7 +160,8 @@ def state(root):
 
 
 def last_activity(private):
-    times = [p.stat().st_mtime for p in private.glob('*') if p.is_file()]
+    # Replay writes each advisor call's events under private/blocks/.
+    times = [p.stat().st_mtime for p in private.rglob('*') if p.is_file()]
     return max(times, default=0.)
 
 
@@ -227,6 +251,18 @@ def report(roots, baselines=None):
         if s['blocks']:
             print('  blocks: ' + ' -> '.join(f'{label} x{n}' for label, n in s['blocks']))
         audit = read_json(private / 'integrity_audit.json')
+        if is_replay(s['root']):
+            calls = replay_blocks(s['root'])
+            if calls:
+                cost = sum(float(c['cost_usd']) for c in calls)
+                print(f"  advisor: {len(calls)} blocks, {sum(int(c['attempts']) for c in calls)} calls, "
+                      f"${cost:.2f}, turns {' '.join(c['turns'] for c in calls)}")
+            if audit is not None:
+                print(f"  audit: data matches journal {audit['data_matches_journal']}, "
+                      f"unknown evaluations {audit['unknown_evaluations']}"
+                      + (f", stopped: {audit['stopped']}" if audit.get('stopped') else ''))
+            print(f"  campaign: {relative(s['root'] / 'workspace/campaign')}")
+            continue
         if audit is not None:
             print(f"  audit: journal matches artifacts {audit['artifacts_match_journal']}, "
                   f"unknown evaluations {audit['unknown_evaluations']}, "
@@ -260,7 +296,8 @@ def run_dirs(paths, runs_dir):
         if missing:
             sys.exit('Not a run directory: ' + ', '.join(missing))
         return roots
-    roots = [p for p in Path(runs_dir).glob('run-*') if (p / 'private/manifest.json').exists()]
+    roots = [p for pattern in ('run-*', 'replay-*') for p in Path(runs_dir).glob(pattern)
+             if (p / 'private/manifest.json').exists()]
     return sorted(roots, key=lambda p: (p / 'private/manifest.json').stat().st_mtime, reverse=True)
 
 
@@ -303,6 +340,7 @@ def main(argv=None):
     p.add_argument('--task', required=True)
     p.add_argument('--budget', required=True, type=int)
     p.add_argument('--seeds', type=int, nargs='+', default=[0])
+    p.add_argument('--replay', action='store_true', help='advisor replay (run_replay.py) instead of the agent')
     p.add_argument('--timeout', type=float, default=600, help='seconds to wait for each preflight')
     p = commands.add_parser('status', help='list runs, or report on the given ones')
     p.add_argument('runs', nargs='*')

@@ -174,6 +174,34 @@ script and proposals. A `propose.py` uses `agentoptimizer.advisor.Campaign`
 to read the data and write its proposals; see
 [campaign.py](src/agentoptimizer/advisor/campaign.py).
 
+### Advisor replay
+
+Replay runs advisor mode as a blind benchmark campaign, to compare it with the
+agent on the same tasks:
+
+```bash
+.venv/bin/python scripts/run_replay.py --task sphere10 --budget 24 --block-size 8
+.venv/bin/python scripts/agent_runs.py launch --replay --task mof_pool --budget 100 --seeds 0 1 2
+```
+
+The runner puts an anonymous campaign (`x0`…, minimize `y`) in a sandboxed
+workspace. Each block, a fresh headless call (`--agent claude` by default,
+`--model`, `--effort` as for `run_agent.py`) follows the `/opt-run` steps with
+[prompts/advisor_headless.md](prompts/advisor_headless.md), using only the
+sandboxed `run_command` and `write_stdin` tools. The runner then:
+
+- refuses changed results, rows added other than by `accept`, and rewritten
+  decisions;
+- reruns the block's `propose.py` on the data it saw;
+- evaluates the accepted rows through the private evaluator.
+
+Outputs are in `runs/replay-<id>/`:
+
+- `workspace/campaign/`: the decisions, scripts and data;
+- `private/scored_trace.csv`: the benchmark's scoring format;
+- `private/blocks.csv`: turns, tokens and cost per block;
+- `private/integrity_audit.json`.
+
 ## Run the agent
 
 Start a fresh campaign:
@@ -382,11 +410,13 @@ Figures that leave the repo follow [FIGURES.md](docs/FIGURES.md). Their scripts
 
 - `prompts/optimization_agent.md`: the canonical agent prompt, copied into each
   workspace as `AGENTS.md`.
-- `prompts/advisor.md`: the advisor-mode policy that `/opt-run` follows.
+- `prompts/advisor.md`: the advisor-mode policy that `/opt-run` follows;
+  `prompts/advisor_headless.md`: the per-block procedure of a replay advisor.
 - `src/agentoptimizer/tasks/`: private objective implementations and registry.
 - `src/agentoptimizer/optimizers/`: shared optimizer wrappers.
 - `src/agentoptimizer/agent_harness/harness.py`: public evaluation client.
-- `src/agentoptimizer/blind_runner/`: native execution, private evaluator and orchestration.
+- `src/agentoptimizer/blind_runner/`: native execution, private evaluator and
+  orchestration; `replay.py` runs advisor replay (`scripts/run_replay.py`).
 - `scripts/`: agent and baseline runners, `agent_runs.py` to launch and report
   on agent runs; `scripts/figures/`: plotting entry points.
 - `.claude/skills/`: the `/optimize` and `/opt-run` Claude Code skills.
