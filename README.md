@@ -52,7 +52,6 @@ A bare `uv sync` (no `--all-extras`) removes the objective backends from `.venv`
 | `constrained_*`, `noisy_rosenbrock_*`, `mixint_*` | `coco-experiment` |
 | `ng_noisy_*` | `nevergrad` |
 | `opv_pce`, `opv_pool`, `mof_pool` | files in `data/` |
-| `fluid_mixtures`, `viscosity_excess`, `cp_excess` | private CSVs in `external/fluid_mixtures/` |
 | `yahpo_svm`, `yahpo_xgboost` | `onnxruntime` plus surrogates in `external/yahpo_data/` |
 | `psa_v10` | a user-supplied evaluator at `external/psa_v10/psa_v10_blackbox.py` (not present) |
 
