@@ -1,19 +1,18 @@
 """Pool selection and runner integration; each test constructs a fresh pool."""
-import csv
-import io
+import json
 from pathlib import Path
 import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-import uuid
 
 import numpy as np
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(REPO / 'scripts'))
 
-from agentoptimizer.blind_runner.evaluator import Evaluator
+from agentoptimizer.loop import campaign
 from agentoptimizer.optimizers.pool_random import PoolRandomSearch
 from agentoptimizer.tasks.registry import TASKS
 from run_campaign import run_campaign
@@ -45,28 +44,25 @@ class OPVPoolIntegrity(unittest.TestCase):
             task.evaluate(point)
             self.assertEqual(task.last_candidate, int(task._ids[row[0]]))
 
-    def test_transport_retry_does_not_consume_another_device(self):
+    def test_loop_repeats_map_to_new_devices_and_candidates_stay_private(self):
         with tempfile.TemporaryDirectory() as tmp:
-            task = TASKS['opv_pool']()
-            evaluator = Evaluator({'budget': 2, 'campaigns': [{'id': 'run'}]},
-                                  Path(tmp) / 'journal.sqlite', lambda _: task)
-            self.addCleanup(evaluator.db.close)
-            evaluator.handle('run', {'request_id': uuid.uuid4().hex, 'op': 'label',
-                'name': 'probe', 'documents': {'decisions.md': '## Block 1'}})
-            request = {'request_id': uuid.uuid4().hex, 'op': 'evaluate', 'x': [.5] * task.dim}
-            first = evaluator.handle('run', request)
-            self.assertTrue(first['ok'])
-            first_id = task.last_candidate
-            self.assertEqual(evaluator.handle('run', request), first)
-            self.assertEqual(task.last_candidate, first_id)
-            self.assertEqual(evaluator.count('run'), 1)
-            second = evaluator.handle('run', {**request, 'request_id': uuid.uuid4().hex})
-            self.assertTrue(second['ok'])
-            self.assertNotEqual(task.last_candidate, first_id)
-            rows = list(csv.DictReader(io.StringIO(evaluator.scored_trace('run'))))
-            self.assertEqual(len(rows), 2)
-            public = evaluator.status('run')
-            for private_key in ('f_opt', 'candidates', 'last_candidate', 'task', 'task_name'):
+            run = campaign.Campaign.prepare(TASKS['opv_pool'](), 2, 0, Path(tmp) / 'run')
+            space = json.loads((run.workspace / 'space.json').read_text())
+            self.assertIsNone(space['candidates'])
+            replies = [{'script': 'lib/fixed_points.py', 'label': 'probe', 'n_points': 2,
+                        'state': 'restart', 'args': {'points': [[.5] * run.task.dim] * 2}}]
+
+            def agent(number, prompt):
+                (run.workspace / 'agent/proposal.json').write_text(json.dumps(replies.pop(0)))
+                (run.workspace / 'agent/decision.md').write_text('Two probes.')
+                return 0
+            self.assertEqual(run.run(agent), 'budget')
+            self.assertEqual(int(run.task._tested.sum()), 2)  # the repeated point used a second device
+            ys = [float(r['y']) for r in run.store.rows]
+            self.assertEqual(len(ys), 2)
+            public = ''.join((run.workspace / name).read_text()
+                             for name in ('space.json', 'PROBLEM.md', 'data.csv', 'decisions.md'))
+            for private_key in ('f_opt', 'last_candidate', 'candidate_id'):
                 self.assertNotIn(private_key, public)
 
     def test_oversized_budget_rejected_before_sweep_jobs(self):

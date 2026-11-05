@@ -34,8 +34,8 @@ from scripts.run_campaign import TASKS, run_campaign, optimizers_for_task
 # Optimizers not listed here go after these.
 SLOWEST_FIRST = ["gp_bo", "bobyqa", "turbo"]
 
-# Empty: every optimizer runs the full budget. results_linux/ predates this
-# and has gp_bo, turbo and bobyqa capped at 100 (GP-BO then refit every step).
+# Empty: every optimizer runs the full budget. Older results_full/ runs
+# may have gp_bo, turbo and bobyqa capped at 100 (GP-BO then refit every step).
 BUDGET_CAPS = {}
 
 
@@ -134,7 +134,7 @@ def run_sweep(
     task_name: str,
     budget: int = 2000,
     seeds: int = 10,
-    outdir: str = "results_linux",
+    outdir: str = "results_full",
     workers: int = 1,
 ) -> list[Path]:
     """Run the full optimizer x seed sweep; return the campaign directories
@@ -152,7 +152,7 @@ def _parse_args():
     p.add_argument("--task", required=True, choices=sorted(TASKS))
     p.add_argument("--budget", type=int, default=2000)
     p.add_argument("--seeds", type=int, default=10)
-    p.add_argument("--outdir", default="results_linux")
+    p.add_argument("--outdir", default="results_full")
     p.add_argument("--workers", type=int, default=1)
     return p.parse_args()
 

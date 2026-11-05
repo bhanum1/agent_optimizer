@@ -4,7 +4,7 @@ Rules for figures that leave the repo (papers, slides, posters). Diagnostic plot
 
 The rules are implemented in `scripts/figure_style.py`. A figure script imports it and only chooses tasks, series and titles. If a rule needs to change, change it in `figure_style.py` and in this file together.
 
-Reference figure: `results_linux/crossover_rosenbrock_vs_mixint.png`, produced by `scripts/figures/make_crossover_plot.py`.
+Reference figure: `results_full/crossover_rosenbrock_vs_mixint.png`, produced by `scripts/figures/make_crossover_plot.py`.
 
 ## Content
 
@@ -47,7 +47,7 @@ Reference figure: `results_linux/crossover_rosenbrock_vs_mixint.png`, produced b
 
 ## Schematics
 
-Illustrations of a task's shape (e.g. `results_linux/landscape_both.png`, from `scripts/figures/make_landscape_plot.py`) are the one exception to the released-data rule: they may draw a known formula. They follow every rule above that applies, plus:
+Illustrations of a task's shape (e.g. `results_full/landscape_both.png`, from `scripts/figures/make_landscape_plot.py`) are the one exception to the released-data rule: they may draw a known formula. They follow every rule above that applies, plus:
 
 - Say in the script docstring and the caption that the graphic is schematic, and what was simplified (dimension, grid spacing).
 - No axes, ticks or colorbar: a schematic's coordinates carry no meaning. The caption states what color means (e.g. "lighter = lower loss").
@@ -55,7 +55,7 @@ Illustrations of a task's shape (e.g. `results_linux/landscape_both.png`, from `
 
 ## Output
 
-- PNG at 200 dpi, `bbox_inches="tight"`, written next to the data it plots (e.g. `results_linux/`).
+- PNG at 200 dpi, `bbox_inches="tight"`, written next to the data it plots (e.g. `results_full/`).
 - One script per figure in `scripts/figures/`, named `make_<figure>_plot.py`, with no required arguments. Its docstring lists the tasks and methods shown and what each panel demonstrates.
 - Run it from the repository root with the project venv:
 

@@ -12,7 +12,7 @@ Legend: "Gradient Based" is L-BFGS-B (deterministic, one seed), "Evolutionary
 Based" is CMA-ES (10 seeds). Style follows FIGURES.md via figure_style.py.
 
 Usage (from the repository root):
-    python scripts/figures/make_crossover_plot.py               # writes results_linux/crossover_rosenbrock_vs_mixint.png
+    python scripts/figures/make_crossover_plot.py               # writes results_full/crossover_rosenbrock_vs_mixint.png
     python scripts/figures/make_crossover_plot.py --no-titles   # same figure without panel titles, *_untitled.png
 """
 
@@ -28,7 +28,7 @@ from make_comparison_plots import ROOT, load_rows, regret_trajectory  # noqa: E4
 import figure_style as fs  # noqa: E402  (after make_comparison_plots: its rcParams must not override these)
 import matplotlib.pyplot as plt  # noqa: E402
 
-RESULTS = ROOT / "results_linux"
+RESULTS = ROOT / "results_full"
 OUT = RESULTS / "crossover_rosenbrock_vs_mixint.png"
 OUT_UNTITLED = RESULTS / "crossover_rosenbrock_vs_mixint_untitled.png"
 METHODS = [("lbfgsb", "Gradient Based"), ("cma_es", "Evolutionary Based")]

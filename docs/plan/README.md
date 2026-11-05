@@ -16,8 +16,7 @@ development history and every result produced before the cutover.
 | [02-dynamic-selection-baselines.md](02-dynamic-selection-baselines.md) | Non-LLM methods that select or switch optimizers |
 | [03-llm-optimizer-comparisons.md](03-llm-optimizer-comparisons.md) | LLM-based optimizers and benchmarks we compare against |
 | [04-reproducibility-and-release.md](04-reproducibility-and-release.md) | Environments, reruns, data release, license, citation |
-| [05-advisor-mode.md](05-advisor-mode.md) | Real use: propose the next block from existing data, as a script |
-| [06-unified-loop.md](06-unified-loop.md) | One loop for benchmarks and real campaigns; benchmark mode retired |
+| [06-agent-loop.md](06-agent-loop.md) | The agent loop: a fresh skill call per block, stateful optimizers; replaces advisor mode |
 
 ## Claims → evidence
 
@@ -31,7 +30,6 @@ that supports it and the figure or table that shows it.
 | C3 | An agent that decides per block is competitive with LLM optimizers that act on every evaluation, at far fewer LLM calls. | Comparisons in both directions (03) | Score vs. LLM-cost plot | Not started |
 | C4 | The behaviour carries over to real scientific tasks with small budgets. | OPV and MOF pools, 100 evaluations | Materials comparison figure | Runs exist in the old repo |
 | C5 | The protocol keeps the agent blind to the objective and enforces the budget. | Sandbox preflight, integrity tests | Methods section, supplementary | Implemented; Linux path needs validation |
-| C6 | The same policy works as an advisor that decides each block from a fresh context and proposes it as a batch. | Advisor replay (05) | Advisor vs. benchmark agent and batch baselines | Not started |
 
 ## Workstream status
 
@@ -41,8 +39,7 @@ that supports it and the figure or table that shows it.
 | Dynamic-selection baselines | | Planned | Confirm method list and fairness rules in 02 |
 | LLM-optimizer comparisons | | Planned | Check code availability for each method in 03 |
 | Reproducibility and release | | Planned | Choose data host and license in 04 |
-| Advisor mode (`/opt-run`) | | Phases 1–3 done; replay runner works end to end (phase 4) | Fix the space-filling seed bug; no-summary flag (05) |
-| Unified loop | | Rounds and one runner built; benchmark mode retired | Constraints in the loop; figures for loop runs (06) |
+| Agent loop | | Built; replaces advisor mode (2026-11-05) | Rerun the suite with the loop; real-lab campaigns on the loop (06) |
 
 ## Open decisions
 
@@ -55,4 +52,3 @@ the relevant document.
 3. Code and data licenses (04).
 4. Data host for results (04).
 5. Final method lists for 02 and 03.
-6. Advisor mode (05): domain context in replay.

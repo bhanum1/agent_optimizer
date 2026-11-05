@@ -1,6 +1,6 @@
 """Comparison plots: agent runs vs. the classical baselines, per task.
 
-Produces three figures in each <results>/<task>/ (default results_linux/):
+Produces three figures in each <results>/<task>/ (default results_full/):
   plot1_counterfactual_bar.png  -- final regret: agents vs. every standalone baseline
   plot2_regret_vs_eval.png      -- regret-vs-evaluation trajectories, all
                                    baselines (mean over seeds) plus the
@@ -8,7 +8,7 @@ Produces three figures in each <results>/<task>/ (default results_linux/):
                                    each decision block)
   plot3_agent_method_timeline.png -- which method each agent was running,
                                    by evaluation, with decisions logged
-                                   in changelog.md (only for tasks
+                                   in decisions.md (only for tasks
                                    with an agent run)
 
 f_opt, seeds and budgets are read from the baseline meta.json files; agent
@@ -49,20 +49,10 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# Task results folder -> agent label -> sandbox results folder (trace.csv,
-# changelog.md). Missing folders are skipped, so a task can be listed
+# Task results folder -> agent label -> agent results folder (trace.csv,
+# decisions.md, or changelog.md for older runs). Missing folders are skipped, so a task can be listed
 # before its agent run exists.
-AGENT_RUNS = {
-    "rosenbrock_d10_i1": {
-        "Claude agent": "archive_results/task_001_sandbox_claud/results/agent_task_001",
-        "OpenAI agent": "archive_results/task_001_sandbox_openai/results/agent_task_001",
-    },
-    "psa_v10_d8": {"Agent": "main/agent_runs/psa_v10_blackbox_run1"},
-    "rastrigin_d10_i1": {"Agent": "archive_results/task_002_sandbox/results/agent_task_002"},
-    "bent_cigar_d10_i1": {"Agent": "archive_results/task_003_sandbox/results/agent_task_003"},
-    "sphere_d10_i1": {"Agent": "archive_results/task_004_sandbox/results/agent_task_004"},
-    "opv_pce_d11": {"Claude agent": "archive_results/task_005_sandbox/results/agent_task_005"},
-}
+AGENT_RUNS = {}
 
 # Validated default categorical palette, fixed order (see module docstring).
 BLUE, ORANGE, AQUA, YELLOW, MAGENTA = (
@@ -221,7 +211,8 @@ def load_task(task_dir: Path, agent_run=None, budget=None):
             rows = rows[:budget]
         if not rows:
             raise ValueError(f"Agent trace is empty: {run_dir}")
-        checkpoints = [n for n in changelog_evals(run_dir / "changelog.md") if n <= len(rows)]
+        record = run_dir / "decisions.md" if (run_dir / "decisions.md").exists() else run_dir / "changelog.md"
+        checkpoints = [n for n in changelog_evals(record) if n <= len(rows)]
         agents[label] = dict(
             x=np.array([int(r["eval_idx"]) for r in rows]),
             regret=regret_trajectory(rows, f_opt),
@@ -399,8 +390,7 @@ def plot_agent_timeline(task_dir, baselines, agents):
                         color="white", fontweight="bold", zorder=3)
                 narrow_labels.append(f"{label} block {number}: {raw_label} ({start}–{end})")
 
-        # Logged deviations from the agent's pre-registered roadmap
-        # (changelog.md), not just "which method ran".
+        # The agent's decision checkpoints (decisions.md), not just "which method ran".
         for ev in a["deviations"]:
             ax.plot([ev, ev], [y0 - 0.32, y0 + 0.95], color=STATUS_WARNING, linestyle="--",
                     linewidth=1.3, zorder=4)
@@ -464,9 +454,9 @@ def make_plots(task_dir: Path, agent_run=None, budget=None, outdir=None):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--results", default=str(ROOT / "results_linux"))
+    p.add_argument("--results", default=str(ROOT / "results_full"))
     p.add_argument("--task", help="one results/<task> folder name; default: every task")
-    p.add_argument("--agent-run", type=Path, help="completed run's workspace/results/agent_run directory")
+    p.add_argument("--agent-run", type=Path, help="completed run's results directory (runs/run-*/results)")
     p.add_argument("--budget", type=int, help="comparison horizon; defaults to the supplied agent's budget")
     p.add_argument("--outdir", type=Path, help="write figures here/<task>, leaving baseline artifacts unchanged")
     args = p.parse_args()

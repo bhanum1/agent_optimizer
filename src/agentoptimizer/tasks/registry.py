@@ -14,7 +14,7 @@ from .coco_noisy import COCONoisyTask
 from .nevergrad_noisy import NevergradNoisyTask
 from .opv import OPVTask
 from .opv_pool import OPVPoolTask
-from .mof_pool import MOFPoolTask
+from .csv_pool import DATA, CSVPoolTask
 from .pymoo_g import PymooGTask
 from .psa_v10 import PSAv10Task
 from .yahpo import YAHPOTask
@@ -90,5 +90,17 @@ TASKS = {
     # is looked up; at most 526 evaluations.
     "opv_pool": lambda: OPVPoolTask(),
     # Exact rows from the supplied 1,000-material, 193-feature table; labels stay private.
-    "mof_pool": lambda: MOFPoolTask(),
+    "mof_pool": lambda: CSVPoolTask(DATA / "mof_pool/data.csv", "mof_pool", maximize=True),
+    # sdagent's 1,506 measured mixtures of 34 heat-transfer fluids (lab campaigns 1-11); fraction-weighted RDKit
+    # descriptors; minimize log10 laminar pump work. Proprietary data in git-ignored external/fluid_mixtures/.
+    "fluid_mixtures": lambda: CSVPoolTask(DATA.parent / "external/fluid_mixtures/data.csv", "fluid_mixtures",
+                                          maximize=False),
+    # The same lab's 2,458 measured mixtures of 40 fluids (campaigns 1-12): minimize excess ln(mu) below
+    # ideal volume-fraction mixing. Proprietary data in git-ignored external/fluid_mixtures/.
+    "viscosity_excess": lambda: CSVPoolTask(DATA.parent / "external/fluid_mixtures/viscosity_excess.csv",
+                                            "viscosity_excess", maximize=False),
+    # Campaign 11's 1,265 mixtures of 12 fluids, 23 sibling-inconsistent rows removed: maximize excess cp above
+    # ideal volume-fraction mixing. Proprietary data in git-ignored external/fluid_mixtures/.
+    "cp_excess": lambda: CSVPoolTask(DATA.parent / "external/fluid_mixtures/cp_excess.csv", "cp_excess",
+                                     maximize=True),
 }

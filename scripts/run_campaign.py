@@ -73,7 +73,7 @@ def optimizers_for_task(task):
     if getattr(task, 'indexed_pool', False):
         from agentoptimizer.optimizers.pool_gp_bo import GPBO as PoolGPBO
         from agentoptimizer.optimizers.pool_turbo import TuRBO as PoolTuRBO
-        return {'gp_bo': PoolGPBO, 'turbo': PoolTuRBO, 'pool_random': PoolRandomSearch}
+        return {'gp_bo': PoolGPBO, 'sobol_gp_bo': PoolGPBO, 'turbo': PoolTuRBO, 'pool_random': PoolRandomSearch}
     return {name: cls for name, cls in OPTIMIZERS.items()
             if task.pool or not getattr(cls, 'pool_only', False)}
 
@@ -82,6 +82,20 @@ def optimizers_for_task(task):
 # triggers this on most calls; it is harmless, just noisy, so it is
 # silenced here rather than in src/optimizers/sobol_search.py.
 warnings.filterwarnings("ignore", message=".*balance properties.*")
+
+
+def sobol_rows(candidates, n, seed):
+    """`n` distinct pool rows: scrambled Sobol points in the min-max-scaled feature
+    box, each mapped to the nearest row not yet chosen (sobol_gp_bo's initial design)."""
+    from scipy.stats import qmc
+    span = np.ptp(candidates, 0)
+    U = (candidates - candidates.min(0)) / np.where(span > 0, span, 1)
+    chosen = []
+    for p in qmc.Sobol(U.shape[1], scramble=True, seed=seed).random(n):
+        d = ((U - p) ** 2).sum(1)
+        d[chosen] = np.inf
+        chosen.append(int(np.argmin(d)))
+    return chosen
 
 
 def _merit(ev) -> float:
@@ -147,6 +161,9 @@ def run_campaign(
     if indexed and optimizer_name in ('gp_bo', 'turbo'):
         initial_indices = np.random.default_rng(seed).choice(
             task.n_candidates, size=min(budget, optimizer.n_init), replace=False).tolist()
+    elif indexed and optimizer_name == 'sobol_gp_bo':
+        initial_indices = sobol_rows(task.candidates, max(2, round(0.1 * budget)), seed)
+        optimizer.n_init = len(initial_indices)
 
     for i in range(budget):
         try:
@@ -178,7 +195,8 @@ def run_campaign(
             row["candidate_id"] = task.last_candidate
         if indexed:
             row['candidate_index'] = int(index)
-            row['optimizer'] = 'initial_random' if i < len(initial_indices) else optimizer_name
+            row['optimizer'] = (('initial_sobol' if optimizer_name == 'sobol_gp_bo' else 'initial_random')
+                                if i < len(initial_indices) else optimizer_name)
         if task.noisy:
             row["y_true"] = ev.y_true
         if constrained:
@@ -233,7 +251,7 @@ def run_campaign(
 def _parse_args():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--task", required=True, choices=sorted(TASKS))
-    p.add_argument("--optimizer", required=True, choices=sorted(OPTIMIZERS))
+    p.add_argument("--optimizer", required=True, choices=sorted(OPTIMIZERS) + ["sobol_gp_bo"])
     p.add_argument("--seed", type=int, required=True)
     p.add_argument("--budget", type=int, required=True)
     p.add_argument("--outdir", default="results")

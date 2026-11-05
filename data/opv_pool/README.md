@@ -44,8 +44,8 @@ git-ignored; results are released separately, not committed.
 3. Baselines at budget 100: every optimizer, including the pool-only
    `pool_random` (uniform picks without replacement). Ten seeds, one for the
    deterministic BOBYQA, Nelder–Mead and L-BFGS-B, so 73 campaigns. The
-   published ones, with their plots, are `results_linux/opv_pool_pce_d11/` in
-   the source repository (tag `pre-manuscript-snapshot`). To
+   published ones, with their plots, are `main/results_full/opv_pool_pce_d11/` in
+   the source repository. To
    rerun them (TuRBO traces vary slightly from run to run, on every task):
 
    ```bash
@@ -54,25 +54,23 @@ git-ignored; results are released separately, not committed.
    ```
 
 4. Agent run. Check isolation first (zero evaluations, no model call), then
-   run. Codex is the default agent; add `--agent claude` for Claude Code.
+   run. Claude Code is the default agent; add `--agent codex` for Codex.
 
    ```bash
-   .venv/bin/python scripts/run_agent.py --task opv_pool --budget 100 --check-only
-   .venv/bin/python scripts/run_agent.py --task opv_pool --budget 100
+   .venv/bin/python scripts/run_loop.py --task opv_pool --budget 100 --check-only
+   .venv/bin/python scripts/run_loop.py --task opv_pool --budget 100
    ```
 
-   The agent is told only the dimension, the [0, 1] box, the direction, the
-   budget and that the objective is not repeatable. It never sees the pool,
-   the devices or `pool_random.py`.
+   The agent is told only the dimension, the [0, 1] box, the budget and that
+   the objective is not repeatable. It never sees the pool or the devices.
 
-5. Plots, for a legacy live-session run (the plotting script does not read
-   loop runs yet), against the published baselines copied to `results_linux/`;
-   use `--results runs/baselines-100` for your own rerun:
+5. Plots, with the run ID the runner printed, against the published baselines
+   copied to `results_full/`; use `--results runs/baselines-100` for your own rerun:
 
    ```bash
    .agent-venv/bin/python scripts/figures/make_comparison_plots.py \
-     --results results_linux --task opv_pool_pce_d11 \
-     --agent-run runs/run-<id>/workspace/results/agent_run \
+     --results results_full --task opv_pool_pce_d11 \
+     --agent-run runs/run-<id>/results \
      --outdir runs/run-<id>/figures
    ```
 
@@ -80,4 +78,4 @@ git-ignored; results are released separately, not committed.
    once the best device is found, drawn at the bottom of the log axis (1e-12).
 
 Budgets above 526 are refused by `run_campaign.py`, `run_sweep.py` and
-`run_agent.py`.
+`run_loop.py`.

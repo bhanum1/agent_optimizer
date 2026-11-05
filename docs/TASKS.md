@@ -27,7 +27,7 @@ This file names task identities. Keep it in `docs/`; never copy it into a sandbo
 
 ## Per Task
 
-Folder: `results_linux/<folder>/`. "Random" is the median random-search regret over 500 uniform points; "center" is the regret at the box center, where deterministic optimizers (`lbfgsb`, `nelder_mead`, `bobyqa`) start. Winners are median regret over seeds of the baselines in `results_linux/`, at 100 and 2000 evaluations (GP-BO, TuRBO, BOBYQA capped at 100).
+Folder: `results_full/<folder>/`. "Random" is the median random-search regret over 500 uniform points; "center" is the regret at the box center, where deterministic optimizers (`lbfgsb`, `nelder_mead`, `bobyqa`) start. Winners are median regret over seeds of the baselines in `results_full/`, at 100 and 2000 evaluations (GP-BO, TuRBO, BOBYQA capped at 100).
 
 ### Unconstrained, Noiseless
 
@@ -62,12 +62,15 @@ Feasibility rate is the fraction of 500 uniform points that satisfy every constr
 
 ### Pool
 
-A campaign can test each pool row at most once: up to 526 OPV devices or 1,000 MOF candidates. The published comparisons use budget 100 including initialization; `data/opv_pool/README.md` gives the OPV reproduction commands.
+A campaign can test each pool row at most once: up to 526 OPV devices, 1,000 MOF candidates, 1,506 fluid mixtures, 2,458 viscosity-excess or 1,265 heat-capacity-excess mixtures. The published comparisons use budget 100 including initialization; `data/opv_pool/README.md` gives the OPV reproduction commands.
 
 | Key | Folder | Source | D | Box | Tests | Baseline results @100 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `opv_pool` | `opv_pool_pce_d11` | The 526 OPV devices of `opv_pce` (Seifrid et al. 2024) as a fixed pool, measured −PCE (%) | 11 | [0, 1] | Each point maps to the nearest untested device, so a repeated point returns a different device; exact `f_opt` (best device). Pool-only baseline `pool_random` picks devices uniformly without replacement. | BOBYQA (0, one deterministic run); Sobol (mean 0.28, best device in 8/10 seeds); `pool_random` mean 1.87 |
 | `mof_pool` | `mof_pool_d193_n1000` | User-supplied task_061 CSV; minimize −raw y | 193 | Exact rows only | 1,000 public feature rows, 28 constant features; each row purchased once by anonymous index. Labels, material IDs and ranks private. | Supplied GP-BO and TuRBO traces, 10 seeds each; first 100 of 110 recorded calls. |
+| `fluid_mixtures` | `fluid_mixtures_d138_n1506` | sdagent lab campaigns 1–11: measured μ, c_p, ρ of 1,506 mixtures (12 pure, 216 binary, 1,278 ternary) of 34 heat-transfer fluids; minimize log10 laminar pump work μ/(c_p·ρ)² | 138 | Exact rows only | Fraction-weighted RDKit 2D descriptors (rank 33: the composition simplex). Smooth single funnel (fitness-distance correlation 0.85) with near-tied top rows; the best is a binary. Proprietary data in git-ignored `external/fluid_mixtures/`; exact `f_opt` (−15.998). | `sobol_gp_bo` (5 Sobol rows, then ARD GP): optimum in 5/5 seeds by evaluation 16–26 at budget 50 |
+| `viscosity_excess` | `viscosity_excess_d138_n2458` | sdagent lab campaigns 1–12: 2,458 measured binaries and ternaries of 40 fluids; minimize excess ln μ below ideal volume-fraction mixing | 138 | Exact rows only | Fraction-weighted RDKit 2D descriptors. Weaker funnel than `fluid_mixtures` (fitness-distance correlation 0.33); distinct optimum (−0.646 vs −0.524). Proprietary data in git-ignored `external/fluid_mixtures/`; exact `f_opt`. | `sobol_gp_bo`: optimum in 5/5 seeds at evaluations 17–47 (median 35) at budget 50 |
+| `cp_excess` | `cp_excess_d109_n1265` | sdagent lab campaign 11 (near-exhaustive): 1,265 binaries and ternaries of 12 fluids after removing 23 rows >5σ from their same-fluid siblings; maximize excess c_p above ideal volume-fraction mixing | 109 | Exact rows only | Fraction-weighted RDKit 2D descriptors. Signal is mostly which fluids interact (83% of variance), poorly represented by the features: ARD GP on 40 rows ranks the rest at Spearman 0.22. Proprietary data in git-ignored `external/fluid_mixtures/`; exact `f_opt` (−330). | `sobol_gp_bo` at budget 50: median best +104 J/(kg·K) (rank 30); 1 of 5 seeds found the optimum from its initial rows |
 
 MOF uses the exact supplied 1,000-row table; the archive's reference to 5,882
 rows is stale. Its confirmed agent budget is 100 including initialization,
@@ -121,7 +124,7 @@ Tasks that each add a distinct behavior: `step_ellipsoid10` and `noncont_rastrig
 
 ## Superseded Versions
 
-Their baseline results were deleted from `results_linux/`; they remain in git history (last present in commit `3b1005a`).
+Their baseline results were deleted from `results_full/`; they remain in git history (last present in commit `3b1005a`).
 
 | Folder | Why replaced |
 | --- | --- |

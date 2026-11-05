@@ -16,7 +16,7 @@ single-hue sequential ramp from the standard's blue. No axes: the coordinates
 of a schematic carry no meaning.
 
 Usage (from the repository root):
-    python scripts/figures/make_landscape_plot.py    # writes results_linux/landscape_{smooth,mixed_integer,both}.png
+    python scripts/figures/make_landscape_plot.py    # writes results_full/landscape_{smooth,mixed_integer,both}.png
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ import figure_style as fs  # noqa: E402  (applies the shared rcParams)
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap, Normalize  # noqa: E402
 
-RESULTS = Path(__file__).resolve().parents[2] / "results_linux"
+RESULTS = Path(__file__).resolve().parents[2] / "results_full"
 GRID_STEP = 0.25
 X1, X2 = np.meshgrid(np.linspace(-2, 2, 400), np.linspace(-1, 3, 400))
 # Light-to-dark ramp of the standard's first series color: low loss light, high loss dark.

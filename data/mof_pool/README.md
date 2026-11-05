@@ -6,7 +6,7 @@ are recorded in `provenance.json`. It contains **1,000 rows and 193 features**,
 including 28 constant features. The archive README describes 5,882 rows; that
 larger table was not supplied. No rows were removed, reordered, or regenerated.
 
-The registered task is `mof_pool`, implemented in `src/agentoptimizer/tasks/mof_pool.py`.
+The registered task is `mof_pool`, built as `CSVPoolTask(..., maximize=True)` in `src/agentoptimizer/tasks/csv_pool.py`.
 Every purchase selects an exact, previously untested row. Duplicate feature
 vectors, if present, retain separate row identities. Features are public;
 material names and the complete `y` column stay private. The isolated workspace
@@ -22,14 +22,13 @@ IDs may be added to trusted post-run reports, never to agent feedback.
 Run from the repository root after the environment setup in the root README:
 
 ```bash
-.venv/bin/python scripts/run_agent.py --task mof_pool --budget 100 --check-only
-.venv/bin/python scripts/run_agent.py --task mof_pool --budget 100 --seed 0
+.venv/bin/python scripts/run_loop.py --task mof_pool --budget 100 --check-only
+.venv/bin/python scripts/run_loop.py --task mof_pool --budget 100 --seed 0
 ```
 
-Use seeds 0, 1, and 2 for the requested three independent campaigns. The advisor
-policy (`prompts/advisor.md`) governs each campaign: the agent selects its own
-initialization, method, hyperparameters and block size, from candidates listed by
-anonymous row number in the campaign's `candidates.csv`. The archive's old prompt,
+Use seeds 0, 1, and 2 for the requested three independent campaigns.
+`src/agentoptimizer/loop/SKILL.md` governs each campaign: the agent selects its own initialization,
+method, hyperparameters, and evaluation block length. The archive's old prompt,
 fixed ten-point initialization, GPBO/TuRBO restriction, and 110-call brief are
 not used for these agent runs. The confirmed total budget is 100, including all
 initialization. Model generation itself is not made deterministic by this seed.
@@ -37,7 +36,7 @@ initialization. Model generation itself is not made deterministic by this seed.
 ## Baseline compatibility
 
 The colleague's feature-only pool GPBO and TuRBO implementations are retained as
-`src/optimizers/pool_gp_bo.py` and `pool_turbo.py`, with configurable `n_init`
+`src/agentoptimizer/optimizers/pool_gp_bo.py` and `pool_turbo.py`, with configurable `n_init`
 (default 10). They fit only purchased observations and select from unused rows.
 Existing continuous optimizer wrappers are unchanged. Exact-pool baseline
 dispatch supports `gp_bo`, `turbo`, and `pool_random`; continuous box optimizers
@@ -53,8 +52,8 @@ training target.
 ```
 
 These are reproduction commands; the published comparison uses the supplied
-`results_linux.zip` GP-BO and TuRBO traces (10 seeds each), preserved in the
-[materials result package](../../agent_runs/materials_astra_max_100_3seeds_20261022/README.md).
+`results_full.zip` GP-BO and TuRBO traces (10 seeds each), preserved in the
+[materials result package](https://github.com/bhanum1/Cheapest_opt_lunch/tree/pre-manuscript-snapshot/main/agent_runs/materials_astra_max_100_3seeds_20261022/README.md).
 The supplied traces contain 110 evaluations. The comparison uses calls 1–100,
 including their ten random initialization calls, and discards calls 101–110.
 Every recorded candidate ID, feature vector, label, rank and incumbent was

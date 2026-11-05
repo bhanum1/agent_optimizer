@@ -7,13 +7,13 @@ This file names task identities. Keep it in `docs/`; never copy it into a sandbo
 ## Overview
 
 A task is implemented once in `src/agentoptimizer/tasks/` and registered in `src/agentoptimizer/tasks/registry.py`.
-The baseline runner calls it directly. The isolated agent runner keeps it private
-and gives the agent an anonymous campaign folder built from the task's public
-contract. There are no per-task copies of the objective.
+The baseline runner calls it directly. The agent loop (`src/agentoptimizer/loop/`)
+keeps it private: the agent and its optimizers see only `PROBLEM.md`, `space.json`
+and the evaluations in `data.csv`, and the runner evaluates every point itself.
+There are no per-task harnesses or copies of the objective.
 
-The native runner accepts every registered unconstrained task (constrained tasks
-are not supported by the loop yet). It exposes only the public contract below; a
-new task needs nothing runner-specific.
+The loop accepts every registered task. It exposes only the public contract
+below; a new task needs nothing runner-specific.
 
 ## 1. Register the Task
 
@@ -49,11 +49,12 @@ A new non-BBOB function subclasses `Task` (`src/agentoptimizer/tasks/base.py`) i
 
 Exact public candidate pools additionally set `indexed_pool = True` and expose
 `candidates`, `n_candidates`, `validate_index(index)` (no side effects), and
-`evaluate_index(index)`. `mof_pool` is the reference implementation. The runner
-exports only the feature matrix as `candidates.npy`; the generic client exposes
-`h.candidates`, `h.available_indices`, and `h.evaluate_index(index)`. The private
-journal enforces distinct purchases and budget even when a client reconnects.
-The source table, material IDs, unobserved labels, and full-pool ranks stay private.
+`evaluate_index(index)`. A table with columns `id,x0,x1,...,y` needs no new
+code: register `CSVPoolTask(path, name, maximize)` (`src/agentoptimizer/tasks/csv_pool.py`),
+as `mof_pool` and `fluid_mixtures` do. The loop puts only the feature matrix in
+`space.json` `candidates`; optimizers propose candidate indices, and the runner
+rejects a repeated index. The source table, material IDs, unobserved labels,
+and full-pool ranks stay private.
 List label-bearing input files in `private_data_paths` for hashes and preflight
 denial checks. Exact-pool baseline dispatch uses pool-aware GPBO/TuRBO and uniform
 row selection; it never projects continuous proposals onto rows. See
@@ -75,30 +76,32 @@ Run the sweep (every optimizer, resumable):
 .venv/bin/python scripts/run_sweep.py --task <key> --workers <n>
 ```
 
-Budget 2000 for every optimizer (`BUDGET_CAPS` is empty; `results_linux/` predates this and has `gp_bo`, `turbo`, `bobyqa` capped at 100). Seeds 0–9. Deterministic optimizers (`bobyqa`, `nelder_mead`, `lbfgsb`) run seed 0 only. Reruns skip completed campaigns; a budget mismatch with existing results errors (use a new `--outdir`).
+Budget 2000 for every optimizer (`BUDGET_CAPS` is empty; older runs in `results_full/` may have `gp_bo`, `turbo`, `bobyqa` capped at 100). Seeds 0–9. Deterministic optimizers (`bobyqa`, `nelder_mead`, `lbfgsb`) run seed 0 only. Reruns skip completed campaigns; a budget mismatch with existing results errors (use a new `--outdir`).
 
-Outputs land in `results_linux/<task.name>/<optimizer>/seed_<n>/` (`trace.csv`, `meta.json`). Run sweeps on Linux (Trillium: `sbatch -p debug scripts/slurm/sweep_all.sh <key>`): results differ bit-for-bit across platforms, so `results_linux/` holds Linux runs only. `results/` holds upstream's original (macOS) baselines. Check `eval_seconds` in the smoke run before sweeping an expensive task.
+Outputs land in `results_full/<task.name>/<optimizer>/seed_<n>/` (`trace.csv`, `meta.json`). Run sweeps on Linux (Trillium: `sbatch -p debug scripts/slurm/sweep_all.sh <key>`): results differ bit-for-bit across platforms, so `results_full/` holds Linux runs only. `results/` holds upstream's original (macOS) baselines. Check `eval_seconds` in the smoke run before sweeping an expensive task.
 
-Figures (needs `matplotlib`): `.venv/bin/python scripts/figures/make_comparison_plots.py [--task <task.name>]` writes `plot1_counterfactual_bar.png`, `plot2_regret_vs_eval.png` and, once an agent run exists, `plot3_agent_method_timeline.png` into `results_linux/<task.name>/`. Add the task's sandbox results folder to `AGENT_RUNS` in that script. Keep results and figures out of git; they go to the data release.
+Figures (needs `matplotlib`): `.venv/bin/python scripts/figures/make_comparison_plots.py [--task <task.name>]` writes `plot1_counterfactual_bar.png`, `plot2_regret_vs_eval.png` and, once an agent run exists, `plot3_agent_method_timeline.png` into `results_full/<task.name>/`. Add the task's sandbox results folder to `AGENT_RUNS` in that script. Keep results and figures out of git; they go to the data release.
 
 ## 4. Isolated Agent Run
 
 Run from the repository root:
 
 ```bash
-.venv/bin/python scripts/run_agent.py --task <key> --budget 100 --check-only
-.venv/bin/python scripts/run_agent.py --task <key> --budget 100
+.venv/bin/python scripts/run_loop.py --task <key> --budget 100 --check-only
+.venv/bin/python scripts/run_loop.py --task <key> --budget 100
 ```
 
 Follow the root [README](../README.md) for the separate optimizer environment,
-isolation boundary, outputs and plotting command. The runner writes an anonymous
-`problem.toml` (bounds, minimize `y`, noise, budget; candidates for an indexed
-pool) into a fresh workspace with the advisor policy. Objective construction and
-scoring remain outside that workspace. Do not add a `task_<NNN>.py` or a new prompt.
+isolation boundary, outputs and plotting command. The runner copies `SKILL.md` and
+the optimizer library into a fresh workspace. It gives the agent only dimension,
+bounds, noise status, number of constraints and budget (and an indexed pool's
+features). Objective construction and scoring remain outside that workspace. Do not
+add a per-task prompt. If the task needs a new package in its objective, add it to
+`BACKENDS` in `src/agentoptimizer/loop/sandbox.py` so the agent runtime is refused if it has it.
 
 Discrete, categorical and conditional coordinates are decoded inside `_f`, so the
 agent sees the same box as the baselines. Constrained tasks return `(y, g)` from
-`evaluate` (baselines only, for now). Noisy tasks are reseeded with `--seed`; the private journal keeps
+`evaluate`. Noisy tasks are reseeded with `--seed`; the private journal keeps
 `y_true`, and `private/scored_trace.csv` gives `y_best_so_far` in the baseline
 convention (blank before the first feasible point).
 
@@ -108,5 +111,5 @@ convention (blank before the first feasible point).
 - [ ] Smoke-test baseline evaluation and update TASKS.md.
 - [ ] Run matched-budget baselines into a fresh output directory.
 - [ ] Pass the native runner's zero-evaluation isolation check.
-- [ ] Run a fresh isolated agent campaign with the canonical prompt.
+- [ ] Run a fresh isolated agent campaign with `SKILL.md`.
 - [ ] Score and plot outside the agent workspace; preserve source and runtime provenance.

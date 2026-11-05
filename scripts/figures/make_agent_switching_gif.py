@@ -8,7 +8,7 @@ computed once. Frames step through the run at a fixed number of evaluations
 each; the last frame (the full run) is held so the viewer can read it.
 
 Usage (from the repository root):
-    python scripts/figures/make_agent_switching_gif.py    # writes results_linux/agent_switching_rosenbrock.gif
+    python scripts/figures/make_agent_switching_gif.py    # writes results_full/agent_switching_rosenbrock.gif
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 from PIL import Image  # noqa: E402
 
-OUT = sw.ROOT / "results_linux/agent_switching_rosenbrock.gif"
+OUT = sw.ROOT / "results_full/agent_switching_rosenbrock.gif"
 N_FRAMES = 120
 FRAME_MS = 80
 HOLD_MS = 3000

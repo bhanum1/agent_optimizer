@@ -33,8 +33,8 @@ is neutral gray, not a categorical hue.
 
 Usage (from the repository root):
     python scripts/figures/make_agent_switching_plot.py
-    # writes results_linux/agent_switching_rosenbrock.png and
-    # results_linux/legend_rosenbrock_stages.png: the stage legend on its own,
+    # writes results_full/agent_switching_rosenbrock.png and
+    # results_full/legend_rosenbrock_stages.png: the stage legend on its own,
     # one entry per row, shared by the agent and single-optimizer figures
 """
 
@@ -57,8 +57,8 @@ ROOT = Path(__file__).resolve().parents[2]
 RUN = ROOT / "agent_runs/astra_max_2000_20261022/analysis/rosenbrock_d10_i1"
 TASK_KEY = "rosenbrock10"
 F_OPT_META = ROOT / "results_full/rosenbrock_d10_i1/cma_es/seed_0/meta.json"
-OUT = ROOT / "results_linux/agent_switching_rosenbrock.png"
-OUT_LEGEND = ROOT / "results_linux/legend_rosenbrock_stages.png"
+OUT = ROOT / "results_full/agent_switching_rosenbrock.png"
+OUT_LEGEND = ROOT / "results_full/legend_rosenbrock_stages.png"
 
 # (legend label, color, optimizer labels in the trace)
 STAGES = [

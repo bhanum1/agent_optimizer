@@ -22,7 +22,7 @@ from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch, Polygon,
 
 import figure_style as fs
 
-OUT = Path(__file__).resolve().parents[2] / "results_linux" / "agent_loop.png"
+OUT = Path(__file__).resolve().parents[2] / "results_full" / "agent_loop.png"
 
 BLUE, RED, AQUA, YELLOW = fs.SERIES_COLORS[:4]
 DATA, FIT, PROPOSE, AGENT = BLUE, AQUA, YELLOW, RED

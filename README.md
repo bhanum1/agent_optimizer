@@ -1,24 +1,23 @@
 # Agentoptimizer
 
-An LLM designs the optimizer for a black-box problem, **one block at a time**.
-Each block, a fresh agent reads the data so far (a summary and the raw table)
-and the decisions made before. It decides the next block's method,
-hyperparameters and size, and writes `propose.py`: a script, built from the
-`agentoptimizer.batch` proposers or from scratch, that fits the data and
-proposes points. The lab measures `round_size` points at a time, and the
-script proposes again after each round until the block is full. Then the
-agent decides again.
+An LLM chooses optimization methods, hyperparameters, and evaluation block lengths
+for a black-box problem, one block at a time. A Python loop drives it:
 
-The same loop serves real campaigns (`/opt-run`, people run the experiments)
-and blind benchmarks (`run_agent.py`, a private evaluator plays the lab). The
-policy is [prompts/advisor.md](prompts/advisor.md). The benchmark runner drives
-either Claude Code CLI or Codex CLI (`--agent claude|codex`); both use Codex's
-native sandbox for every agent command.
+1. Call the agent once, fresh, with [SKILL.md](src/agentoptimizer/loop/SKILL.md) as its prompt.
+   It analyzes the data so far and writes a proposal: an optimizer (from the
+   [library](src/agentoptimizer/loop/lib/README.md) or its own), its settings, and how many
+   points to evaluate.
+2. Validate the proposal and append the agent's decision to `decisions.md`.
+3. Run that optimizer in a sandbox for exactly that many points. The runner
+   evaluates every point itself and appends it to `data.csv`.
+4. Repeat until the budget is spent.
+
+The agent never touches the objective. Optimizer state is saved to disk between
+blocks. The runner drives either Codex CLI or Claude Code CLI (`--agent codex|claude`);
+both use Codex's native sandbox for every agent command and optimizer.
 
 Results are not kept in this repository. Runs produced before it was created,
-by the earlier live-session agent (one long session driving an evaluation
-client, prompt `prompts/optimization_agent.md` at that tag), are in the source
-repository at tag
+by the earlier live-session agent, are in the source repository at tag
 [`pre-manuscript-snapshot`](https://github.com/bhanum1/Cheapest_opt_lunch/tree/pre-manuscript-snapshot):
 
 - [Astra max results: 30 mathematical tasks, 2,000-evaluation allowance](https://github.com/bhanum1/Cheapest_opt_lunch/tree/pre-manuscript-snapshot/main/agent_runs/astra_max_2000_20261022)
@@ -35,9 +34,8 @@ repository at tag
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code), only for
   `--agent claude`; sign in with `claude auth login`.
 
-The native runner has been checked on macOS with Codex CLI
-`0.162.0-alpha.17.2` and `0.163.0`; `--agent claude` with Claude Code CLI `2.1.308`
-(sandboxed by Codex `0.163.0`). It fails before inference if its isolation checks fail.
+The loop has been checked on macOS with Codex CLI `0.163.0` as the sandbox, with
+`--agent claude` and `--agent codex`. It fails before inference if its isolation checks fail.
 Other CLI versions must support the named permission profiles used by the runner.
 
 ## Install once
@@ -106,179 +104,88 @@ These three checks spend **no model calls**. Run them after installing:
 3. Agent setup and isolation preflight, **zero objective evaluations**:
 
    ```bash
-   .venv/bin/python scripts/run_agent.py --task sphere10 --budget 100 --check-only
+   .venv/bin/python scripts/run_loop.py --task step_ellipsoid10 --budget 100 --check-only
    ```
 
-   It should end with `Isolation passed: … checks, 0/100 evaluations.`
+   It should end with `Isolation passed: … checks.`
 
-## Run in one call
-
-In Claude Code, from the repository root:
-
-```text
-/optimize sphere10 100 seeds 0 1 2
-/optimize mof_pool 100 effort high baselines
-/optimize status
-```
-
-The [skill](.claude/skills/optimize/SKILL.md) creates missing environments,
-launches one detached campaign per seed once its isolation preflight passes,
-waits for the runs to end, and reports each run's best value, gap to the
-optimum, method blocks, advisor cost and integrity audit (with `baselines`, it also runs the
-baseline sweep and counts the baselines the agent beat). The same steps from a
-terminal:
-
-```bash
-.venv/bin/python scripts/agent_runs.py launch --task sphere10 --budget 100 --seeds 0 1 2
-.venv/bin/python scripts/agent_runs.py status
-.venv/bin/python scripts/agent_runs.py wait runs/run-<id> [--baselines runs/baselines]
-```
-
-`launch` passes other flags (`--agent`, `--model`, `--effort`, `--block-size`,
-`--round-size`) to `run_agent.py`.
-Its runs keep going after the terminal or Claude Code session closes; their
-console output is in `private/launcher.log`. `status` reads each run's private
-journal read-only and never touches the workspace. A run launched from inside a
-Claude Code session does not inherit that session's `CLAUDE_*` variables: the
-runner drops them, so the agent CLI starts as it would from a terminal.
-
-## Advisor mode (`/opt-run`)
-
-For real experiments rather than benchmarks: the objective is yours (a lab,
-a simulation queue), and each block is proposed from the results so far.
-In Claude Code, from the repository root:
-
-```text
-/opt-run init my_campaign                        # interview -> problem.toml; optional import of old results
-/opt-run my_campaign                             # decide the next block, or propose its next round
-/opt-run record my_campaign results.csv          # results back (or fill them in data.csv)
-/opt-run status my_campaign
-```
-
-Each call decides one block (method, settings, size) under the policy in
-[prompts/advisor.md](prompts/advisor.md), records why in `decisions.md`, and
-writes `blocks/NNN/propose.py`: the block's `SIZE` and a deterministic
-`propose(campaign, q)` that returns the next q points, usually by calling a
-proposer from `agentoptimizer.batch`. The lab measures `round_size` points
-at a time (`problem.toml`, default 1), so a block runs in rounds:
-`propose()` is called once per round on the data so far, with no new
-decision, and each round lands in `data.csv` as pending experiments. To try
-it without a lab, use the [reaction example](examples/reaction/README.md)
-and its simulated lab.
-
-The skill drives `scripts/opt_run.py`, which also works on its own:
-
-```bash
-.venv/bin/python scripts/opt_run.py init my_campaign          # then edit my_campaign/problem.toml
-.venv/bin/python scripts/opt_run.py import my_campaign old.csv # optional: earlier results, as block 0
-.venv/bin/python scripts/opt_run.py new-block my_campaign      # opens blocks/001/ with summary.json
-# write "## Block 1" in decisions.md and blocks/001/propose.py, then:
-.venv/bin/python scripts/opt_run.py run my_campaign            # proposes the next round, validates it
-.venv/bin/python scripts/opt_run.py accept my_campaign         # adds it to data.csv as pending
-.venv/bin/python scripts/opt_run.py record my_campaign results.csv
-# repeat run, accept, record until the block is full; then new-block again
-.venv/bin/python scripts/opt_run.py summarize my_campaign
-```
-
-A campaign is a folder: `problem.toml` (parameters, objective, budget,
-context; an optional `[pool]` of candidates), `data.csv` (one row per
-experiment), `decisions.md`, and `blocks/NNN/` with each block's summary,
-script and latest round. `propose()` reads the data through
-`agentoptimizer.advisor.Campaign`; see
-[campaign.py](src/agentoptimizer/advisor/campaign.py).
+The library tests (`test_loop_lib.py`) take about three minutes.
 
 ## Run the agent
 
-One blind campaign on a registered task:
-
 ```bash
-.venv/bin/python scripts/run_agent.py --task sphere10 --budget 100
-.venv/bin/python scripts/run_agent.py --task mof_pool --budget 100 --block-size 10 --round-size 1
+.venv/bin/python scripts/run_loop.py --task step_ellipsoid10 --budget 100
 ```
 
-The runner puts an anonymous campaign (`x0`…, minimize `y`) in a sandboxed
-workspace and plays the lab:
+The defaults are `--agent claude --model claude-opus-5-5 --effort high`. For Codex,
+pass `--agent codex` (default model `gpt-6-astra`). `--call-timeout` limits each
+agent call (default 3600 s).
 
-1. Each block, a fresh headless call follows the `/opt-run` steps under
-   [prompts/advisor_headless.md](prompts/advisor_headless.md). It reads the
-   campaign, appends its decision to `decisions.md`, writes `propose.py` and
-   accepts the first round.
-2. The runner refuses changed results, rows added other than by `accept`, and
-   rewritten decisions. It reruns `propose.py` on the data the block saw and
-   requires the same round.
-3. It evaluates the round through the private evaluator, then runs
-   `propose()` in the sandbox for each later round of the block, with no
-   model call, until the block has `SIZE` experiments.
+`--seed` is given to the agent for its optimizers' randomness, and also seeds
+private observation noise where supported. Separate invocations with `--seed 0`,
+`--seed 1` and `--seed 2` create three independent campaigns.
 
-Defaults: `--agent claude` (model `claude-opus-5-5`), `--effort medium`,
-`--block-size` 10% of the budget (the suggestion written to `problem.toml`;
-the agent chooses), `--round-size 1`. `--agent codex` uses `gpt-6-astra`. Claude Code
-runs headless with no built-in tools, settings, memory, CLAUDE.md, skills or
-claude.ai connectors: its only tools are the sandboxed `run_command` and
-`write_stdin` MCP executor.
+`--budget` is the number of **objective evaluations**. Initialization, repeated
+points, finite differences and line searches all count. Every invocation creates a
+new opaque `runs/run-<id>/`; there is no resume option. Runs may be launched in
+parallel. `--runs-dir`, `--agent-python`, `--codex` and `--claude` override local paths.
 
-`--seed` is written into the campaign for the agent's own seeds and also
-seeds private observation noise where supported. `--budget` is the number of
-objective evaluations; it is stated in `problem.toml` and enforced privately.
-Every invocation creates a new opaque `runs/run-<id>/`; there is no resume.
-`--runs-dir`, `--agent-python`, `--codex` and `--claude` override local paths.
-
-Tasks: every unconstrained task in [the registry](src/agentoptimizer/tasks/registry.py).
-Constrained tasks are not supported yet. Noisy tasks are reseeded with
-`--seed`; the agent sees only observations, and the private journal keeps
-the noise-free values. With an indexed pool such as `mof_pool`, the campaign
-has a `[pool]` of anonymous, feature-only candidates (ids are row numbers),
-each evaluable once. See [TASKS.md](docs/TASKS.md) and
-[ADDING_TASKS.md](docs/ADDING_TASKS.md).
+The runner accepts every task in [the task registry](src/agentoptimizer/tasks/registry.py).
+The agent sees the same box as the baselines. Constrained tasks add `g0..` columns,
+feasible iff every `g <= 0`. Noisy tasks are reseeded with `--seed`; the agent sees
+only observations, and the private journal keeps the noise-free values. See
+[TASKS.md](docs/TASKS.md) and [ADDING_TASKS.md](docs/ADDING_TASKS.md).
 
 ## What the agent can access
 
-```text
-Fresh CLI context + advisor policy and procedure
-    -> native OS sandbox: optimizer libraries, a copy of agentoptimizer.advisor
-       and agentoptimizer.batch, and this run's campaign folder
-    -> the runner reads the accepted rows, reproduces them and evaluates them
-       privately: objective, durable budget and journal never enter the sandbox
-```
+Each call is a fresh CLI with no built-in tools, settings, memory, skills or
+connectors. Its one tool, `run_command`, runs a command under Codex's native
+sandbox, which denies everything by default:
 
-No VM is required. The runner applies explicit deny-by-default filesystem
-rules: agent commands can read their workspace and optimizer runtime, and
-write only `campaign/`, `work/` and temporary files. They cannot read the
-repository, the objective implementation, private evaluator state, previous
-runs or siblings. Network access, browser and app tools, memories, personal
-configuration and permission escalation are disabled. The only execution
-tools are the trusted `run_command` and `write_stdin` MCP tools, which
-enforce the sandbox on every command. The agent never sees task identity,
-optimum, baseline results or this README.
+- **Readable:** the run's workspace (problem statement, `space.json`, `data.csv`,
+  `decisions.md`, the library, earlier block scripts and state) and the
+  optimizer-only Python runtime.
+- **Writable:** `work/` (scripts and custom optimizers), `agent/` (its proposal,
+  decision and notes) and a temporary directory.
+- **Denied:** the repository, the objective, `private/`, other runs, the system
+  temporary directory, and the network.
 
-The preflight attempts forbidden reads and writes, a symlink and a hardlink
-escape, network access and, on macOS, process inspection, before any model
-call. These are tested isolation controls, not a formal guarantee against OS
-or tool vulnerabilities.
+Optimizers run under a second policy that may write only `state/`. The agent's
+runtime (`.agent-venv`) must not contain objective backends; the runner refuses
+one that does. The agent does not receive task identity, the optimum, baseline
+results or this README.
 
-## Outputs and supervision
+For an indexed pool such as `--task mof_pool`, `space.json` holds the anonymous,
+feature-only candidates and optimizers propose row indices; labels, IDs and ranks
+stay private. `opv_pool` keeps its hidden nearest-untested mapping and its
+candidates private. See [MOF task details](data/mof_pool/README.md).
+
+Preflight checks both policies before any model call: forbidden reads and writes,
+a symlink escape, network access, and missing objective backends. These are tested
+isolation controls, not a formal guarantee against OS or tool vulnerabilities.
+
+## Outputs
 
 ```text
 runs/run-<id>/
-  workspace/
-    AGENTS.md                 the advisor policy and headless procedure
-    opt_run.py, lib/          the campaign CLI and its agentoptimizer copy
-    campaign/                 problem.toml, data.csv, decisions.md, blocks/NNN/
+  results/
+    trace.csv           every evaluation, in the baseline format (noise-free y_best_so_far)
+    meta.json           task, budget, outcome, agent, audit
+    decisions.md        every decision and runner note
+  workspace/            what the agent saw: data.csv, decisions.md, blocks/, state/, work/, agent/
   private/
-    manifest.json             source hashes, model, effort, block and round size
-    isolation_checks.json     preflight results
-    campaign/                 the truth the workspace copy is checked against
-    blocks/NNN/               each advisor call's prompt, events and logs; round logs
-    blocks.csv                per block: size, rounds, turns, tokens, cost
-    evaluations.sqlite        authoritative evaluations and decision snapshots
-    integrity_audit.json      journal and data agree; complete, or why it stopped
-    scoring.json              task identity and optimum, for offline analysis
-    scored_trace.csv          y_best_so_far in the baseline convention (noise-free, feasible)
+    journal.csv         evaluations including noise-free values and timing
+    blocks.json         each accepted proposal and how its block ended
+    calls/NNN/          each agent call's prompt, event log, proposal, decision, context.md
+    blocks/NNN.log      each optimizer's stderr
+    audit.json          the post-run checks
+    manifest.json, policy.json, isolation_checks.json
 ```
 
-`decisions.md` is journaled with each block and must only grow. On a crash
-or an unknown evaluation outcome, keep the run directory and inspect the
-private journal; do not rerun the campaign as though it had no evaluations.
+After the loop, an audit checks that the run stayed within budget, `data.csv`
+matches the private journal, `decisions.md` is exactly what the runner wrote, each
+block follows its decision and stays within its length, and only the sandboxed
+tool was used. A failed audit stops before `results/` is written.
 
 ## Baselines
 
@@ -302,21 +209,17 @@ Run all standalone optimizers at the same budget into a **new** results director
   --outdir runs/baselines-100
 ```
 
-Always pass `--outdir`: the defaults (`--budget 2000 --seeds 10 --outdir results_linux`)
+Always pass `--outdir`: the defaults (`--budget 2000 --seeds 10 --outdir results_full`)
 resolve relative to the current directory. Each campaign writes
 `<outdir>/<task_name>/<optimizer>/seed_<seed>/{trace.csv,meta.json}`. Reruns skip
 completed campaigns; a sweep whose existing campaigns used a different budget
 errors before running anything.
 
 Stochastic baselines use ten seeds; deterministic methods use one. Current sweeps
-use the requested budget for every method. Historical `results_linux/` runs
-may have GP-BO, TuRBO and BOBYQA capped at 100; inspect their metadata. The newest
-full-budget benchmark is `results_full/` in the source repository. Numerical results can
+use the requested budget for every method. Historical `results_full/` runs (in the
+source repository) may have GP-BO, TuRBO and BOBYQA capped at 100; inspect their
+metadata. Numerical results can
 vary by platform and library version; use matched environments for formal comparisons.
-
-`scripts/run_batch_baselines.py` runs fixed batch methods at a block size q
-through the same `agentoptimizer.batch` proposers the agent uses: Sobol then
-qLogNEI, Sobol then a TuRBO-style trust region, and random.
 
 On a SLURM cluster, [`scripts/slurm/sweep_all.sh`](scripts/slurm/sweep_all.sh)
 runs `run_sweep.py` for several tasks on one node. Submit it from the repository root:
@@ -327,20 +230,20 @@ sbatch -p debug scripts/slurm/sweep_all.sh sphere10 rastrigin10
 
 ## Figures
 
-`make_comparison_plots.py` reads a legacy live-session run's
-`results/agent_run/` folder; it does not read loop runs yet. For a legacy run:
+After the agent finishes, compare it with the baselines. Replace `<id>` with the
+printed run ID:
 
 ```bash
 .agent-venv/bin/python scripts/figures/make_comparison_plots.py \
   --results runs/baselines-100 --task step_ellipsoid_d10_i1 \
-  --agent-run runs/run-<id>/workspace/results/agent_run \
+  --agent-run runs/run-<id>/results \
   --outdir runs/run-<id>/figures
 ```
 
 `--task` is the results folder name (`<task_name>`, listed per key in
 [TASKS.md](docs/TASKS.md)), not the registry key. To compare against the
-published baselines instead of your own sweep, copy `results_linux/` from the
-source repository to the repository root and pass `--results results_linux`.
+published baselines instead of your own sweep, copy `main/results_full/` from the
+source repository to the repository root and pass `--results results_full`.
 Figures go to `runs/run-<id>/figures/<task_name>/`.
 
 This produces baseline convergence, a final-regret comparison, and an agent
@@ -354,13 +257,13 @@ The cross-task metric (regret relative to random search, averaged over tasks)
 reads a results folder under the repository root and writes `global_metric_vs_budget.png` into it:
 
 ```bash
-.agent-venv/bin/python scripts/figures/make_global_metric_plots.py --results results_linux
+.agent-venv/bin/python scripts/figures/make_global_metric_plots.py --results results_full
 ```
 
 Figures that leave the repo follow [FIGURES.md](docs/FIGURES.md). Their scripts
 (`make_crossover_plot.py`, `make_agent_switching_plot.py`,
 `make_agent_switching_gif.py`, `make_landscape_plot.py`) write into
-`results_linux/`; each docstring names its outputs and is run from the repository root.
+`results_full/`; each docstring names its outputs and is run from the repository root.
 
 ## Task-specific guides
 
@@ -368,34 +271,25 @@ Figures that leave the repo follow [FIGURES.md](docs/FIGURES.md). Their scripts
   baselines, agent runs and plots.
 - [MOF exact candidate pool (`mof_pool`)](data/mof_pool/README.md): data
   provenance, agent campaigns and pool-aware baselines.
+- [Lab fluid mixtures (`fluid_mixtures`)](data/fluid_mixtures/README.md): sdagent's
+  measured mixtures, RDKit descriptors and pump work.
+- [Viscosity excess pool (`viscosity_excess`)](data/viscosity_excess/README.md): the same
+  mixtures' viscosity below ideal mixing.
+- [Heat-capacity excess pool (`cp_excess`)](data/cp_excess/README.md): campaign 11's
+  heat capacity above ideal mixing, outliers removed.
 - [Tasks](docs/TASKS.md): what each registered task tests and its baseline winners.
 - [Adding a task](docs/ADDING_TASKS.md): registration, backends and the public contract.
 
 ## Repository layout
 
-- `prompts/advisor.md`: the policy every advisor follows;
-  `prompts/advisor_headless.md`: the per-block procedure of a headless advisor.
+- `src/agentoptimizer/loop/`: the agent loop: runner, sandbox, optimizer host, `SKILL.md`, audit.
+- `src/agentoptimizer/loop/lib/`: the agent's optimizer library.
 - `src/agentoptimizer/tasks/`: private objective implementations and registry.
-- `src/agentoptimizer/optimizers/`: ask/tell wrappers the baselines run.
-- `src/agentoptimizer/blind_runner/`: the blind runner: `loop.py` (blocks and
-  rounds, checks, reproduction), `agent_cli.py` (headless advisor),
-  `campaign.py` (the workspace campaign), `evaluator.py`, `execution.py` and
-  `preflight.py` (sandbox), `runner.py` (`scripts/run_agent.py`).
-- `scripts/`: agent and baseline runners, `agent_runs.py` to launch and report
-  on agent runs; `scripts/figures/`: plotting entry points.
-- `.claude/skills/`: the `/optimize` and `/opt-run` Claude Code skills.
-- `examples/`: advisor-mode example campaigns with simulated labs.
-- `src/agentoptimizer/advisor/`: advisor mode (campaign folders, summary,
-  proposal blocks); `scripts/opt_run.py` is its command line.
-- `src/agentoptimizer/batch/`: batch proposers that rebuild their state from
-  the data on each call (space filling, qLogNEI, trust region, CMA-ES, DE).
-- `data/`: task inputs (`mof_pool/`, `opv_emulator/`, `opv_pool/`) and the
-  pipelines that built them.
+- `src/agentoptimizer/optimizers/`: the baselines' optimizer wrappers.
+- `scripts/`: agent runner (`run_loop.py`), baseline runners; `scripts/figures/`: plotting entry points.
+- `data/`: task inputs and the pipelines that built them.
 - `docs/`: task catalogue, adding tasks, figure rules, and the manuscript plan.
-- `tests/`: integrity tests for the evaluator and pool tasks.
+- `tests/`: tests for the loop, its library and the pool tasks.
 - `AGENTS.md`, `CLAUDE.md`: contributor guide (not the experiment prompt).
-- `external/`: ignored third-party data (YAHPO surrogates, user-supplied evaluators).
+- `external/`: ignored third-party and private data (YAHPO surrogates, lab data, user-supplied evaluators).
 - `runs/`: ignored generated workspaces, logs and new results.
-
-The integrity tests use fake objectives to check budget exhaustion, duplicate
-request handling, crash recovery, configuration immutability and prospective logs.

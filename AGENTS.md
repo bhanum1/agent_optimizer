@@ -1,19 +1,16 @@
 # Contributor guide
 
 Instructions for people and coding assistants working on this repository.
-The policy given to the optimization agent is a different file:
-[prompts/advisor.md](prompts/advisor.md).
+The prompt given to the optimization agent is a different file:
+[src/agentoptimizer/loop/SKILL.md](src/agentoptimizer/loop/SKILL.md).
 
 ## Layout
 
 | Path | Contents |
 | --- | --- |
-| `src/agentoptimizer/` | The package: `advisor/` (campaign folders: problem, data, summary, blocks and rounds), `batch/` (stateless batch proposers from data: space filling, qLogNEI, trust region, CMA-ES, DE), `blind_runner/` (the blind loop: headless advisor, sandbox, preflight, private evaluator), `tasks/` (objectives and `TASKS` registry), `optimizers/` (ask/tell wrappers the baselines run) |
-| `scripts/` | `run_agent.py` (one blind campaign), `agent_runs.py` (launch, wait, status), `opt_run.py` (campaign CLI); `run_campaign.py`, `run_sweep.py` and `run_batch_baselines.py` (baselines); `figures/` for paper figures; `slurm/` for cluster sweeps |
-| `.claude/skills/` | `/optimize` (launch blind runs and report on them) and `/opt-run` (propose the next block or round of a real campaign) |
-| `examples/` | Example campaigns with simulated labs |
-| `prompts/` | The advisor policy (`advisor.md`) and the headless advisor's per-block procedure (`advisor_headless.md`) |
-| `data/` | Task inputs (MOF pool, OPV emulator, OPV pool) and the pipelines that produced them |
+| `src/agentoptimizer/` | The package: `loop/` (the agent loop: runner, sandbox, optimizer host, `SKILL.md`, audit; `lib/` is the agent's optimizer library), `tasks/` (objectives and `TASKS` registry), `optimizers/` (ask/tell wrappers the baselines run) |
+| `scripts/` | `run_loop.py` (one agent campaign); `run_campaign.py` and `run_sweep.py` (baselines); `figures/` for paper figures; `slurm/` for cluster sweeps |
+| `data/` | Task inputs (MOF pool, OPV emulator, OPV pool) and the pipelines that produced them, including the lab-mixture builders whose data stays in `external/` |
 | `docs/` | Task catalogue, adding tasks, figure rules, and `plan/` for the manuscript |
 | `tests/` | Unit tests; no model calls, no real objectives |
 
@@ -35,14 +32,13 @@ conditions, so say why in the commit message.
 
 ## Rules
 
-- **The agent's workspace is an interface.** The runner copies `advisor/` and
-  `batch/` into each sandbox as `lib/agentoptimizer`. Keep imports inside them
-  relative, limited to the `agent` dependency group, and free of task
-  identities, so the copies work and reveal nothing.
-- **The prompts are an experimental condition.** Changing `prompts/advisor.md`
-  or `prompts/advisor_headless.md` changes what every later run measures;
-  record why in the commit message. `advisor_headless.md` follows the
-  `/opt-run` skill's steps; keep the two in step.
+- **The agent's workspace is an interface.** The runner copies `SKILL.md`,
+  `check.py`, `host.py` and `lib/` from `loop/` into each sandbox. Keep `lib/`
+  importable on its own (flat imports such as `from _base import Base`), limited
+  to the `agent` dependency group, and free of task identities.
+- **The skill is an experimental condition.** Changing `loop/SKILL.md` or the
+  library changes what every later run measures; record why in the commit
+  message.
 - **Task identities stay private.** `docs/TASKS.md` and `src/agentoptimizer/tasks/`
   name the functions; nothing from them may reach a sandbox.
 - **No results in git.** Campaign outputs go to `runs/` (ignored) and are
