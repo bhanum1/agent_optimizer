@@ -76,6 +76,6 @@ environment, after exporting `excess_rows.csv` as described in
 
 ```bash
 ~/Documents/Work/Grad/sdagent/.venv/bin/python data/cp_excess/build.py
-.venv/bin/python scripts/run_loop.py --task cp_excess --budget 50 --seed 0
-.venv/bin/python scripts/run_campaign.py --task cp_excess --optimizer sobol_gp_bo --seed 0 --budget 50
+.venv/bin/python -m agentoptimizer.loop --task cp_excess --budget 50 --seed 0
+.venv/bin/python -m agentoptimizer.baselines --task cp_excess --optimizer sobol_gp_bo --seed 0 --budget 50
 ```

@@ -8,7 +8,7 @@ RandomSearch on a pool task is not this: its uniform points favour
 candidates with much empty space around them.
 
 Only for pool tasks: it needs one point per candidate, which
-scripts/run_campaign.py passes from the task (`task.candidates`). It
+baselines/campaign.py passes from the task (`task.candidates`). It
 proposes those exact points, each of which the task maps to its own
 candidate.
 

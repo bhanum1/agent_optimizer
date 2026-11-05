@@ -19,11 +19,11 @@ not exceed it.
 meta.json records the campaign-level configuration and provenance.
 
 No optimizer hyperparameters are exposed here by design: each optimizer
-uses its own standard defaults (see src/optimizers/).
+uses its own standard defaults (see this package).
 
 Usage
 -----
-    python scripts/run_campaign.py --task rosenbrock10 --optimizer random_search --seed 0 --budget 100
+    python -m agentoptimizer.baselines --task rosenbrock10 --optimizer random_search --seed 0 --budget 100
 """
 
 from __future__ import annotations
@@ -39,21 +39,21 @@ from pathlib import Path
 import numpy as np
 import scipy
 
-from agentoptimizer.optimizers import OptimizerExhausted
-from agentoptimizer.optimizers.bobyqa import BOBYQA
-from agentoptimizer.optimizers.cma_es import CMAES
-from agentoptimizer.optimizers.differential_evolution import DifferentialEvolution
-from agentoptimizer.optimizers.gp_bo import GPBO
-from agentoptimizer.optimizers.lbfgsb import LBFGSB
-from agentoptimizer.optimizers.nelder_mead import NelderMead
-from agentoptimizer.optimizers.pool_random import PoolRandomSearch
-from agentoptimizer.optimizers.random_search import RandomSearch
-from agentoptimizer.optimizers.sobol_search import SobolSearch
-from agentoptimizer.optimizers.turbo import TuRBO
-from agentoptimizer.tasks.registry import TASKS
+from . import OptimizerExhausted
+from .bobyqa import BOBYQA
+from .cma_es import CMAES
+from .differential_evolution import DifferentialEvolution
+from .gp_bo import GPBO
+from .lbfgsb import LBFGSB
+from .nelder_mead import NelderMead
+from .pool_random import PoolRandomSearch
+from .random_search import RandomSearch
+from .sobol_search import SobolSearch
+from .turbo import TuRBO
+from ..tasks.registry import TASKS
 
 # Optimizer registry: add a new optimizer here; nothing else in this file
-# needs to change. Tasks are registered in src/tasks/registry.py.
+# needs to change. Tasks are registered in tasks/registry.py.
 OPTIMIZERS = {
     "random_search": RandomSearch,
     "sobol": SobolSearch,
@@ -71,8 +71,8 @@ OPTIMIZERS = {
 def optimizers_for_task(task):
     """Use exact-row acquisition for indexed pools; preserve existing box methods."""
     if getattr(task, 'indexed_pool', False):
-        from agentoptimizer.optimizers.pool_gp_bo import GPBO as PoolGPBO
-        from agentoptimizer.optimizers.pool_turbo import TuRBO as PoolTuRBO
+        from .pool_gp_bo import GPBO as PoolGPBO
+        from .pool_turbo import TuRBO as PoolTuRBO
         return {'gp_bo': PoolGPBO, 'sobol_gp_bo': PoolGPBO, 'turbo': PoolTuRBO, 'pool_random': PoolRandomSearch}
     return {name: cls for name, cls in OPTIMIZERS.items()
             if task.pool or not getattr(cls, 'pool_only', False)}
@@ -80,7 +80,7 @@ def optimizers_for_task(task):
 # scipy's Sobol sampler warns whenever the *cumulative* number of points
 # drawn so far is not a power of 2. Asking one point at a time (below)
 # triggers this on most calls; it is harmless, just noisy, so it is
-# silenced here rather than in src/optimizers/sobol_search.py.
+# silenced here rather than in sobol_search.py.
 warnings.filterwarnings("ignore", message=".*balance properties.*")
 
 
@@ -249,7 +249,8 @@ def run_campaign(
 
 
 def _parse_args():
-    p = argparse.ArgumentParser(description=__doc__)
+    p = argparse.ArgumentParser(prog="python -m agentoptimizer.baselines", description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--task", required=True, choices=sorted(TASKS))
     p.add_argument("--optimizer", required=True, choices=sorted(OPTIMIZERS) + ["sobol_gp_bo"])
     p.add_argument("--seed", type=int, required=True)
@@ -258,7 +259,7 @@ def _parse_args():
     return p.parse_args()
 
 
-if __name__ == "__main__":
+def main():
     args = _parse_args()
     out_dir = run_campaign(args.task, args.optimizer, args.seed, args.budget, args.outdir)
     print(f"Wrote {out_dir / 'trace.csv'} and {out_dir / 'meta.json'}")

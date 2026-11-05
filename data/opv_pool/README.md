@@ -37,7 +37,7 @@ git-ignored; results are released separately, not committed.
 2. Smoke test:
 
    ```bash
-   .venv/bin/python scripts/run_campaign.py --task opv_pool \
+   .venv/bin/python -m agentoptimizer.baselines --task opv_pool \
      --optimizer random_search --seed 0 --budget 20 --outdir runs/smoke
    ```
 
@@ -50,10 +50,10 @@ git-ignored; results are released separately, not committed.
 
    ```bash
    for opt in random_search sobol cma_es de gp_bo turbo pool_random; do for s in $(seq 0 9); do
-     .venv/bin/python scripts/run_campaign.py --task opv_pool --optimizer $opt --seed $s --budget 100 --outdir runs/baselines-100
+     .venv/bin/python -m agentoptimizer.baselines --task opv_pool --optimizer $opt --seed $s --budget 100 --outdir runs/baselines-100
    done; done
    for opt in bobyqa nelder_mead lbfgsb; do
-     .venv/bin/python scripts/run_campaign.py --task opv_pool --optimizer $opt --seed 0 --budget 100 --outdir runs/baselines-100
+     .venv/bin/python -m agentoptimizer.baselines --task opv_pool --optimizer $opt --seed 0 --budget 100 --outdir runs/baselines-100
    done
    ```
 
@@ -61,11 +61,11 @@ git-ignored; results are released separately, not committed.
    run. Claude Code is the default agent; add `--agent codex` for Codex.
 
    ```bash
-   .venv/bin/python scripts/run_loop.py --task opv_pool --budget 100 --check-only
-   .venv/bin/python scripts/run_loop.py --task opv_pool --budget 100
+   .venv/bin/python -m agentoptimizer.loop --task opv_pool --budget 100 --check-only
+   .venv/bin/python -m agentoptimizer.loop --task opv_pool --budget 100
    ```
 
    The agent is told only the dimension, the [0, 1] box, the budget and that
    the objective is not repeatable. It never sees the pool or the devices.
 
-Budgets above 526 are refused by `run_campaign.py` and `run_loop.py`.
+Budgets above 526 are refused by both runners.

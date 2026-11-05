@@ -31,7 +31,7 @@ Standard, no-tuning defaults:
 Like Nelder-Mead, this is a local method: it is expected to converge (and
 stop proposing points) well before a large budget is used. If `ask` is
 called after it has converged, `OptimizerExhausted` is raised, which
-scripts/run_campaign.py already handles by stopping the campaign cleanly.
+baselines/campaign.py already handles by stopping the campaign cleanly.
 
 By convention, this optimizer MINIMIZES the objective (matching the rest
 of this package).

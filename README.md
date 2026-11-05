@@ -3,9 +3,9 @@
 An LLM chooses optimization methods, hyperparameters, and evaluation block lengths
 for a black-box problem, one block at a time. A Python loop drives it:
 
-1. Call the agent once, fresh, with [SKILL.md](src/agentoptimizer/loop/SKILL.md) as its prompt.
+1. Call the agent once, fresh, with [SKILL.md](src/agentoptimizer/loop/workspace/SKILL.md) as its prompt.
    It analyzes the data so far and writes a proposal: an optimizer (from the
-   [library](src/agentoptimizer/loop/lib/README.md) or its own), its settings, and how many
+   [library](src/agentoptimizer/loop/workspace/lib/README.md) or its own), its settings, and how many
    points to evaluate.
 2. Validate the proposal and append the agent's decision to `decisions.md`.
 3. Run that optimizer in a sandbox for exactly that many points. The runner
@@ -69,13 +69,13 @@ Each folder in `data/` has a README with its provenance and the pipeline that bu
 Check isolation first (no model call, no evaluations; ends with `Isolation passed`):
 
 ```bash
-.venv/bin/python scripts/run_loop.py --task step_ellipsoid10 --budget 100 --check-only
+.venv/bin/python -m agentoptimizer.loop --task step_ellipsoid10 --budget 100 --check-only
 ```
 
 Then run:
 
 ```bash
-.venv/bin/python scripts/run_loop.py --task step_ellipsoid10 --budget 100
+.venv/bin/python -m agentoptimizer.loop --task step_ellipsoid10 --budget 100
 ```
 
 Defaults are `--agent claude --model claude-opus-5-5 --effort high`. `--budget` counts
@@ -112,7 +112,7 @@ decision; a failed audit stops before `results/` is written.
 One task, one optimizer, one seed:
 
 ```bash
-.venv/bin/python scripts/run_campaign.py --task step_ellipsoid10 --optimizer cma_es --seed 0 --budget 100 --outdir runs/baselines-100
+.venv/bin/python -m agentoptimizer.baselines --task step_ellipsoid10 --optimizer cma_es --seed 0 --budget 100 --outdir runs/baselines-100
 ```
 
 Optimizers: `bobyqa`, `cma_es`, `de`, `gp_bo`, `lbfgsb`, `nelder_mead`,
@@ -122,10 +122,12 @@ writes `<outdir>/<task_name>/<optimizer>/seed_<seed>/{trace.csv,meta.json}`.
 
 ## Layout
 
-- `src/agentoptimizer/loop/`: runner, sandbox, preflight, optimizer host, `SKILL.md`, audit.
-- `src/agentoptimizer/loop/lib/`: the agent's optimizer library, copied into each sandbox.
-- `src/agentoptimizer/optimizers/`: the baseline optimizers.
-- `src/agentoptimizer/tasks/`: objective implementations and the registry (private).
-- `scripts/`: `run_loop.py` (agent campaign), `run_campaign.py` (baseline campaign).
-- `data/`: benchmark inputs and the pipelines that produced them.
-- `external/`, `runs/`: git-ignored private data and outputs.
+```text
+src/agentoptimizer/
+  loop/              the runner: campaign, sandbox, preflight, agent CLIs, audit
+    workspace/       copied as-is into every sandbox: SKILL.md, check.py, host.py, lib/
+  baselines/         baseline optimizers and their campaign runner
+  tasks/             objective implementations and the registry (private)
+data/                benchmark inputs and the pipelines that produced them
+external/, runs/     git-ignored private data and outputs
+```

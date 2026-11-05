@@ -17,7 +17,8 @@ REPO = campaign.REPO
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Run an agent campaign, one skill call per block.")
+    parser = argparse.ArgumentParser(prog="python -m agentoptimizer.loop",
+                                     description="Run an agent campaign, one skill call per block.")
     parser.add_argument("--task", required=True, help="A key of src/agentoptimizer/tasks/registry.py")
     parser.add_argument("--budget", required=True, type=int)
     parser.add_argument("--seed", type=int, default=0)

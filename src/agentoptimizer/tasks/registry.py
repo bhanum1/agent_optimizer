@@ -1,4 +1,4 @@
-"""Task registry: every task key accepted by scripts/run_campaign.py.
+"""Task registry: every task key accepted by baselines/campaign.py.
 
 Factories are lazy, so listing keys never constructs a backend. Add a task by
 adding one entry here; nothing else needs to change.

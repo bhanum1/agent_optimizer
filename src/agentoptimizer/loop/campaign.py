@@ -26,6 +26,7 @@ from . import block, data, sandbox
 
 LOOP = Path(__file__).resolve().parent
 REPO = LOOP.parents[2]
+WORKSPACE = LOOP / "workspace"  # copied as-is into every sandbox
 LABEL = re.compile(r"[a-z][a-z0-9_]{0,39}")
 MAX_FAILURES = 3  # consecutive calls without a valid proposal before the runner stops
 
@@ -59,12 +60,8 @@ class Campaign:
         for d in ["lib", "blocks", "state", "agent", "work", ".tmp", ".home"]:
             (workspace / d).mkdir(parents=True, exist_ok=True)
         private.mkdir(mode=0o700)
-        shutil.copyfile(LOOP / "SKILL.md", workspace / "SKILL.md")
-        for name in ("host.py", "check.py"):
-            shutil.copyfile(LOOP / name, workspace / name)
-        if (LOOP / "lib").is_dir():
-            shutil.copytree(LOOP / "lib", workspace / "lib", dirs_exist_ok=True,
-                            ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copytree(WORKSPACE, workspace, dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("__pycache__", ".DS_Store"))
         (workspace / "PROBLEM.md").write_text(problem(task, budget, seed))
         data.write_space(task, workspace / "space.json")
         (workspace / "decisions.md").write_text("# Decisions\n")

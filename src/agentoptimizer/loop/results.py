@@ -1,7 +1,7 @@
 """After a campaign: audit it, then write results/ in the baseline convention.
 
 results/
-  trace.csv     one row per evaluation, as scripts/run_campaign.py writes for
+  trace.csv     one row per evaluation, as baselines/campaign.py writes for
                 baselines; y_best_so_far is the incumbent's noise-free value
   meta.json     task, budget, outcome, agent, and the audit
   decisions.md  copy of the decision record

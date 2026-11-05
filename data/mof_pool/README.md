@@ -22,12 +22,12 @@ IDs may be added to trusted post-run reports, never to agent feedback.
 Run from the repository root after the environment setup in the root README:
 
 ```bash
-.venv/bin/python scripts/run_loop.py --task mof_pool --budget 100 --check-only
-.venv/bin/python scripts/run_loop.py --task mof_pool --budget 100 --seed 0
+.venv/bin/python -m agentoptimizer.loop --task mof_pool --budget 100 --check-only
+.venv/bin/python -m agentoptimizer.loop --task mof_pool --budget 100 --seed 0
 ```
 
 Use seeds 0, 1, and 2 for the requested three independent campaigns.
-`src/agentoptimizer/loop/SKILL.md` governs each campaign: the agent selects its own initialization,
+`src/agentoptimizer/loop/workspace/SKILL.md` governs each campaign: the agent selects its own initialization,
 method, hyperparameters, and evaluation block length. The archive's old prompt,
 fixed ten-point initialization, GPBO/TuRBO restriction, and 110-call brief are
 not used for these agent runs. The confirmed total budget is 100, including all
@@ -36,7 +36,7 @@ initialization. Model generation itself is not made deterministic by this seed.
 ## Baseline compatibility
 
 The colleague's feature-only pool GPBO and TuRBO implementations are retained as
-`src/agentoptimizer/optimizers/pool_gp_bo.py` and `pool_turbo.py`, with configurable `n_init`
+`src/agentoptimizer/baselines/pool_gp_bo.py` and `pool_turbo.py`, with configurable `n_init`
 (default 10). They fit only purchased observations and select from unused rows.
 Existing continuous optimizer wrappers are unchanged. Exact-pool baseline
 dispatch supports `gp_bo`, `turbo`, and `pool_random`; continuous box optimizers
@@ -45,10 +45,10 @@ uniform initial rows, counted within their total budget. Rank is never a model
 training target.
 
 ```bash
-.venv/bin/python scripts/run_campaign.py --task mof_pool --optimizer gp_bo \
+.venv/bin/python -m agentoptimizer.baselines --task mof_pool --optimizer gp_bo \
   --seed 0 --budget 100 --outdir runs/mof-baselines-100
 for opt in gp_bo turbo pool_random; do for s in $(seq 0 9); do
-  .venv/bin/python scripts/run_campaign.py --task mof_pool --optimizer $opt --seed $s --budget 100 --outdir runs/mof-baselines-100
+  .venv/bin/python -m agentoptimizer.baselines --task mof_pool --optimizer $opt --seed $s --budget 100 --outdir runs/mof-baselines-100
 done; done
 ```
 

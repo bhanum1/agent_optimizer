@@ -11,7 +11,7 @@ candidate, which maps to that candidate) and, after each evaluation,
 `last_candidate` (the candidate its point was mapped to).
 
 By convention, every task MINIMIZES (matching this project's optimizers in
-src/optimizers/). A maximization problem negates its value inside `_f`.
+baselines/). A maximization problem negates its value inside `_f`.
 """
 
 from __future__ import annotations

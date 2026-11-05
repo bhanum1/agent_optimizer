@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
-HOST = Path(__file__).with_name("host.py")
+HOST = Path(__file__).parent / "workspace" / "host.py"
 
 
 @dataclass

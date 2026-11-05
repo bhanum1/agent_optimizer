@@ -8,7 +8,7 @@ Three searches in the task's unit box, all under the six required constraints:
   2. Coordinate ascent from the best Sobol points. The forest is constant
      between consecutive split thresholds of each input, so each step is an
      exact line search: one candidate per interval within the feasible range.
-  3. CMA-ES runs (pycma) on the campaign merit (run_campaign.py's penalty).
+  3. CMA-ES runs (pycma) on the campaign merit (baselines/campaign.py's penalty).
 Prints the best value and point; nothing is written.
 """
 import time
