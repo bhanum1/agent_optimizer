@@ -49,8 +49,12 @@ git-ignored; results are released separately, not committed.
    rerun them (TuRBO traces vary slightly from run to run, on every task):
 
    ```bash
-   .venv/bin/python scripts/run_sweep.py --task opv_pool \
-     --budget 100 --seeds 10 --workers 4 --outdir runs/baselines-100
+   for opt in random_search sobol cma_es de gp_bo turbo pool_random; do for s in $(seq 0 9); do
+     .venv/bin/python scripts/run_campaign.py --task opv_pool --optimizer $opt --seed $s --budget 100 --outdir runs/baselines-100
+   done; done
+   for opt in bobyqa nelder_mead lbfgsb; do
+     .venv/bin/python scripts/run_campaign.py --task opv_pool --optimizer $opt --seed 0 --budget 100 --outdir runs/baselines-100
+   done
    ```
 
 4. Agent run. Check isolation first (zero evaluations, no model call), then
@@ -64,18 +68,4 @@ git-ignored; results are released separately, not committed.
    The agent is told only the dimension, the [0, 1] box, the budget and that
    the objective is not repeatable. It never sees the pool or the devices.
 
-5. Plots, with the run ID the runner printed, against the published baselines
-   copied to `results_full/`; use `--results runs/baselines-100` for your own rerun:
-
-   ```bash
-   .agent-venv/bin/python scripts/figures/make_comparison_plots.py \
-     --results results_full --task opv_pool_pce_d11 \
-     --agent-run runs/run-<id>/results \
-     --outdir runs/run-<id>/figures
-   ```
-
-   Regret is the best device's PCE minus the best PCE found. It is exactly 0
-   once the best device is found, drawn at the bottom of the log axis (1e-12).
-
-Budgets above 526 are refused by `run_campaign.py`, `run_sweep.py` and
-`run_loop.py`.
+Budgets above 526 are refused by `run_campaign.py` and `run_loop.py`.

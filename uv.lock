@@ -6,10 +6,10 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'win32'",
-    "python_full_version < '3.12' and sys_platform == 'win32'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform == 'emscripten'",
-    "python_full_version < '3.12' and sys_platform == 'emscripten'",
     "python_full_version >= '3.12' and python_full_version < '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.12' and sys_platform == 'win32'",
+    "python_full_version < '3.12' and sys_platform == 'emscripten'",
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
@@ -63,9 +63,6 @@ backends = [
     { name = "pymoo" },
     { name = "setuptools" },
 ]
-figures = [
-    { name = "matplotlib" },
-]
 
 [package.dev-dependencies]
 agent = [
@@ -84,7 +81,6 @@ requires-dist = [
     { name = "cma" },
     { name = "coco-experiment", marker = "extra == 'backends'" },
     { name = "ioh" },
-    { name = "matplotlib", marker = "extra == 'figures'" },
     { name = "nevergrad", marker = "extra == 'backends'" },
     { name = "numpy" },
     { name = "onnxruntime", marker = "extra == 'backends'" },
@@ -94,7 +90,7 @@ requires-dist = [
     { name = "scipy" },
     { name = "setuptools", marker = "extra == 'backends'", specifier = "<81" },
 ]
-provides-extras = ["figures", "backends"]
+provides-extras = ["backends"]
 
 [package.metadata.requires-dev]
 agent = [

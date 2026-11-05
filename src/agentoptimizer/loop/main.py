@@ -67,7 +67,7 @@ def main(argv=None) -> int:
     system_tmp = Path(tempfile.mkdtemp(prefix="loop_canary_")) / "canary.txt"
     system_tmp.write_text("system temp")
     forbidden = [run.private / "canary.txt", system_tmp, run.private / "journal.csv", Path(inspect.getfile(type(task))),
-                 REPO / "README.md", REPO / "docs/TASKS.md", Path.home() / ".codex/auth.json", Path.home() / ".claude.json",
+                 REPO / "README.md", Path.home() / ".codex/auth.json", Path.home() / ".claude.json",
                  *getattr(task, "private_data_paths", ())]
     try:
         report = preflight.check(cfg["policy"], forbidden, run.private)

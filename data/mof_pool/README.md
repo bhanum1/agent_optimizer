@@ -47,8 +47,9 @@ training target.
 ```bash
 .venv/bin/python scripts/run_campaign.py --task mof_pool --optimizer gp_bo \
   --seed 0 --budget 100 --outdir runs/mof-baselines-100
-.venv/bin/python scripts/run_sweep.py --task mof_pool --budget 100 \
-  --seeds 10 --workers 4 --outdir runs/mof-baselines-100
+for opt in gp_bo turbo pool_random; do for s in $(seq 0 9); do
+  .venv/bin/python scripts/run_campaign.py --task mof_pool --optimizer $opt --seed $s --budget 100 --outdir runs/mof-baselines-100
+done; done
 ```
 
 These are reproduction commands; the published comparison uses the supplied

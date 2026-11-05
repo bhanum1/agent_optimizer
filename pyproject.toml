@@ -12,7 +12,6 @@ requires-python = ">=3.11"
 dependencies = ["numpy", "scipy", "ioh", "cma", "botorch", "Py-BOBYQA"]
 
 [project.optional-dependencies]
-figures = ["matplotlib"]
 # Objective backends for the CEC, G-suite, COCO, Nevergrad and YAHPO task families.
 # opfunu still imports pkg_resources, which setuptools 81 removed.
 backends = ["opfunu", "setuptools<81", "pymoo", "coco-experiment", "nevergrad", "onnxruntime"]
