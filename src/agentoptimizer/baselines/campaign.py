@@ -42,12 +42,14 @@ import scipy
 from . import OptimizerExhausted
 from .bobyqa import BOBYQA
 from .cma_es import CMAES
+from .cobyla import COBYLA
 from .differential_evolution import DifferentialEvolution
 from .gp_bo import GPBO
 from .lbfgsb import LBFGSB
 from .nelder_mead import NelderMead
 from .pool_random import PoolRandomSearch
 from .random_search import RandomSearch
+from .smac_hpo import SMAC
 from .sobol_search import SobolSearch
 from .turbo import TuRBO
 from ..tasks.registry import TASKS
@@ -64,6 +66,8 @@ OPTIMIZERS = {
     "bobyqa": BOBYQA,
     "nelder_mead": NelderMead,
     "lbfgsb": LBFGSB,
+    "cobyla": COBYLA,  # told raw y and g, not the merit (uses_constraints)
+    "smac": SMAC,
     "pool_random": PoolRandomSearch,  # pool tasks only (pool_only)
 }
 
@@ -141,7 +145,13 @@ def run_campaign(
             raise ValueError(f"{optimizer_name} runs only on pool tasks.")
         optimizer = optimizer_cls(bounds=task.bounds, seed=seed, candidates=task.candidates)
     else:
-        optimizer = optimizer_cls(bounds=task.bounds, seed=seed)
+        kwargs = {}
+        if getattr(optimizer_cls, "uses_constraints", False):
+            kwargs["n_constraints"] = task.n_constraints
+        if getattr(optimizer_cls, "takes_budget", False):
+            kwargs["budget"] = budget
+        optimizer = optimizer_cls(bounds=task.bounds, seed=seed, **kwargs)
+    uses_constraints = getattr(optimizer, "uses_constraints", False)
 
     campaign_dir = Path(outdir) / task.name / optimizer_name / f"seed_{seed}"
     campaign_dir.mkdir(parents=True, exist_ok=True)
@@ -180,7 +190,10 @@ def run_campaign(
         ev = task.evaluate_index(index) if indexed else task.evaluate(x)
         y, elapsed = ev.y, ev.elapsed
         merit = _merit(ev)
-        optimizer.tell(X, [merit])
+        if uses_constraints:
+            optimizer.tell(X, [y], G=[ev.g])
+        else:
+            optimizer.tell(X, [merit])
 
         cumulative_seconds += elapsed
         if ev.feasible and (best_observed is None or y < best_observed):
