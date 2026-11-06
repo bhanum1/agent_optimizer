@@ -201,6 +201,14 @@ class Campaign:
                       f"evaluations. Its state was not saved, so the next block for this label must "
                       f"restart.\n\n```\n{error}\n```")
 
+    def propose(self, call_agent) -> dict:
+        """Propose mode: one skill call; return its validated proposal without running the block."""
+        code = call_agent(1, self.prompt(1))
+        self.snapshot_context(1)
+        p, decision = self.read_proposal(code)  # raises Rejected if there is no valid proposal
+        self.record(1, p, decision)
+        return p
+
     # ---- records -------------------------------------------------------------------------
 
     def note(self, text: str, reason: str | None = None):

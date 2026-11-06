@@ -130,6 +130,10 @@ All under `src/agentoptimizer/loop/`:
      [`data.py`](src/agentoptimizer/loop/data.py).
 5. [`results.py`](src/agentoptimizer/loop/results.py) audits the run and writes `results/`.
 
+Propose mode (`--data`, below) replaces the task with
+[`user_data.py`](src/agentoptimizer/loop/user_data.py). It stops after one call:
+`Campaign.propose` validates the proposal and returns it without running the block.
+
 ## Add a task
 
 A task is a class with a box, a known optimum (used only for scoring) and an objective.
@@ -195,9 +199,41 @@ committed. Pool baselines are `pool_random`, `gp_bo` and `turbo`.
 
 ## Propose one block from your own CSV
 
-The agent loop needs an objective it can call during the run, so it cannot work from a CSV of
-past measurements alone. To get the next points for an experiment you run yourself, use a
-library optimizer directly. Give it every row of your data, then ask it for a block:
+For an experiment you run yourself, propose mode makes one skill call on your data and writes
+out the block the agent chose. Nothing is evaluated, and the block is not run: you run it.
+
+```bash
+.venv/bin/python -m agentoptimizer.loop --data my_data.csv --bounds=-5,5 --remaining 10
+```
+
+- **`--data`:** a CSV with columns `x0,x1,...,y`. `y` is minimized, so negate a value you
+  want to maximize. Every row becomes the run's `data.csv`.
+- **`--bounds`:** either `lo,hi` for every variable, or a JSON list of `[lo, hi]` pairs, given
+  inline or as a file. Write it with `=` when it starts with a minus sign.
+- **`--remaining`:** how many evaluations you have left. The agent chooses the block length,
+  up to that number.
+
+The run uses the same sandbox, preflight and flags (`--model`, `--effort`, `--seed`) as a full
+campaign. It writes to `results/`:
+- `proposal.json`: the block. It names the optimizer script, its `args`, the number of
+  evaluations `n_points`, and `state` and `warm_start`.
+- The optimizer script itself, as the agent left it. This is either a library file or one the
+  agent wrote in `work/`.
+- `decision.md`: the agent's reasoning for the block.
+- `context.md`: the notes it saved for its next call.
+
+The script defines the `Optimizer` class described in
+[`host.py`](src/agentoptimizer/loop/workspace/host.py), with `ask`, `tell`, `save` and `load`.
+- **Running the block:** construct it with the space and `args`. If `warm_start` is true, tell
+  it every row of your data first. Then alternate `ask(1)` and `tell` for `n_points`
+  evaluations.
+- **The next call:** append your measurements to the CSV and run propose mode again. Each run
+  starts from all the data, so optimizer state does not carry over.
+
+### Without the agent
+
+To get a block from a library optimizer directly, give it every row of your data, then ask it
+for points:
 
 ```python
 # next_block.py: run from the repository root with .agent-venv/bin/python next_block.py data.csv

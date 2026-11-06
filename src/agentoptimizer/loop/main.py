@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import agents, campaign, preflight, results, sandbox
+from . import agents, campaign, preflight, results, sandbox, user_data
 
 REPO = campaign.REPO
 
@@ -19,8 +19,14 @@ REPO = campaign.REPO
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="python -m agentoptimizer.loop",
                                      description="Run an agent campaign, one skill call per block.")
-    parser.add_argument("--task", required=True, help="A key of src/agentoptimizer/tasks/registry.py")
-    parser.add_argument("--budget", required=True, type=int)
+    parser.add_argument("--task", help="A key of src/agentoptimizer/tasks/registry.py")
+    parser.add_argument("--budget", type=int, help="Evaluations in the campaign (with --task)")
+    parser.add_argument("--data", type=Path, help="Propose mode: a CSV with columns x0,x1,...,y (minimized); "
+                        "one skill call proposes the next block, nothing is evaluated")
+    parser.add_argument("--bounds", help="With --data: lo,hi for every variable, or a JSON list of [lo, hi] "
+                        "pairs (inline or a file)")
+    parser.add_argument("--remaining", type=int, help="With --data: evaluations left after this data; "
+                        "the block is at most this long")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--agent", default="claude", choices=["codex", "claude"])
     parser.add_argument("--model", help="Default: claude-opus-5-5 (claude), gpt-6-astra (codex)")
@@ -39,10 +45,19 @@ def main(argv=None) -> int:
         parser.error("Needs macOS or Linux and the Codex CLI (for its sandbox).")
     if args.agent == "claude" and args.claude is None:
         parser.error("Install Claude Code CLI or pass --claude.")
-    from agentoptimizer.tasks.registry import TASKS
-    if args.task not in TASKS:
-        parser.error("Unknown task. See src/agentoptimizer/tasks/registry.py.")
-    task = TASKS[args.task]()
+    if args.data:
+        if args.task or args.budget is not None or not args.bounds or not args.remaining or args.remaining < 1:
+            parser.error("--data needs --bounds and a positive --remaining, and takes no --task or --budget.")
+        try:
+            task = user_data.UserData(args.data, args.bounds)
+        except ValueError as e:
+            parser.error(f"{args.data}: {e}")
+        args.task, args.budget = task.name, len(task.y) + args.remaining
+    else:
+        from agentoptimizer.tasks.registry import TASKS
+        if args.task not in TASKS or args.budget is None:
+            parser.error("Give --task (see src/agentoptimizer/tasks/registry.py) and --budget, or --data.")
+        task = TASKS[args.task]()
     if args.budget < 1 or (task.pool and args.budget > task.n_candidates):
         parser.error("Budget must be positive and at most the pool size.")
     task.reseed(args.seed)
@@ -58,6 +73,8 @@ def main(argv=None) -> int:
     root = args.runs_dir.resolve() / ("run-" + uuid.uuid4().hex[:12])
     root.mkdir(parents=True, mode=0o700)
     run = campaign.Campaign.prepare(task, args.budget, args.seed, root)
+    if args.data:
+        task.fill(run.store)
     sandbox.link_venv(run.workspace, runtime)
     roots = sandbox.runtime_roots(runtime, cfg["codex"])
     cfg["policy"] = {"codex": cfg["codex"], "workspace": str(run.workspace),
@@ -90,10 +107,31 @@ def main(argv=None) -> int:
             raise RuntimeError(f"Call {number} used tools outside the sandbox: {unexpected}")
         return code
 
+    if args.data:
+        return propose(run, call, root)
+
     started = datetime.now(timezone.utc).isoformat()
     reason = run.run(call)
     report = results.audit(run, args.agent)
     results.write(run, cfg, reason, report, started)
     print(f"Finished ({reason}): {len(run.store)}/{args.budget} evaluations, audit passed. "
           f"Results: {root / 'results'}")
+    return 0
+
+
+def propose(run, call, root: Path) -> int:
+    """Propose mode: write the agent's block, its decision and its saved context to results/."""
+    try:
+        p = run.propose(call)
+    except campaign.Rejected as e:
+        print(f"No valid proposal: {e} See {run.decisions}.", file=sys.stderr)
+        return 1
+    out = root / "results"
+    out.mkdir()
+    shown = {k: v for k, v in p.items() if not k.startswith("_")}
+    (out / "proposal.json").write_text(json.dumps(shown, indent=2) + "\n")
+    (out / Path(p["script"]).name).write_text(p["_source"])  # the optimizer the block runs, as the agent left it
+    shutil.copyfile(run.workspace / "agent" / "decision.md", out / "decision.md")
+    shutil.copyfile(run.workspace / "agent" / "context.md", out / "context.md")
+    print(f"Proposed {p['n_points']} evaluations of {p['script']} ({p['label']}, {p['state']}): {out}")
     return 0
