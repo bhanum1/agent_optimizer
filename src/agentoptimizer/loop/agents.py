@@ -1,5 +1,7 @@
-"""Launch one skill call: a fresh Codex or Claude CLI whose only tool is the
-sandboxed run_command. Each call starts with no memory of earlier calls.
+"""Launch one skill call: a Codex or Claude CLI whose only tool is the
+sandboxed run_command. With cfg["context"] == "fresh" (the default) each call
+starts with no memory of earlier calls. With "persistent" (Claude only) every
+call resumes one session, so the agent keeps its earlier reasoning and tool output.
 """
 from __future__ import annotations
 
@@ -7,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import uuid
 from pathlib import Path
 
 from .sandbox import overrides
@@ -14,6 +17,9 @@ from .tools import MAX_SECONDS
 
 TOOLS = Path(__file__).with_name("tools.py")
 SERVER = {"codex": "workspace", "claude": "sandbox"}  # Claude Code reserves "workspace"
+FRESH = "You start every call with no memory of earlier calls; what you need to remember goes in `agent/context.md`."
+PERSISTENT = ("This conversation continues across calls: you remember your earlier calls, their analysis and "
+              "tool output. Still keep `agent/context.md` current; it is part of the record.")
 
 
 def codex_command(cfg, workspace: Path, private: Path, system: str):
@@ -38,7 +44,7 @@ def codex_command(cfg, workspace: Path, private: Path, system: str):
             "-m", cfg["model"], "-C", str(workspace), *overrides(config), "-"], dict(os.environ)
 
 
-def claude_command(cfg, workspace: Path, private: Path, system: str):
+def claude_command(cfg, workspace: Path, private: Path, system: str, number: int = 1):
     # No built-in tools, settings, memory, skills or connectors: only run_command.
     mcp = {"mcpServers": {"sandbox": {"type": "stdio", "command": sys.executable,
                                       "args": ["-B", str(TOOLS), str(private / "policy.json")]}}}
@@ -48,7 +54,17 @@ def claude_command(cfg, workspace: Path, private: Path, system: str):
                "--strict-mcp-config", "--mcp-config", str(private / "claude_mcp.json"),
                "--allowedTools", "mcp__sandbox__run_command",
                "--permission-mode", "dontAsk", "--setting-sources", "", "--disable-slash-commands",
-               "--no-session-persistence", "--system-prompt", system]
+               "--system-prompt", system]
+    if cfg.get("context", "fresh") == "persistent":
+        # One session per campaign: the first call creates it, later calls resume it.
+        session = private / "session_id.txt"
+        if number == 1:
+            session.write_text(str(uuid.uuid4()))
+            command += ["--session-id", session.read_text()]
+        else:
+            command += ["--resume", session.read_text()]
+    else:
+        command.append("--no-session-persistence")
     env = {**os.environ, "ENABLE_CLAUDEAI_MCP_SERVERS": "false", "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
            "GIT_CEILING_DIRECTORIES": str(workspace.parent), "MCP_TOOL_TIMEOUT": str((MAX_SECONDS + 30) * 1000)}
     return command, env
@@ -57,8 +73,16 @@ def claude_command(cfg, workspace: Path, private: Path, system: str):
 def call(cfg, workspace: Path, private: Path, number: int, prompt: str) -> int:
     """Run skill call `number`; logs go to private/calls/<number>/. Returns the CLI exit code."""
     system = (workspace / "SKILL.md").read_text()
-    build = codex_command if cfg["agent"] == "codex" else claude_command
-    command, env = build(cfg, workspace, private, system)
+    if cfg.get("context", "fresh") == "persistent":
+        if cfg["agent"] != "claude":
+            raise ValueError("Persistent context is implemented for the Claude agent only.")
+        if FRESH not in system:
+            raise ValueError("SKILL.md no longer contains the fresh-context sentence to replace.")
+        system = system.replace(FRESH, PERSISTENT)
+        command, env = claude_command(cfg, workspace, private, system, number)
+    else:
+        build = codex_command if cfg["agent"] == "codex" else claude_command
+        command, env = build(cfg, workspace, private, system)
     logs = private / "calls" / f"{number:03d}"
     logs.mkdir(parents=True)
     (logs / "prompt.txt").write_text(prompt)

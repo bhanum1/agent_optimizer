@@ -1,7 +1,10 @@
 """An exact candidate pool from a private CSV with columns id,x0,x1,...,y.
 
 Preserve exact CSV row identity, including any identical feature vectors.
-Only anonymous row indices and feature values are public. The registered
+Only anonymous row indices and feature values are public. An optional prior
+CSV (columns x0,x1,...,y; labels already in objective units, minimized) holds
+earlier measurements of other candidates; it is public and copied into the
+workspace as prior.csv. The registered
 objective is -raw_y when maximizing, raw_y otherwise; material IDs and
 full-pool ranks are trusted-side reporting information.
 """
@@ -15,15 +18,17 @@ import numpy as np
 from .base import Evaluation, Task
 
 DATA = Path(__file__).resolve().parents[3] / 'data'
+SDL = DATA.parent / 'external' / 'sdl' / 'bench'
 
 
 class CSVPoolTask(Task):
     pool = True
     indexed_pool = True
 
-    def __init__(self, path, name, maximize):
+    def __init__(self, path, name, maximize, prior=None):
         path = Path(path)
         self.private_data_paths = (path,)
+        self.prior_path = Path(prior) if prior else None
         self._sign = -1.0 if maximize else 1.0
         with path.open(newline='', encoding='utf-8-sig') as stream:
             reader = csv.DictReader(stream)

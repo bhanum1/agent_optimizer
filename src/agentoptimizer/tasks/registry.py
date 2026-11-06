@@ -14,7 +14,7 @@ from .coco_noisy import COCONoisyTask
 from .nevergrad_noisy import NevergradNoisyTask
 from .opv import OPVTask
 from .opv_pool import OPVPoolTask
-from .csv_pool import DATA, CSVPoolTask
+from .csv_pool import DATA, CSVPoolTask, SDL
 from .pymoo_g import PymooGTask
 from .psa_v10 import PSAv10Task
 from .yahpo import YAHPOTask
@@ -91,4 +91,10 @@ TASKS = {
     "opv_pool": lambda: OPVPoolTask(),
     # Exact rows from the supplied 1,000-material, 193-feature table; labels stay private.
     "mof_pool": lambda: CSVPoolTask(DATA / "mof_pool/data.csv", "mof_pool", maximize=True),
+    # SDL fluid mixtures: lowest ln(viscosity) among the 206 measured campaign 1-10 mixtures; 10 PCA
+    # descriptor features. Data in the git-ignored external/sdl/bench (runs/sdl_bo/build_task_data.py).
+    "sdl_viscosity": lambda: CSVPoolTask(SDL / "viscosity_pool.csv", "sdl_viscosity", maximize=False),
+    # The same pool plus the 2,275 campaign 11+12 mixtures as free prior data (workspace prior.csv).
+    "sdl_viscosity_prior": lambda: CSVPoolTask(SDL / "viscosity_pool.csv", "sdl_viscosity_prior", maximize=False,
+                                               prior=SDL / "viscosity_prior.csv"),
 }

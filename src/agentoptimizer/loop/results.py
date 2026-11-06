@@ -83,7 +83,7 @@ def write(run, cfg: dict, reason: str, report: dict, started: str) -> None:
         "evaluations_used": len(run.store.rows), "stop_reason": reason,
         "best_y": best_y, "best_y_true": best_score if task.noisy else None, "best_x": best_x,
         **({"best_candidate_index": best_index} if run.store.indexed else {}),
-        "agent": cfg["agent"], "model": cfg["model"], "effort": cfg["effort"],
+        "agent": cfg["agent"], "model": cfg["model"], "effort": cfg["effort"], "context": cfg.get("context", "fresh"),
         "skill_calls": len(list((run.private / "calls").glob("*"))), "blocks": run.blocks,
         "start_time_utc": started, "end_time_utc": datetime.now(timezone.utc).isoformat(),
         "audit": report,

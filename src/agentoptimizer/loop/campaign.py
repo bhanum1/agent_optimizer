@@ -3,7 +3,7 @@
 Run directory:
 
     workspace/            sandbox root; readable by agent and host
-      SKILL.md PROBLEM.md space.json host.py check.py    fixed
+      SKILL.md PROBLEM.md space.json host.py check.py    fixed (plus prior.csv if the task has one)
       data.csv decisions.md                     written by the runner only
       lib/                library optimizers
       blocks/NNN_label.py snapshot of each block's optimizer (what the host loads)
@@ -62,6 +62,8 @@ class Campaign:
         private.mkdir(mode=0o700)
         shutil.copytree(WORKSPACE, workspace, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns("__pycache__", ".DS_Store"))
+        if getattr(task, "prior_path", None):
+            shutil.copyfile(task.prior_path, workspace / "prior.csv")
         (workspace / "PROBLEM.md").write_text(problem(task, budget, seed))
         data.write_space(task, workspace / "space.json")
         (workspace / "decisions.md").write_text("# Decisions\n")
@@ -245,11 +247,16 @@ def problem(task, budget: int, seed: int) -> str:
         lines.append(f"This is a finite pool of {task.n_candidates} candidates whose features are "
                      "space.json `candidates`. Optimizers propose candidate indices, not points; each "
                      "index may be evaluated once.")
+    if getattr(task, "prior_path", None):
+        n = sum(1 for _ in open(task.prior_path)) - 1
+        lines.append(f"prior.csv holds {n} earlier measurements of the same objective at other points in "
+                     "the same feature space (columns x0.., y; none of them is a pool candidate's row). "
+                     "They are free: they do not count against the budget and are not in data.csv.")
     return "\n".join(lines) + "\n"
 
 
 def manifest(campaign: Campaign, cfg: dict, runtime: dict) -> dict:
     git = lambda *a: subprocess.check_output(["git", "-C", str(REPO), *a], text=True).strip()
     return {"task": cfg["task"], "budget": campaign.budget, "seed": campaign.seed, "agent": cfg["agent"],
-            "model": cfg["model"], "effort": cfg["effort"], "source_commit": git("rev-parse", "HEAD"),
+            "model": cfg["model"], "effort": cfg["effort"], "context": cfg.get("context", "fresh"), "source_commit": git("rev-parse", "HEAD"),
             "source_status": git("status", "--short"), "agent_runtime": runtime}

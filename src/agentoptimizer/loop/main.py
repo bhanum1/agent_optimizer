@@ -25,6 +25,8 @@ def main(argv=None) -> int:
     parser.add_argument("--agent", default="claude", choices=["codex", "claude"])
     parser.add_argument("--model", help="Default: claude-opus-5-5 (claude), gpt-6-astra (codex)")
     parser.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
+    parser.add_argument("--context", default="fresh", choices=["fresh", "persistent"],
+                        help="fresh: a new CLI session per call; persistent: resume one session (claude only)")
     parser.add_argument("--call-timeout", type=int, default=3600, help="Seconds per skill call")
     parser.add_argument("--agent-python", type=Path, default=REPO / ".agent-venv/bin/python")
     parser.add_argument("--codex", type=Path, default=shutil.which("codex"),
@@ -45,7 +47,9 @@ def main(argv=None) -> int:
         parser.error("Budget must be positive and at most the pool size.")
     task.reseed(args.seed)
 
-    cfg = {"task": args.task, "agent": args.agent, "effort": args.effort, "call_timeout": args.call_timeout,
+    if args.context == "persistent" and args.agent != "claude":
+        parser.error("--context persistent needs --agent claude.")
+    cfg = {"task": args.task, "agent": args.agent, "effort": args.effort, "context": args.context, "call_timeout": args.call_timeout,
            "model": args.model or {"codex": "gpt-6-astra", "claude": "claude-opus-5-5"}[args.agent],
            "codex": str(args.codex.expanduser().absolute()),
            "claude": str(args.claude.expanduser().absolute()) if args.claude else None}
