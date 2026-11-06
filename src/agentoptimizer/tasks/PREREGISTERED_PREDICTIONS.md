@@ -194,4 +194,19 @@ affordable, since agent calls grow with the budget.
 
 ## Amendment log
 
-(empty)
+**A1 (2026-11-06): seeds and machine, made before any result was seen.**
+
+- **Seeds:** stochastic baselines run seeds 0–2 instead of 0–4.
+  Deterministic baselines are unchanged (seed 0 only). Everywhere this file
+  says "seeds 0–4", read "seeds 0–2". Medians are over 3 runs.
+- **Reason:** GP-BO, SMAC and TuRBO take about 1 s per evaluation, which put
+  the full screen at 4–8 hours on the original machine.
+- **Machine:** the screen moves from macOS (Apple M1 Pro, ARM) to Linux
+  (Intel i7-13700K, x86-64), with the same locked package versions.
+  Floating-point results are not expected to match the earlier machine bit
+  for bit. Every baseline in the screen runs on the same machine.
+- **Blindness:** a first launch on the original machine was stopped about
+  20 minutes in, before any campaign had finished. No trace was ever
+  written, so no result was seen. Its logs are kept, ignored by git, in
+  runs/screen-50d-aborted-mac.
+- **Unchanged:** the predictions, criteria, selection rule and budget.
