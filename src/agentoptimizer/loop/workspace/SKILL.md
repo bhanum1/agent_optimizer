@@ -1,21 +1,14 @@
 # Optimization decision skill
 
 You are one step in an optimization campaign. A runner holds a black-box
-objective and an evaluation budget. It calls you once per block. Each
-call, you read what has been observed so far, analyze it, and decide
-**one** block: which points or optimizer to run, with what settings, for
-how many evaluations. The runner then runs that block and calls you
-again with the new data. You start every call with no memory of earlier
-calls; what you need to remember goes in `agent/context.md`.
+objective and an evaluation budget. It calls you to determine the next block of evaluations.
+Each call, you read what has been observed so far, analyze it, and decide
+the next block. A block consists of what optimizer to run, what settings to use, how many evaluations to perform, and a design question or hypothesis that motivates the block. 
+The runner then runs that block and calls you again with the new data. 
+You start every call with no memory of earlier calls; what you need to remember goes in `agent/context.md`.
 
-You never evaluate the objective. The only way to get a new value is to
-propose a block.
-
-The campaign always runs to the full budget: stopping early is not
-allowed. The result is the best value found (on a noisy problem, the
-noise-free value at the point with the lowest observed y), and unspent
-evaluations earn nothing. When progress stalls, change the approach;
-do not wind down.
+The budget is always fully used, unspent evaluations earn nothing. 
+If progress stalls, adjust the approach; do not stop early.
 
 ## Files
 
@@ -54,48 +47,41 @@ the problem statement alone, and do not invent evidence. The design is
 paid for from the same budget as everything after it, so size it to the
 budget and to what your next decision needs.
 
-## Learn the problem, then exploit it
+## Each block: learn the landscape, then exploit it
 
-Every block buys one of two things: knowledge about the problem that
-would change your choice of method, or progress from what you already
-know. Know which one each block is for.
+Every evaluation should lower the final best value. A block does this in one
+of two ways: it **explores**, buying information about the landscape that lets
+you choose a better optimizer, or it **exploits**, using what you know to find a
+better point. The best blocks do both.
 
-**Ask.** Before each block, name the open question that most limits your
-next choice. It may be about the problem (which variables matter and on
-what scale, how they interact, how the response behaves, how noisy it
-is, how many good regions there are, how the constraints behave) or
-about the method (whether the current one is still improving, and
-whether another would suit what you now know).
+**Analyze offline first, and thoroughly.** Analysis of `data.csv` is free;
+evaluations are not. Before proposing a block, write and run scripts in `work/`
+until the data has told you all it can:
+- Structure: which variables matter and on what scale; whether the response is
+  additive or interacting; conditioning and curvature; one basin or many, and
+  whether good points share a global trend; noise; which constraints bind.
+- Methods: fit surrogates to the data and run candidate optimizers and settings
+  against them offline to see which suits the structure. This is evidence about
+  the surrogate, not the objective; weigh how few points stand behind it.
+- Progress: whether the current method is still improving, at what rate per
+  evaluation, and where continuing it would leave the best value at the end.
 
-**Answer from the data first.** Analysis of `data.csv` is free. Write
-scripts, run them, and base the decision on their output. You may fit
-models or benchmark methods offline on a surrogate of the data; treat
-the results as evidence about the surrogate, not about the objective.
-Weigh uncertainty: with few points, a fit or a short plateau proves
-little.
+**Then choose the block by what it can gain.** Your default is to continue the
+method that best fits what you know. Any other block must plausibly beat it.
+- *Explore* only when an open question's answer would change your method and
+  enough budget remains to exploit that answer. Name the plausible answers and
+  what you would do under each; if they all lead to the same action, do not
+  spend evaluations on it. Use the smallest experiment that tells them apart.
+- *Exploit* when the structure is understood well enough to choose a method:
+  run the method suited to it, from the best region, with settings chosen for it.
+- *Do both when you can.* Place experimental points where they could also beat
+  the incumbent (e.g. test separability with coordinate moves from the best
+  point, not random points), and prefer exploiting methods whose progress also
+  tests a hypothesis.
 
-**Check the shape before you trust a model.** Look at how y changes
-along each variable and across pairs of variables: from the data you
-have first (marginal views, residuals, a model's partial effects), then
-with direct probes when the answer could change your method and the
-budget allows. Describe what you see rather than assuming a form, and
-check that the method you choose suits it.
-
-**Experiment when the data cannot answer.** Data gathered by an
-optimizer answers only the questions that optimizer happened to ask.
-When a question needs points the data lacks, design them yourself and
-evaluate them with `lib/fixed_points.py` or a script of your own. Choose
-the points to answer the question, not to find good values. An
-experiment is worth its cost when its plausible outcomes would lead to
-different actions; size it to the remaining budget. Learning is
-cheapest early, before most of the budget is committed. State the
-hypothesis, and what you will do under each outcome.
-
-**Exploit what you learn.** Treat a finding as a hypothesis until the
-data supports it, and revise it when later data contradicts it. Choose
-or write a method built around what you have confirmed, the simplest
-one that uses it. Until you have found something specific to exploit,
-use a robust general-purpose method.
+Do not compare methods by running them one after another on the objective when
+an offline test can answer it. Spend evaluations on the method that wins
+offline, and count the setup cost (initial model or population) of any restart.
 
 ## Finishing the campaign
 
@@ -153,10 +139,8 @@ not commit the whole remaining budget to one block by default. Account
 for how the method spends evaluations, for example whole generations or
 one gradient estimate per step.
 
-**Decide only this block.** Do not plan a schedule of future methods or
-divide the remaining budget among future phases. Continuing, adjusting,
-switching, hybridizing, restarting and running an experiment are all
-valid. Choose whichever the evidence supports; switching is not a goal.
+**Decide only this block.** You can plan ahead, but do not set anything in stone.
+Operate under the assumption that you will be reevaluating the situation after this block, and that you will have the opportunity to change your mind. Do not commit to a long sequence of blocks, instead remain flexible.
 
 ## Writing your own optimizer
 
@@ -210,6 +194,8 @@ runner. Use this shape:
 ```
 **Budget:** <N> used / <B> total; <R> remaining.
 **Question:** the open question that most limits the next choice.
+**Mode:** explore, exploit, or both.
+**Gain:** what this block can buy: the improvement you expect, or the answer and how it would change the next block.
 **Evidence:** what the data and your analysis showed, with values and uncertainty.
 **Decision:** experiment, continue, adjust, switch, hybridize, or restart; the method and what state is reused. For an experiment, the hypothesis it tests and what each outcome would mean.
 **Hyperparameters:** chosen values and why; defaults inherited from which implementation; or not applicable.
@@ -232,6 +218,8 @@ next call from re-deriving it:
 - each label's method, settings and status (running cleanly, crashed,
   abandoned);
 - useful scripts in `work/` and what they print;
+- one line per block: mode, evaluations, change in best value, and whether
+  its answer changed the method;
 - what you meant to check at this review.
 
 Do not copy `decisions.md`; that record already exists. Remove notes that
