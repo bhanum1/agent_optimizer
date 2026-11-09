@@ -45,10 +45,54 @@ wheels = [
 ]
 
 [[package]]
-name = "agentoptimizer"
+name = "agentoptimizer-skill"
+version = "0.1.0"
+source = { editable = "skill/agentoptimizer" }
+dependencies = [
+    { name = "botorch" },
+    { name = "cma" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "py-bobyqa" },
+    { name = "pyyaml" },
+    { name = "scipy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "botorch" },
+    { name = "cma" },
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "py-bobyqa" },
+    { name = "pyyaml" },
+    { name = "scipy" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest" }]
+
+[[package]]
+name = "alive-progress"
+version = "3.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "about-time" },
+    { name = "graphemeu" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9a/26/d43128764a6f8fe1668c4f87aba6b1fe52bea81d05a35c84a70d3c70b6f7/alive-progress-3.3.0.tar.gz", hash = "sha256:457dd2428b48dacd49854022a46448d236a48f1b7277874071c39395307e830c", size = 116281, upload-time = "2025-07-20T02:10:39.07Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/85/ec72f6c885703d18f3b09769645e950e14c7d0cc0a0e35d94127983f666f/alive_progress-3.3.0-py3-none-any.whl", hash = "sha256:63dd33bb94cde15ad9e5b666dbba8fedf71b72a4935d6fb9a92931e69402c9ff", size = 78403, upload-time = "2025-07-20T02:10:37.318Z" },
+]
+
+[[package]]
+name = "aobench"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "agentoptimizer-skill" },
     { name = "botorch" },
     { name = "cma" },
     { name = "ioh" },
@@ -68,19 +112,9 @@ backends = [
     { name = "setuptools" },
 ]
 
-[package.dev-dependencies]
-agent = [
-    { name = "botorch" },
-    { name = "cma" },
-    { name = "matplotlib" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "py-bobyqa" },
-    { name = "scipy" },
-]
-
 [package.metadata]
 requires-dist = [
+    { name = "agentoptimizer-skill", editable = "skill/agentoptimizer" },
     { name = "botorch" },
     { name = "cma" },
     { name = "coco-experiment", marker = "extra == 'backends'" },
@@ -96,30 +130,6 @@ requires-dist = [
     { name = "smac" },
 ]
 provides-extras = ["backends"]
-
-[package.metadata.requires-dev]
-agent = [
-    { name = "botorch" },
-    { name = "cma" },
-    { name = "matplotlib" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "py-bobyqa" },
-    { name = "scipy" },
-]
-
-[[package]]
-name = "alive-progress"
-version = "3.3.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "about-time" },
-    { name = "graphemeu" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9a/26/d43128764a6f8fe1668c4f87aba6b1fe52bea81d05a35c84a70d3c70b6f7/alive-progress-3.3.0.tar.gz", hash = "sha256:457dd2428b48dacd49854022a46448d236a48f1b7277874071c39395307e830c", size = 116281, upload-time = "2025-07-20T02:10:39.07Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/26/85/ec72f6c885703d18f3b09769645e950e14c7d0cc0a0e35d94127983f666f/alive_progress-3.3.0-py3-none-any.whl", hash = "sha256:63dd33bb94cde15ad9e5b666dbba8fedf71b72a4935d6fb9a92931e69402c9ff", size = 78403, upload-time = "2025-07-20T02:10:37.318Z" },
-]
 
 [[package]]
 name = "autograd"

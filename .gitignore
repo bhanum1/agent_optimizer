@@ -10,3 +10,7 @@ dist/
 .DS_Store
 .env
 .ruff_cache/
+/plans/
+/benchmark/external/
+/benchmark/runs/
+skill/agentoptimizer/.python
