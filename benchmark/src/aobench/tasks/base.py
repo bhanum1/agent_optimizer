@@ -88,6 +88,10 @@ class Task(ABC):
     pool = False
     indexed_pool = False  # Public feature rows selected by anonymous index, never by nearest mapping.
     private_data_paths = ()  # Private data hashed for provenance and probed by isolation preflight.
+    # problem.yaml entries for x0.. when not all continuous in `bounds` (see synthetic.py):
+    # {"type": "integer", "low", "high"} takes the integer itself; {"type": "categorical",
+    # "choices"} takes the choice's position. None: every coordinate continuous.
+    variables: list[dict] | None = None
 
     @abstractmethod
     def _f(self, x: np.ndarray) -> float:

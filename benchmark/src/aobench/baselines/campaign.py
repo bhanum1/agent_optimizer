@@ -240,6 +240,7 @@ def run_campaign(
         "task_f_opt": task.f_opt,
         **({"task_n_constraints": task.n_constraints} if constrained else {}),
         **({"task_noisy": True} if task.noisy else {}),
+        **({"task_noise_sigma": task.sigma} if getattr(task, "sigma", None) else {}),
         **({"task_n_candidates": task.n_candidates} if task.pool else {}),
         **({'indexed_pool': True, 'initial_design_size': len(initial_indices)} if indexed else {}),
         "optimizer_name": optimizer_name,

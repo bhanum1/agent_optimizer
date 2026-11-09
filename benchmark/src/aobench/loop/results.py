@@ -15,6 +15,7 @@ import shutil
 from datetime import datetime, timezone
 
 from . import agents
+from .campaign import public_value, variable_specs
 
 BLOCK = re.compile(r"^## Block (\d+) \(after (\d+) of \d+ measurements\)\n\n.*?\n\nProposal: `([^`\n]*)`",
                    re.MULTILINE | re.DOTALL)
@@ -30,9 +31,11 @@ def audit(run, agent: str | None) -> dict:
     accepted = [e for e in run.log if "block" in e]
     used = {e["block"]: e.get("used", 0) for e in accepted}
     x_cols = [c for c in run.journal.columns if c.startswith("x")]
+    specs = variable_specs(run.task) if not getattr(run.task, "indexed_pool", False) else [{"type": "continuous"}] * len(x_cols)
     checks = {
         "within_budget": len(journal) <= run.budget and project.table.used <= run.budget,
-        "data_matches_journal": [(r["id"], r["block"], r["label"], *[float(r[c]) for c in x_cols], float(r["y"]))
+        "data_matches_journal": [(r["id"], r["block"], r["label"],
+                                  *[public_value(s, r[c]) for c, s in zip(x_cols, specs)], float(r["y"]))
                                  for r in table]
                                 == [(r["id"], r["block"], r["optimizer"], *[float(r[c]) for c in x_cols], float(r["y"]))
                                     for r in journal],
@@ -84,7 +87,8 @@ def write(run, cfg: dict, reason: str, report: dict, started: str) -> None:
             writer.writerow([row[c] for c in columns])
     meta = {
         "task": cfg["task"], "task_name": task.name, "task_dim": task.dim, "task_f_opt": float(task.f_opt),
-        "task_noisy": task.noisy, "task_n_constraints": task.n_constraints,
+        "task_noisy": task.noisy, "task_noise_sigma": getattr(task, "sigma", None),
+        "task_n_constraints": task.n_constraints,
         "budget": run.budget, "requested_budget": run.budget, "seed": run.seed,
         "evaluations_used": len(run.journal.rows), "stop_reason": reason,
         "best_y": best_y, "best_y_true": best_score if task.noisy else None, "best_x": best_x,

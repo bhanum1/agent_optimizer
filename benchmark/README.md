@@ -147,6 +147,29 @@ All under `src/aobench/loop/`:
      private journal ([`data.py`](src/aobench/loop/data.py)).
 5. [`results.py`](src/aobench/loop/results.py) audits the run and writes `results/`.
 
+## The axis study (`l18_01`..`l18_18`)
+
+The 18 tasks `l18_01`..`l18_18`
+([`tasks/synthetic.py`](src/aobench/tasks/synthetic.py)) form an L18 orthogonal
+array over six axes, each with three levels:
+
+- **modality:** unimodal, strong global structure, weak global structure;
+- **added conditioning:** 1, 10³, 10⁶;
+- **dimension:** 5, 10, 20;
+- **noise:** additive, y = f + σ·N(0, 1), with σ = 0, 0.1× or 1× the gap of a point
+  better than 90% of random points;
+- **variable type:** continuous, 80% integer, 80% categorical;
+- **effective dimension:** the share of the variables that matter (100%, 50%, 20%).
+
+Each axis's level appears in 6 tasks, and every pair of levels across two axes
+appears together.
+
+Each task is a BBOB function from `ioh` with wrappers for the other axes. Which variables
+are active and which are discrete is fixed per task. The seed selects the BBOB
+instance, the category permutations, the conditioning rotation and the noise.
+`f_opt` stays exact. Each
+task's `suggested_budget` is 10d + 50.
+
 ## Add a task
 
 A task is a class with a box, a known optimum (used only for scoring) and an objective.
