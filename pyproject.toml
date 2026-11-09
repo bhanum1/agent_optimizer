@@ -3,14 +3,15 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agentoptimizer"
+name = "aobench"
 version = "0.1.0"
-description = "An LLM agent chooses optimization methods, hyperparameters and evaluation block lengths for black-box problems."
-readme = "README.md"
+description = "Benchmark for the agentoptimizer skill: tasks, baselines and a sandboxed runner that plays the user."
+readme = "benchmark/README.md"
 requires-python = ">=3.11"
-# Evaluator environment (.venv): this package, its baselines and the BBOB backend.
-# smac is a baseline only; it is deliberately not in the agent group.
+# Evaluator environment (.venv): the benchmark, its baselines, the BBOB backend, and the
+# skill's core (aoptcore) that the runner drives. smac is a baseline only.
 dependencies = [
+    "agentoptimizer-skill",
     "numpy",
     "scipy",
     "ioh",
@@ -25,10 +26,8 @@ dependencies = [
 # opfunu still imports pkg_resources, which setuptools 81 removed.
 backends = ["opfunu", "setuptools<81", "pymoo", "coco-experiment", "nevergrad", "onnxruntime"]
 
-[dependency-groups]
-# Agent runtime (.agent-venv): optimizer libraries only. Install it with
-# --only-group agent, which leaves out this package and every objective backend.
-agent = ["numpy", "scipy", "cma", "botorch", "Py-BOBYQA", "pandas", "matplotlib"]
+[tool.uv.sources]
+agentoptimizer-skill = { path = "skill/agentoptimizer", editable = true }
 
 [tool.uv]
 # Versions of the environments behind the published runs (pre-manuscript-snapshot).
@@ -54,4 +53,4 @@ constraint-dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["benchmark/src"]
