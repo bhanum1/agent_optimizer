@@ -174,7 +174,7 @@ class Campaign:
         if p.problem.candidates is not None:
             index = int(r["candidate"])
             return self.task.evaluate_index(index), index, np.asarray(self.task.candidates[index], dtype=float)
-        x = np.array([float(r[f"x{d}"]) for d in range(self.task.dim)])
+        x = np.array([public_value(spec, r[f"x{d}"]) for d, spec in enumerate(variable_specs(self.task))])
         return self.task.evaluate(x), None, x
 
     # ---- records -------------------------------------------------------------------------
@@ -203,8 +203,7 @@ def problem_yaml(task, budget: int, seed: int, folder: Path) -> dict:
     bounds[flat] += [-0.5, 0.5]
     out = {"name": "benchmark",
            "objective": {"name": "y", "direction": "minimize"},
-           "variables": [{"name": f"x{d}", "type": "continuous", "low": float(lo), "high": float(hi)}
-                         for d, (lo, hi) in enumerate(bounds)],
+           "variables": [{"name": f"x{d}", **spec} for d, spec in enumerate(variable_specs(task, bounds))],
            "constraints": [{"name": f"g{i}"} for i in range(task.n_constraints)],
            # A nearest-mapping pool is not repeatable: allow repeats to be evaluated again.
            "noise": {"present": bool(task.noisy), "replicates_allowed": bool(task.noisy or (task.pool and not indexed))},
@@ -220,12 +219,30 @@ def problem_yaml(task, budget: int, seed: int, folder: Path) -> dict:
     return out
 
 
+def variable_specs(task, bounds=None) -> list[dict]:
+    """problem.yaml entries (without names) for x0..: the task's own, or continuous boxes."""
+    if task.variables is not None:
+        return [dict(v) for v in task.variables]
+    bounds = np.asarray(task.bounds, dtype=float) if bounds is None else bounds
+    return [{"type": "continuous", "low": float(lo), "high": float(hi)} for lo, hi in bounds]
+
+
+def public_value(spec: dict, value) -> float:
+    """A data.csv value -> the task's numeric coordinate (a categorical's choice position)."""
+    if spec["type"] == "categorical":
+        return float(spec["choices"].index(str(value)))
+    return float(value)
+
+
 def problem_md(task, budget: int, seed: int) -> str:
     """The public problem statement. No domain knowledge: the identity is withheld."""
     indexed = getattr(task, "indexed_pool", False)
     kind = "noisy" if task.noisy else "deterministic"
     lines = ["# Problem\n",
+             f"Minimize a {kind} black-box objective `y` of {task.dim} variables `x0`..`x{task.dim - 1}`."
+             if task.variables is not None else
              f"Minimize a {kind} black-box objective `y` of {task.dim} real variables `x0`..`x{task.dim - 1}`.",
+             "Each variable's type and range are in problem.yaml." if task.variables is not None else
              "Bounds per variable are in problem.yaml.",
              f"Budget: {budget} evaluations. Seed: {seed} (use it for optimizer randomness).",
              "The objective's identity is withheld: its implementation and optimum are private, and there is "

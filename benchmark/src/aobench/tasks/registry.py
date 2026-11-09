@@ -17,6 +17,7 @@ from .opv_pool import OPVPoolTask
 from .csv_pool import DATA, CSVPoolTask, SDL
 from .pymoo_g import PymooGTask
 from .psa_v10 import PSAv10Task
+from .synthetic import l18_tasks
 from .yahpo import YAHPOTask
 
 TASKS = {
@@ -98,3 +99,6 @@ TASKS = {
     "sdl_viscosity_prior": lambda: CSVPoolTask(SDL / "viscosity_pool.csv", "sdl_viscosity_prior", maximize=False,
                                                prior=SDL / "viscosity_prior.csv"),
 }
+# The axis study: 18 synthetic tasks from an L18 orthogonal array over modality, conditioning,
+# dimension, noise, variable type and effective dimension (see synthetic.py). Keys l18_01..l18_18.
+TASKS.update(l18_tasks())
