@@ -16,6 +16,7 @@ from .opv import OPVTask
 from .opv_pool import OPVPoolTask
 from .csv_pool import DATA, CSVPoolTask, SDL
 from .pymoo_g import PymooGTask
+from .sdl5 import SDL5BlendTask, SDL5RobotCellTask, SDL5ViscometerTask
 from .psa_v10 import PSAv10Task
 from .synthetic import l18_tasks
 from .yahpo import YAHPOTask
@@ -98,6 +99,12 @@ TASKS = {
     # The same pool plus the 2,275 campaign 11+12 mixtures as free prior data (workspace prior.csv).
     "sdl_viscosity_prior": lambda: CSVPoolTask(SDL / "viscosity_pool.csv", "sdl_viscosity_prior", maximize=False,
                                                prior=SDL / "viscosity_prior.csv"),
+    # SDL5 formulation lab (data/sdl5/): a 7-D blend to a target flow curve (multimodal; CMA-ES wins),
+    # a 26-D viscometer calibration on measured data (narrow curved valley; L-BFGS-B wins) and a
+    # 15-D robot cell layout from a digital twin (6 integer IK flags, infeasible regions).
+    "sdl5_blend7": lambda: SDL5BlendTask(),
+    "sdl5_viscometer26": lambda: SDL5ViscometerTask(),
+    "sdl5_robot_cell15": lambda: SDL5RobotCellTask(),
 }
 # The axis study: 18 synthetic tasks from an L18 orthogonal array over modality, conditioning,
 # dimension, noise, variable type and effective dimension (see synthetic.py). Keys l18_01..l18_18.
