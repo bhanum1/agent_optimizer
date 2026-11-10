@@ -17,13 +17,16 @@ tutorial:
   region, from which a batch is selected by Thompson sampling
   (botorch.generation.sampling.MaxPosteriorSampling).
 - Trust region: side length starts at 0.8 (in the normalized [0, 1]^d
-  cube), doubling after success_tolerance=10 consecutive improving
-  batches (up to length_max=1.6), and halving after failure_tolerance
+  cube), doubling after success_tolerance=3 consecutive improving
+  batches (the paper's value; up to length_max=1.6), and halving after failure_tolerance
   consecutive non-improving batches (down to length_min=0.5**7, which
   triggers a restart). failure_tolerance = ceil(max(4/batch_size,
   dim/batch_size)), as in the tutorial. The box is centered on the current
   local best point and scaled by the GP's own per-dimension lengthscales.
-- Batch size: 4 (the fixed value used throughout the tutorial).
+- Batch size: 1. Each point is chosen by Thompson sampling from a GP
+  that has seen every earlier point, i.e. plain sequential TuRBO, not
+  batch TuRBO (the tutorial's q=4). With q=1, failure_tolerance is
+  ceil(max(4, dim)), as in the paper.
 - Initial design, and each restart's new design: 2 * dim random points.
 - Restarts: when the trust region shrinks below length_min, its local
   data is discarded and a fresh random design starts a new trust region.
@@ -67,11 +70,10 @@ from .gp_bo import _gp_hyperparams
 class TuRBO:
     """TuRBO-1: a single trust region, restarted when it shrinks too far.
 
-    Internally proposes and updates a whole batch at a time (batch_size=4
-    by default); this wrapper hides that bookkeeping so it can still be
-    driven exactly like the other optimizers in this package: ask for any
-    number of points (including one at a time) and tell them back in the
-    same order.
+    Proposes one point per batch (batch_size=1), so every point is chosen
+    after the previous one has been told. The batch bookkeeping is kept so
+    batch_size can be raised, and asking for several points at once still
+    works: tell them back in the same order.
 
     IMPORTANT: as with CMAES/DifferentialEvolution, `tell` must be called
     with exactly the points most recently returned by `ask`, in the same
@@ -102,7 +104,7 @@ class TuRBO:
         self.dim = self.bounds.shape[0]
         self.rng = np.random.default_rng(seed)
 
-        self.batch_size = 4
+        self.batch_size = 1
         self.n_init = 2 * self.dim
         self.n_candidates = min(100 * self.dim, 5000)
         self.refit_every = 50
@@ -110,7 +112,7 @@ class TuRBO:
         self._length_min = 0.5 ** 7
         self._length_max = 1.6
         self._length_init = 0.8
-        self._success_tolerance = 10
+        self._success_tolerance = 3
         self._failure_tolerance = math.ceil(
             max(4.0 / self.batch_size, self.dim / self.batch_size)
         )
