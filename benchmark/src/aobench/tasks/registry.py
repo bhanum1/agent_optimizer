@@ -16,7 +16,7 @@ from .opv import OPVTask
 from .opv_pool import OPVPoolTask
 from .csv_pool import DATA, CSVPoolTask, SDL
 from .pymoo_g import PymooGTask
-from .sdl5 import SDL5BlendTask, SDL5RobotCellTask, SDL5ViscometerTask
+from .sdl5 import SDL5BlendTask, SDL5RobotCellFacingTask, SDL5RobotCellTask, SDL5ViscometerTask
 from .psa_v10 import PSAv10Task
 from .synthetic import l18_tasks
 from .yahpo import YAHPOTask
@@ -105,6 +105,8 @@ TASKS = {
     "sdl5_blend7": lambda: SDL5BlendTask(),
     "sdl5_viscometer26": lambda: SDL5ViscometerTask(),
     "sdl5_robot_cell15": lambda: SDL5RobotCellTask(),
+    # The same cell with the mixer's facing as a 16th, categorical variable (0/90/180/270 deg).
+    "sdl5_robot_cell_facing16": lambda: SDL5RobotCellFacingTask(),
 }
 # The axis study: 18 synthetic tasks from an L18 orthogonal array over modality, conditioning,
 # dimension, noise, variable type and effective dimension (see synthetic.py). Keys l18_01..l18_18.

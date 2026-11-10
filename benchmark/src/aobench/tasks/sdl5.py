@@ -141,3 +141,34 @@ class SDL5RobotCellTask(Task):
         x = np.asarray(x, dtype=float).copy()
         x[-self.N_FLAGS:] = x[-self.N_FLAGS:] >= 0.5  # as the original model reads a flag
         return float(self._model.objective(x))
+
+
+class SDL5RobotCellFacingTask(SDL5RobotCellTask):
+    """16-D layout: the 15 variables above plus `mixer_facing`, a categorical choice of
+    which way the mixer's front (its handle side) points: 0, 90, 180 or 270 degrees,
+    turned about the centre of its footprint. The mixer stays in place; the deck, the
+    CNC and the robot base keep their cell-frame bounds. Facing 0 is the 15-D task."""
+
+    FACING = "mixer_facing"
+
+    def __init__(self):
+        super().__init__()
+        self.dim = len(self._model.NAMES_WITH_FACING)
+        self.name = f"sdl5_robot_cell_facing_d{self.dim}"
+        # Baselines see a continuous box; [0, 4) is read as floor -> quarter turns.
+        self.bounds = np.vstack([self.bounds, [0.0, 3.999]])
+        self.variables = self.variables + [
+            {"type": "categorical", "choices": [str(d) for d in self._model.FACINGS_DEG]}
+        ]
+        self.f_opt = _f_opt_facing()
+        self.private_data_paths = tuple(sorted((SDL5 / "robot_cell").glob("*.*")))
+
+    def _f(self, x: np.ndarray) -> float:
+        x = np.asarray(x, dtype=float).copy()
+        x[9:15] = x[9:15] >= 0.5
+        return float(self._model.objective(x))
+
+
+def _f_opt_facing() -> float:
+    path = SDL5 / "robot_cell" / "reference_optimum_facing.json"
+    return float(json.loads(path.read_text())["f_opt"])

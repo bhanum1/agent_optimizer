@@ -10,6 +10,13 @@ The equations are documented in PROBLEM.md; the comments below cite them as
 
 `evaluate(x)` returns every term of the objective; `objective(x)` the scalar.
 Pure numpy, deterministic, no state beyond the loaded geometry.
+
+Optional 16th variable, `mixer_facing` (added for the agent_optimizer benchmark):
+the mixer turned by k quarter turns about the centre of its footprint, so its front
+(the handle side, +x in the mixer frame) faces +x (k = 0, the original layout), +y,
+-x or -y of the cell. The mixer stays in place; the deck, the CNC and the robot are
+fixed in the cell frame, which is the k = 0 mixer frame. A 15-long x means k = 0
+and gives exactly the original values.
 """
 
 from __future__ import annotations
@@ -35,6 +42,8 @@ NAMES = [
     "tilt_x", "tilt_y", "pick_azimuth",
     "shoulder_A", "elbow_A", "wrist_A", "shoulder_B", "elbow_B", "wrist_B",
 ]
+NAMES_WITH_FACING = NAMES + ["mixer_facing"]
+FACINGS_DEG = (0, 90, 180, 270)  # mixer front toward cell +x, +y, -x, -y
 BOUNDS = np.array(
     [
         [DECK["x"][0] + _R_BASE, DECK["x"][1] - _R_BASE],
@@ -205,15 +214,26 @@ _CUP_ON_SCALE = np.array(GEO["cnc"]["cup_on_scale"])
 _PL = GEO["planner"]
 
 
-def lid_frame(a: float) -> np.ndarray:
+def mixer_pose(facing: int = 0) -> np.ndarray:
+    """Cell-frame pose of the mixer frame, turned by `facing` quarter turns about the
+    centre of the mixer's footprint. facing = 0 is the identity (the original cell)."""
+    k = int(facing) % 4
+    if k == 0:
+        return np.eye(4)
+    cx, cy = (_BODY_LO[:2] + _BODY_HI[:2]) / 2
+    return _trans(cx, cy, 0.0) @ _rz(k * math.pi / 2) @ _trans(-cx, -cy, 0.0)
+
+
+def lid_frame(a: float, mixer: np.ndarray | None = None) -> np.ndarray:
     """thinky_cover frame at lid angle a: hinge at z = 0.328, axis -y (E4)."""
     c, s = math.cos(a), math.sin(a)
-    return np.array([[c, 0, -s, 0], [0, 1, 0, 0], [s, 0, c, _MX["lid_hinge_z"]], [0, 0, 0, 1.0]])
+    lid = np.array([[c, 0, -s, 0], [0, 1, 0, 0], [s, 0, c, _MX["lid_hinge_z"]], [0, 0, 0, 1.0]])
+    return lid if mixer is None else mixer @ lid
 
 
-def handle_grasp(a: float, tilt) -> np.ndarray:
+def handle_grasp(a: float, tilt, mixer: np.ndarray | None = None) -> np.ndarray:
     """TCP holding the lid handle at lid angle a, tilted by (tilt_x, tilt_y) (E4)."""
-    return lid_frame(a) @ _trans(*_MX["handle_in_lid"]) @ FLIP @ _rx(tilt[0]) @ _ry(tilt[1])
+    return lid_frame(a, mixer) @ _trans(*_MX["handle_in_lid"]) @ FLIP @ _rx(tilt[0]) @ _ry(tilt[1])
 
 
 def cup_grasp(azimuth: float) -> np.ndarray:
@@ -323,7 +343,7 @@ _GROUP = np.concatenate(
 _RADII = np.concatenate([r for _, r in _SPHERES] + [_GRIP_BODY[1], _GRIP_FING[1], _CUP_SPH[1]])
 
 
-def clearances(base, q, lid, contact, cup_frames, cnc_xy) -> np.ndarray:
+def clearances(base, q, lid, contact, cup_frames, cnc_xy, mixer: np.ndarray | None = None) -> np.ndarray:
     """Smallest signed sphere-surface distance of arm, gripper and held cup to the
     mixer body, the lid, the CNC and balances, and the floor, per configuration (E9).
     In contact phases the gripper and cup are left out of the mixer/lid/CNC
@@ -336,9 +356,11 @@ def clearances(base, q, lid, contact, cup_frames, cnc_xy) -> np.ndarray:
         + [_place(frames["tool0"], _GRIP_BODY), _place(frames["tool0"], _GRIP_FING), _place(cf, _CUP_SPH)],
         axis=1,
     )  # (N, S, 3)
-    d = _mixer_sdf(pts)
+    # Mixer and lid checks in the mixer frame (the cell frame when the mixer is not turned).
+    pts_m = pts if mixer is None else (pts - mixer[:3, 3]) @ mixer[:3, :3]
+    d = _mixer_sdf(pts_m)
     c, s = np.cos(lid), np.sin(lid)  # lid frame (E4): local = R^T (p - t), R = rot(-y, a)
-    rel = pts - np.array([0.0, 0.0, _MX["lid_hinge_z"]])
+    rel = pts_m - np.array([0.0, 0.0, _MX["lid_hinge_z"]])
     local = np.stack([c[:, None] * rel[..., 0] + s[:, None] * rel[..., 2], rel[..., 1],
                       -s[:, None] * rel[..., 0] + c[:, None] * rel[..., 2]], -1)
     d = np.minimum(d, _box_sdf(local, _LID_LO, _LID_HI))
@@ -384,19 +406,34 @@ def _disk_rect_overlap(c, r, rect) -> float:
     return r + inside
 
 
-def footprint_overlap(base_xy, cnc_xy) -> float:
+def mixer_rect(mixer: np.ndarray | None = None) -> np.ndarray:
+    """The mixer's footprint rectangle in the cell frame (still axis aligned after
+    quarter turns)."""
+    if mixer is None:
+        return _MIXER_RECT
+    corners = np.array([[x, y, 0.0, 1.0] for x in _MIXER_RECT[:, 0] for y in _MIXER_RECT[:, 1]])
+    xy = (corners @ mixer.T)[:, :2]
+    return np.array([xy.min(0), xy.max(0)])
+
+
+def footprint_overlap(base_xy, cnc_xy, mixer: np.ndarray | None = None) -> float:
     cnc_rect = _FOOT + cnc_xy
+    rect = mixer_rect(mixer)
     return (
-        _disk_rect_overlap(base_xy, _R_BASE, _MIXER_RECT)
+        _disk_rect_overlap(base_xy, _R_BASE, rect)
         + _disk_rect_overlap(base_xy, _R_BASE, cnc_rect)
-        + _rect_overlap(cnc_rect, _MIXER_RECT)
+        + _rect_overlap(cnc_rect, rect)
     )
 
 
 # ------------------------------------------------------------------ the cycle (E8, E12)
 def evaluate(x) -> dict:
-    """All terms of the objective at decision vector x (length 15)."""
+    """All terms of the objective at decision vector x (length 15, or 16 with
+    mixer_facing in {0, 1, 2, 3}: quarter turns, read as floor and clipped)."""
     x = np.asarray(x, float)
+    facing = int(np.clip(np.floor(x[15]), 0, 3)) if len(x) > 15 else 0
+    mixer = None if facing == 0 else mixer_pose(facing)
+    seat = _CUP_SEAT if mixer is None else mixer @ _CUP_SEAT
     bx, by, yaw, cx, cy, lid_open, tx, ty, az = x[:9]
     branch_a = tuple(1 if f >= 0.5 else -1 for f in x[9:12])
     branch_b = tuple(1 if f >= 0.5 else -1 for f in x[12:15])
@@ -404,10 +441,10 @@ def evaluate(x) -> dict:
     base_inv = np.linalg.inv(base)
     cnc_xy = np.array([cx, cy])
     tilt = (tx, ty)
-    out = {"footprint_overlap": footprint_overlap(np.array([bx, by]), cnc_xy)}
+    out = {"footprint_overlap": footprint_overlap(np.array([bx, by]), cnc_xy, mixer), "mixer_facing_deg": FACINGS_DEG[facing]}
 
     # Key TCP targets (E5, E8).
-    g_closed, g_open = handle_grasp(0.0, tilt), handle_grasp(lid_open, tilt)
+    g_closed, g_open = handle_grasp(0.0, tilt, mixer), handle_grasp(lid_open, tilt, mixer)
     a_closed, a_open = back_off(g_closed, _PL["standoff"]), back_off(g_open, _PL["standoff"])
     # Ready pose: drawn back toward the arm and lifted; the first of sdl_dt's
     # fallbacks (_plan_from) that branch A reaches, else the nearest miss.
@@ -425,7 +462,7 @@ def evaluate(x) -> dict:
     pick_g = cup_grasp(az)
     pick = cup0 @ pick_g
     pick_up = lifted(pick, _CUPG["lift"])
-    released = along(_CUP_SEAT, _CUPG["release_height"])
+    released = along(seat, _CUPG["release_height"])
     place_g = cup_grasp(_CUPG["place_azimuth"])
     place = released @ place_g
     pre = along(released, _CUPG["standoff"]) @ place_g
@@ -471,7 +508,7 @@ def evaluate(x) -> dict:
             poses, length, angle = line_poses(a, b, N_LINE)
             groups.extend([branch] * len(poses))
         else:
-            poses = np.stack([handle_grasp(t, tilt) for t in a])
+            poses = np.stack([handle_grasp(t, tilt, mixer) for t in a])
             groups.extend([branch] * len(poses))
         spans.append((len(targets), len(targets) + len(poses)))
         targets.extend(poses)
@@ -509,7 +546,7 @@ def evaluate(x) -> dict:
                 t_total += max(float(trap(length, V_LIN, A_LIN)), float(trap(q_path, V_JOINT, A_JOINT).max()))
                 lids = np.full(len(q), lid)
             else:
-                tcp_path = np.stack([handle_grasp(t, tilt)[:3, 3] for t in a])
+                tcp_path = np.stack([handle_grasp(t, tilt, mixer)[:3, 3] for t in a])
                 arc_len = float(np.linalg.norm(np.diff(tcp_path, axis=0), axis=1).sum())
                 t_total += max(float(trap(arc_len, V_HANDLE, A_HANDLE)), float(trap(q_path, V_JOINT, A_JOINT).max()))
                 lids = a
@@ -532,6 +569,7 @@ def evaluate(x) -> dict:
         np.concatenate(check_contact),
         np.concatenate(check_cup),
         cnc_xy,
+        mixer,
     )
     out["cycle_time"] = t_total
     out["min_clearance"] = float(d.min())
