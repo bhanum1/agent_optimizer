@@ -1,0 +1,142 @@
+{
+ "f_opt": 86.19207602521666,
+ "x_opt": [
+  -0.10710282918996472,
+  -0.3140951463321433,
+  0.945739736802228,
+  -0.04946585102763429,
+  -0.8687387849523547,
+  1.137543391469217,
+  0.5235987755982988,
+  0.1802396345055426,
+  2.499722392390872,
+  0.8282971612342667,
+  0.7049356458176635,
+  0.4251099287439406,
+  0.9058203138302744,
+  0.007169403262169851,
+  0.9691375969486816,
+  0.5
+ ],
+ "x_names": [
+  "base_x",
+  "base_y",
+  "base_yaw",
+  "cnc_x",
+  "cnc_y",
+  "lid_open",
+  "tilt_x",
+  "tilt_y",
+  "pick_azimuth",
+  "shoulder_A",
+  "elbow_A",
+  "wrist_A",
+  "shoulder_B",
+  "elbow_B",
+  "wrist_B",
+  "mixer_facing"
+ ],
+ "mixer_facing_deg": 0,
+ "terms": {
+  "footprint_overlap": 0.0,
+  "mixer_facing_deg": 0,
+  "reach_deficit": 0.0,
+  "cycle_time": 37.64999137184568,
+  "min_clearance": -0.025031631536932906,
+  "collision": 0.09409758508347342,
+  "ik_jumps": 0.026378956358509065,
+  "manip_shortfall": 1.161924026915983,
+  "penalty": 48.54208465337098,
+  "objective": 86.19207602521666,
+  "feasible": false
+ },
+ "how_found": "Best over: the 15-D reference (facing 0) and one search per facing (12 CMA-ES restarts x 10000 evaluations, sigma 0.3 in the unit box, first start at sdl_dt's default layout, then Nelder-Mead polish of the 9 continuous coordinates of the best 3 runs).",
+ "best_from": "15-D reference (12 CMA-ES restarts x 15000 + Nelder-Mead), facing 0",
+ "per_facing": [
+  {
+   "facing_deg": 0,
+   "f_best": 86.19619428816122,
+   "cycle_time_s": 37.651469275647514,
+   "min_clearance_m": -0.025036511445161322,
+   "feasible": false,
+   "restart_finals": [
+    86.19660333402342,
+    111.66393053745662,
+    323.8111190857935,
+    324.3692278503368,
+    327.39312528575846,
+    327.6408513566789,
+    329.12263782301807,
+    335.3483705248217,
+    336.47302738738165,
+    353.5961574427494,
+    431.92933768164505,
+    491.5434040630644
+   ]
+  },
+  {
+   "facing_deg": 90,
+   "f_best": 397.4085256780005,
+   "cycle_time_s": 31.314826151041302,
+   "min_clearance_m": -0.06375916251105812,
+   "feasible": false,
+   "restart_finals": [
+    412.05179736502384,
+    449.3127872169709,
+    453.7216700065667,
+    462.8903925508,
+    481.10637421159737,
+    541.577965655436,
+    581.9815976890836,
+    592.2638214798897,
+    669.8150396373371,
+    816.5188254645683,
+    918.1192626812339,
+    1024.8860511278917
+   ]
+  },
+  {
+   "facing_deg": 180,
+   "f_best": 817.4400755458678,
+   "cycle_time_s": 29.406659573974707,
+   "min_clearance_m": -0.10917972634617236,
+   "feasible": false,
+   "restart_finals": [
+    817.4400792048061,
+    831.7543549788537,
+    843.5395489976032,
+    890.4023244531609,
+    897.171660324647,
+    897.570012383878,
+    901.3201535896135,
+    1030.156277592652,
+    1039.4304193872292,
+    1042.3866622447968,
+    1042.3866622447968,
+    1219.8499929904938
+   ]
+  },
+  {
+   "facing_deg": 270,
+   "f_best": 190.20604669347858,
+   "cycle_time_s": 32.66066046367543,
+   "min_clearance_m": -0.06748670561179532,
+   "feasible": false,
+   "restart_finals": [
+    190.47843208982414,
+    193.64535816595338,
+    248.45750267183013,
+    358.742120941076,
+    360.320946239937,
+    362.2095905667898,
+    375.3454362423203,
+    375.354198478125,
+    378.5944723544351,
+    380.31609507004634,
+    700.6347840557751,
+    1127.0371565256123
+   ]
+  }
+ ],
+ "note": "Best-known, not proven. No facing gave a collision-free layout: turned mixers give shorter cycles (29-33 s vs 37.65 s) but deeper collisions (-64 to -109 mm vs -25 mm). Every search's first start was sdl_dt's default layout, which was designed for facing 0, so facing 0 had a head start."
+}
