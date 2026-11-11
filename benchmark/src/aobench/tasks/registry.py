@@ -20,6 +20,7 @@ from .psa_v10 import PSAv10Task
 from .synthetic import l18_tasks
 from .axis_v3 import axis_v3_tasks
 from .axis_v4 import axis_v4_tasks
+from .axis_v5 import axis_v5_tasks
 from .yahpo import YAHPOTask
 
 TASKS = {
@@ -110,3 +111,6 @@ TASKS.update(axis_v3_tasks())
 # Axis study v4: rank-reversal task groups (ill-conditioned, noise, high-dim, rugged) on native
 # BBOB functions (see axis_v4.py and benchmark/AXIS_V4_PLAN.md). Keys v4_<group>_<fn>_d<dim>_b<beta>.
 TASKS.update(axis_v4_tasks())
+# Axis study v5: v4's failure groups plus an ill-conditioned group for TuRBO, on BBOB instances
+# 16..30 (see axis_v5.py and benchmark/AXIS_V5_PLAN.md). Keys v5_<group>_<fn>_d<dim>_b<beta>.
+TASKS.update(axis_v5_tasks())
