@@ -71,7 +71,7 @@ class COBYLA:
     deterministic = True  # seed is unused; one seed is enough in sweeps
     uses_constraints = True  # campaign.py passes raw y and g, not the merit
 
-    def __init__(self, bounds, seed: Optional[int] = None, n_constraints: int = 0):
+    def __init__(self, bounds, seed: Optional[int] = None, n_constraints: int = 0, x0=None):
         self.bounds = np.asarray(bounds, dtype=float)
         if self.bounds.ndim != 2 or self.bounds.shape[1] != 2:
             raise ValueError(
@@ -81,6 +81,7 @@ class COBYLA:
         self.n_constraints = int(n_constraints)
         self._lower = self.bounds[:, 0]
         self._span = self.bounds[:, 1] - self.bounds[:, 0]
+        u0 = np.full(self.dim, 0.5) if x0 is None else (np.asarray(x0, dtype=float) - self._lower) / self._span
 
         self._ask_q: "queue.Queue" = queue.Queue()
         self._tell_q: "queue.Queue" = queue.Queue()
@@ -107,7 +108,7 @@ class COBYLA:
         def run_solver():
             self.result = minimize(
                 objective,
-                np.full(self.dim, 0.5),
+                u0,
                 method="COBYLA",
                 constraints=cons,
                 bounds=[(0.0, 1.0)] * self.dim,

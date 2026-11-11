@@ -49,6 +49,7 @@ from .lbfgsb import LBFGSB
 from .nelder_mead import NelderMead
 from .pool_random import PoolRandomSearch
 from .random_search import RandomSearch
+from .restarts import Restarting
 from .smac_hpo import SMAC
 from .sobol_search import SobolSearch
 from .turbo import TuRBO
@@ -70,6 +71,10 @@ OPTIMIZERS = {
     "smac": SMAC,
     "pool_random": PoolRandomSearch,  # pool tasks only (pool_only)
 }
+
+
+# Local solvers and CMA-ES, restarted from random points when restart=True.
+RESTARTABLE = {"lbfgsb", "nelder_mead", "cobyla", "cma_es"}
 
 
 def optimizers_for_task(task):
@@ -116,6 +121,8 @@ def run_campaign(
     seed: int,
     budget: int,
     outdir: str = "results",
+    restart: bool = False,
+    checkpoints: list[int] | None = None,
 ) -> Path:
     """Run one (task, optimizer, seed) campaign for up to `budget` evaluations.
 
@@ -130,6 +137,15 @@ def run_campaign(
     OptimizerExhausted. When that happens, the campaign stops early with
     whatever evaluations were actually completed, rather than crashing;
     meta.json records this with `stopped_early` and `stop_reason`.
+
+    restart=True (axis study v3): solvers in RESTARTABLE start at a uniform
+    random point and restart from a new one whenever they stop, so the whole
+    budget is used (see restarts.py); CMA-ES also stops on its own
+    convergence criteria, so it restarts too. meta.json gains n_restarts.
+
+    checkpoints (axis study v3): write a sparse trace, keeping only the rows
+    where y_best_so_far changed plus the rows at these evaluation counts
+    (and the last), instead of one row per evaluation.
     """
     task = TASKS[task_name]()
     if task.pool and budget > task.n_candidates:
@@ -150,7 +166,12 @@ def run_campaign(
             kwargs["n_constraints"] = task.n_constraints
         if getattr(optimizer_cls, "takes_budget", False):
             kwargs["budget"] = budget
-        optimizer = optimizer_cls(bounds=task.bounds, seed=seed, **kwargs)
+        if restart and optimizer_name in RESTARTABLE:
+            if optimizer_name == "cma_es":
+                kwargs["stop_when_converged"] = True
+            optimizer = Restarting(optimizer_cls, task.bounds, seed, **kwargs)
+        else:
+            optimizer = optimizer_cls(bounds=task.bounds, seed=seed, **kwargs)
     uses_constraints = getattr(optimizer, "uses_constraints", False)
 
     campaign_dir = Path(outdir) / task.name / optimizer_name / f"seed_{seed}"
@@ -158,6 +179,7 @@ def run_campaign(
 
     constrained = task.n_constraints > 0
     rows = []
+    keep_at = set(checkpoints or ())
     best_so_far = None
     best_observed = None
     cumulative_seconds = 0.0
@@ -175,6 +197,8 @@ def run_campaign(
         initial_indices = sobol_rows(task.candidates, max(2, round(0.1 * budget)), seed)
         optimizer.n_init = len(initial_indices)
 
+    evaluations_used = 0
+    last_row = None
     for i in range(budget):
         try:
             if indexed:
@@ -187,6 +211,7 @@ def run_campaign(
             stop_reason = str(e)
             break
         x = X[0]
+        evaluations_used = i + 1
         ev = task.evaluate_index(index) if indexed else task.evaluate(x)
         y, elapsed = ev.y, ev.elapsed
         merit = _merit(ev)
@@ -219,8 +244,13 @@ def run_campaign(
         row["y_best_so_far"] = best_so_far
         row["eval_seconds"] = elapsed
         row["cumulative_seconds"] = cumulative_seconds
-        rows.append(row)
+        if checkpoints is None or (i + 1) in keep_at or i + 1 == budget or (
+                not rows or best_so_far != rows[-1]["y_best_so_far"]):  # best point changed
+            rows.append(row)
+        last_row = row
 
+    if checkpoints is not None and evaluations_used and rows[-1] is not last_row:
+        rows.append(last_row)  # a stop before the budget: keep the final row
     end_time_utc = datetime.now(timezone.utc).isoformat()
     total_wall_seconds = time.perf_counter() - start_wall
 
@@ -247,7 +277,9 @@ def run_campaign(
         "optimizer_class": f"{type(optimizer).__module__}.{type(optimizer).__name__}",
         "seed": seed,
         "requested_budget": budget,
-        "evaluations_used": len(rows),
+        "evaluations_used": evaluations_used,
+        **({"n_restarts": optimizer.n_restarts} if isinstance(optimizer, Restarting) else {}),
+        **({"trace": "sparse", "checkpoints": sorted(keep_at)} if checkpoints is not None else {}),
         "stopped_early": stopped_early,
         "stop_reason": stop_reason,
         "start_time_utc": start_time_utc,

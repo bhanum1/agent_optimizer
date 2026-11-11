@@ -24,6 +24,8 @@ warnings.filterwarnings("ignore", message="Could not import matplotlib.*")
 
 import cma  # noqa: E402  (import after the warnings filter, deliberately)
 
+from . import OptimizerExhausted  # noqa: E402
+
 
 class CMAES:
     """Covariance Matrix Adaptation Evolution Strategy, single run.
@@ -64,7 +66,7 @@ class CMAES:
         x_best, y_best = opt.best()  # best point found so far
     """
 
-    def __init__(self, bounds, seed: Optional[int] = None):
+    def __init__(self, bounds, seed: Optional[int] = None, x0=None, stop_when_converged: bool = False):
         self.bounds = np.asarray(bounds, dtype=float)
         if self.bounds.ndim != 2 or self.bounds.shape[1] != 2:
             raise ValueError(
@@ -73,7 +75,8 @@ class CMAES:
         self.dim = self.bounds.shape[0]
 
         lower, upper = self.bounds[:, 0], self.bounds[:, 1]
-        x0 = (lower + upper) / 2
+        x0 = (lower + upper) / 2 if x0 is None else np.asarray(x0, dtype=float)
+        self.stop_when_converged = stop_when_converged
         sigma0 = float(np.mean(upper - lower)) / 4.0
 
         opts = {
@@ -101,6 +104,8 @@ class CMAES:
         out = []
         for _ in range(n):
             if not self._pending_population:
+                if self.stop_when_converged and self._es.stop():
+                    raise OptimizerExhausted(f"CMA-ES met a stopping criterion: {dict(self._es.stop())}")
                 self._pending_population = list(self._es.ask())
             out.append(self._pending_population.pop(0))
         return np.array(out)

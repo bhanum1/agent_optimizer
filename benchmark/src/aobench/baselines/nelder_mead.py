@@ -76,7 +76,7 @@ class NelderMead:
 
     deterministic = True  # seed is unused; one seed is enough in sweeps
 
-    def __init__(self, bounds, seed: Optional[int] = None):
+    def __init__(self, bounds, seed: Optional[int] = None, x0=None):
         self.bounds = np.asarray(bounds, dtype=float)
         if self.bounds.ndim != 2 or self.bounds.shape[1] != 2:
             raise ValueError(
@@ -85,7 +85,7 @@ class NelderMead:
         self.dim = self.bounds.shape[0]
 
         lower, upper = self.bounds[:, 0], self.bounds[:, 1]
-        self.x0 = (lower + upper) / 2
+        self.x0 = (lower + upper) / 2 if x0 is None else np.asarray(x0, dtype=float)
 
         self._ask_q: "queue.Queue" = queue.Queue()
         self._tell_q: "queue.Queue" = queue.Queue()

@@ -18,6 +18,8 @@ from .csv_pool import DATA, CSVPoolTask, SDL
 from .pymoo_g import PymooGTask
 from .psa_v10 import PSAv10Task
 from .synthetic import l18_tasks
+from .axis_v3 import axis_v3_tasks
+from .axis_v4 import axis_v4_tasks
 from .yahpo import YAHPOTask
 
 TASKS = {
@@ -102,3 +104,9 @@ TASKS = {
 # The axis study: 18 synthetic tasks from an L18 orthogonal array over modality, conditioning,
 # dimension, noise, variable type and effective dimension (see synthetic.py). Keys l18_01..l18_18.
 TASKS.update(l18_tasks())
+# Axis study v3: 9 BBOB shapes x conditioning x dimension x COCO noise, a full factorial
+# (see axis_v3.py and benchmark/AXIS_STUDY_PLAN.md). Keys v3_<shape>_d<dim>_k<kappa>_b<beta>.
+TASKS.update(axis_v3_tasks())
+# Axis study v4: rank-reversal task groups (ill-conditioned, noise, high-dim, rugged) on native
+# BBOB functions (see axis_v4.py and benchmark/AXIS_V4_PLAN.md). Keys v4_<group>_<fn>_d<dim>_b<beta>.
+TASKS.update(axis_v4_tasks())
