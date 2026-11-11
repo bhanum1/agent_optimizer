@@ -12,8 +12,8 @@ task where it is good and a task where it is bad.
 | `lbfgsb` | L-BFGS-B, finite-difference gradients (scipy) | restarts from a random point when it stops |
 | `cobyla` | COBYLA, linear-model trust region (scipy/PRIMA) | restarts from a random point when it stops |
 | `cma_es` | CMA-ES (`cma`) | plain restarts from random points, no IPOP/BIPOP |
-| `turbo` | TuRBO-1, GP trust region (BoTorch) | restarts its own trust region |
 | `smac` | SMAC3, random-forest BO (HPO facade) | stock settings |
+| `gpbo` | GP-BO: one global GP with LogEI (BoTorch) | refits every evaluation, 2d Sobol start |
 
 Every solver uses its library's defaults. The code is in
 [`src/aobench/baselines/`](src/aobench/baselines/).
@@ -27,11 +27,12 @@ Scores use the noise-free value of the best point the solver observed.
 
 | Task | Function | d | Budget | Good | Bad | Why |
 |---|---|---|---|---|---|---|
-| `ellipsoid` | f10, condition 1e6 | 5 | 1500 | L-BFGS-B | COBYLA, TuRBO, SMAC | smooth and unimodal, so gradients win |
+| `ellipsoid` | f10, condition 1e6 | 5 | 1500 | L-BFGS-B | COBYLA, SMAC | smooth and unimodal, so gradients win |
 | `noisy_ellipsoid` | f10, β = 0.01 | 5 | 1500 | CMA-ES | L-BFGS-B | 1% noise swamps finite-difference gradients |
 | `very_noisy_sphere` | f1, β = 1 | 5 | 1500 | SMAC | L-BFGS-B, COBYLA | noise as large as the signal: local models fit noise |
 | `step_ellipsoid` | f7 | 5 | 1500 | CMA-ES | L-BFGS-B | plateaus, zero gradient almost everywhere |
 | `noisy_sphere` | f1, β = 0.01 | 10 | 300 | COBYLA | L-BFGS-B, CMA-ES, SMAC | few evaluations: linear models converge through small noise, CMA-ES is too slow to start |
+| `gallagher` | f21, 101 peaks | 2 | 60 | GP-BO | L-BFGS-B, COBYLA, CMA-ES | a global model finds the best peak; local solvers climb the nearest one |
 
 Median final log₁₀ regret, 10 seeds (lower is better; **bold** = best; ◦ = at least
 1 decade behind the best; ✗ = no better than Sobol):

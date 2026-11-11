@@ -33,7 +33,7 @@ import numpy as np
 from .baselines import OptimizerExhausted
 from .tasks import SPECS, make_task
 
-SOLVERS = ["sobol", "lbfgsb", "cobyla", "cma_es", "turbo", "smac"]
+SOLVERS = ["sobol", "lbfgsb", "cobyla", "cma_es", "smac", "gpbo"]
 RESTART = {"lbfgsb", "cobyla", "cma_es"}
 FLOOR = 1e-8
 FAIL = 0.1  # hard fail: less than this many decades ahead of Sobol
@@ -41,13 +41,13 @@ SOFT = 1.0  # soft fail: at least this many decades behind the best solver
 
 
 def make_solver(name: str, bounds, seed: int, budget: int):
-    # Imported lazily: torch (TuRBO) and SMAC are slow to import.
+    # Imported lazily: torch (GP-BO) and SMAC are slow to import.
     if name == "sobol":
         from .baselines.sobol import SobolSearch
         return SobolSearch(bounds, seed=seed)
-    if name == "turbo":
-        from .baselines.turbo import TuRBO
-        return TuRBO(bounds, seed=seed)
+    if name == "gpbo":
+        from .baselines.gpbo import GPBO
+        return GPBO(bounds, seed=seed)
     if name == "smac":
         from .baselines.smac import SMAC
         return SMAC(bounds, seed=seed, budget=budget)
@@ -69,7 +69,7 @@ def run_campaign(task_key: str, solver: str, seed: int, out: Path) -> Path:
     if path.exists():
         return path
     warnings.filterwarnings("ignore", message=".*balance properties.*")  # scipy Sobol, one point at a time
-    warnings.filterwarnings("ignore", message=".*not p.d., added jitter.*")  # GPyTorch, TuRBO
+    warnings.filterwarnings("ignore", message=".*not p.d., added jitter.*")  # GPyTorch, GP-BO
     task = make_task(task_key, seed=seed)
     budget = task.spec.budget
     opt = make_solver(solver, task.bounds, seed, budget)
@@ -106,7 +106,7 @@ def _job(args):
 def run_all(out: Path, tasks, solvers, seeds, workers: int) -> None:
     jobs = [(t, s, seed, out) for t in tasks for s in solvers for seed in seeds
             if not (out / t / s / f"seed_{seed}.csv").exists()]
-    jobs.sort(key=lambda j: j[1] not in ("turbo", "smac"))  # slow solvers first
+    jobs.sort(key=lambda j: j[1] not in ("gpbo", "smac"))  # slow solvers first
     print(f"{len(jobs)} campaigns to run", flush=True)
     if not jobs:
         return
@@ -116,7 +116,7 @@ def run_all(out: Path, tasks, solvers, seeds, workers: int) -> None:
             tag = f"{args[0]} {args[1]} seed {args[2]}"
             if err:
                 print(f"ERROR {tag}:\n{err}", flush=True)
-            elif args[1] in ("turbo", "smac") or k % 50 == 0 or k == len(jobs):
+            elif args[1] in ("gpbo", "smac") or k % 50 == 0 or k == len(jobs):
                 print(f"[{k}/{len(jobs)}, {time.time() - t0:.0f}s] {tag}: {secs:.0f}s", flush=True)
 
 

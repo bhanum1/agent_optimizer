@@ -63,7 +63,7 @@ class BBOBTask:
 
 SPECS = {
     # f10 rotated ellipsoid, condition 1e6. Smooth and unimodal: gradients win.
-    "ellipsoid": Spec(10, 5, 1500, "lbfgsb", "cobyla, turbo, smac"),
+    "ellipsoid": Spec(10, 5, 1500, "lbfgsb", "cobyla, smac"),
     # The same ellipsoid with 1% noise: finite-difference gradients become noise.
     "noisy_ellipsoid": Spec(10, 5, 1500, "cma_es", "lbfgsb", beta=0.01),
     # f1 sphere with noise as large as the gap: L-BFGS-B's finite differences and
@@ -74,6 +74,9 @@ SPECS = {
     # f1 sphere with 1% noise at d = 10 and 30d evaluations: COBYLA's linear models converge
     # fast through the noise; finite differences turn to noise; CMA-ES is too slow to start.
     "noisy_sphere": Spec(1, 10, 300, "cobyla", "lbfgsb, cma_es, smac", beta=0.01),
+    # f21 Gallagher, 101 Gaussian peaks, at d = 2 and 30d evaluations: a global GP finds the
+    # best peak; local solvers climb whichever peak is nearest.
+    "gallagher": Spec(21, 2, 60, "gpbo", "lbfgsb, cobyla, cma_es"),
 }
 
 
