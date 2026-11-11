@@ -3,7 +3,7 @@ name = "agentoptimizer-skill"
 version = "0.1.0"
 description = "The agentoptimizer skill: an agent chooses the optimizer for each block of a black-box campaign."
 requires-python = ">=3.11"
-# The optimizer runtime: the core (aoptcore) and the library in lib/.
+# The optimizer runtime: the core (aoptcore) and the packages the agent's optimizers may use.
 dependencies = ["numpy", "scipy", "cma", "botorch", "Py-BOBYQA", "pandas", "matplotlib", "pyyaml"]
 
 [dependency-groups]

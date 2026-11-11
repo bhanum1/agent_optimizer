@@ -7,7 +7,8 @@ The machine-readable problem definition, in `.agentoptimizer/problem.yaml`.
 name: catalyst-yield
 objective: {name: yield_pct, direction: maximize}   # or minimize (the default)
 variables:
-  - {name: temperature_c, type: continuous, low: 40, high: 120, resolution: 0.5, unit: C}
+  - {name: temperature_c, type: continuous, low: 40, high: 120, resolution: 0.5, unit: C,
+     description: "reaction temperature, set on the hot plate"}
   - {name: pressure_bar, type: continuous, low: 0.5, high: 50, log: true}
   - {name: n_cycles, type: integer, low: 1, high: 12}
   - {name: solvent, type: categorical, choices: [water, ethanol, dmso]}

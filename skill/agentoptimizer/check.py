@@ -78,6 +78,8 @@ def main():
     parser.add_argument("--space", type=Path, default=Path(".agentoptimizer/space.json"))
     a = parser.parse_args()
     space = json.loads(a.space.read_text())
+    if not Path(a.script).exists():  # work/<name>.py, relative to the project folder
+        a.script = str(a.space.parent / a.script)
     state = Path(tempfile.mkdtemp(prefix="aopt_check_")) / "state"
     rng, used = random.Random(0), set()
     host = Host(a.script, a.space, state, json.loads(a.args), "new")

@@ -21,7 +21,6 @@ from pathlib import Path
 from .project import SKILL, Project
 
 MAX_REPEATS = 50  # consecutive already-measured proposals before a block is treated as finished
-BATCH = {"sobol", "random_search", "fixed_points"}  # library methods that do not adapt within a block
 
 
 class HandleError(RuntimeError):
@@ -45,6 +44,7 @@ class InProcess:
         except Exception as e:
             raise HandleError(f"{type(e).__name__}: {e}") from e
         self.max_ask = getattr(self.opt, "max_ask", None)
+        self.batch = bool(getattr(self.opt, "batch", False))
 
     def ask(self, n):
         try:
@@ -78,8 +78,8 @@ class HostProcess:
                                             stderr=stderr, text=True, env=env)
         self.selector = selectors.DefaultSelector()
         self.selector.register(self.process.stdout, selectors.EVENT_READ)
-        self.max_ask = None
-        self.call(None)
+        ready = self.call(None)
+        self.max_ask, self.batch = ready.get("max_ask"), ready.get("batch", False)
 
     def call(self, request):
         if request is not None:
@@ -206,9 +206,7 @@ class Session:
         progress = p.block_progress(self.block)
         if self.st.get("finished") or progress["left"] <= 0:
             return []
-        script = Path(self.block["script"]).stem
-        batch = (self.block["script"].startswith("lib/") and script in BATCH) or getattr(self.handle, "batch", False)
-        per_round = progress["left"] if batch else p.problem.parallel
+        per_round = progress["left"] if self.handle.batch else p.problem.parallel
         want = min(progress["left"], per_round - len(progress["pending"]))
         if self.handle.max_ask:
             want = min(want, self.handle.max_ask - len(progress["pending"]))

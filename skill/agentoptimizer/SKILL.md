@@ -42,7 +42,10 @@ moving on. Cover:
    about several, help them combine them (a weighted score, or one objective and
    the others as constraints).
 2. **Variables.** For each thing they can set: a short column name, its type and
-   range.
+   range, its `unit`, and a one-line `description` of what it is physically and
+   how it is set (e.g. "reaction temperature, set on the hot plate"). Ask for the
+   description even when the name seems obvious: it is what lets you reason about
+   the variable's likely effect.
    - `continuous` with `low`/`high`; `log: true` when the range spans orders of
      magnitude (concentrations, learning rates); `resolution` when it can only be
      set so precisely (e.g. 0.5 degrees).
@@ -78,7 +81,7 @@ reports. With no earlier data, the first block is the initial design.
 
 ## Deciding a block
 
-Read `<skill>/METHOD.md` and follow it: analyze the data, choose the block, write
+Read `<skill>/METHOD.md` and follow it: decide the block, write its optimizer, write
 `agent/proposal.json`, `agent/decision.md` and `agent/context.md`, and run
 `<skill>/aopt validate` until it is valid. Then:
 
@@ -88,9 +91,9 @@ Read `<skill>/METHOD.md` and follow it: analyze the data, choose the block, writ
    learn or achieve, and how many measurements it has. Then the points to measure,
    as a small table, and how to continue: measure them, then give you the values
    (or fill in the objective column of `.agentoptimizer/data.csv` themselves and run
-   `<skill>/aopt suggest`), and the next point will follow. A sequential method such
-   as Bayesian optimization asks for one point at a time and refits on each result;
-   say so, so they expect it. When the block is done, they invoke you again.
+   `<skill>/aopt suggest`), and the next point will follow. If the optimizer asks
+   for one point at a time, say so, so they expect it. When the block is done, they
+   invoke you again.
 
 ## Entering values
 

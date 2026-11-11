@@ -14,8 +14,12 @@ OPTIMIZER_FILE defines a class `Optimizer`:
     tell(X, y, g) -> None          X as asked; y floats; g one list per point
     save(path) -> None
     Optimizer.load(path)           classmethod returning the saved optimizer
+    max_ask (optional attribute)   most points it can have outstanding at once
+    batch (optional attribute)     True if it does not adapt within a block, so
+                                   the whole block is requested at once
 
-Requests, one JSON object per line:
+On start the host replies {"max_ask": .., "batch": ..}. Requests, one JSON
+object per line:
     {"op": "ask", "n": k}                   -> {"X": [...]}
     {"op": "tell", "X": .., "y": .., "g": ..} -> {}
     {"op": "save"}                          -> {}   (then the host exits)
@@ -27,18 +31,12 @@ import importlib.util
 import json
 import sys
 import traceback
-from pathlib import Path
-
-LIB = Path(__file__).resolve().parent / "lib"  # library modules may import each other
-
 
 def load_class(path):
     # Registered under a fixed name, so pickled state from one block loads in the next.
     spec = importlib.util.spec_from_file_location("block_optimizer", path)
     module = importlib.util.module_from_spec(spec)
     sys.modules["block_optimizer"] = module
-    if str(LIB) not in sys.path:
-        sys.path.insert(0, str(LIB))
     spec.loader.exec_module(module)
     return module.Optimizer
 
@@ -52,7 +50,8 @@ def main(argv):
         with open(space_path) as f:
             space = json.load(f)
         opt = cls.load(state_path) if mode == "load" else cls(space, **json.loads(args))
-        print(json.dumps({}), file=replies, flush=True)  # ready
+        ready = {"max_ask": getattr(opt, "max_ask", None), "batch": bool(getattr(opt, "batch", False))}
+        print(json.dumps(ready), file=replies, flush=True)
         for line in sys.stdin:
             request = json.loads(line)
             op = request["op"]

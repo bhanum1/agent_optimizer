@@ -20,7 +20,7 @@ from . import problem as problem_mod
 from .data import Table
 from .encoding import Encoder
 
-SKILL = Path(__file__).resolve().parents[2]  # the skill folder: lib/, host.py, METHOD.md
+SKILL = Path(__file__).resolve().parents[2]  # the skill folder: host.py, check.py, METHOD.md
 LABEL = re.compile(r"[a-z][a-z0-9_]{0,39}")
 FIELDS = {"script", "label", "args", "n_points", "state", "warm_start"}
 DIRS = ["agent", "blocks", "state", "work"]
@@ -83,12 +83,11 @@ class Project:
     # ---- proposals ----------------------------------------------------------------------------------
     def script_path(self, relative) -> Path:
         if not isinstance(relative, str) or not relative.endswith(".py"):
-            raise Rejected("script must be a .py path such as lib/turbo.py or work/my_optimizer.py.")
+            raise Rejected("script must be a .py path such as work/my_optimizer.py.")
         parts = Path(relative).parts
-        if len(parts) < 2 or parts[0] not in ("lib", "work") or ".." in parts:
-            raise Rejected("script must be a .py file under lib/ (the library) or work/ (your own).")
-        base = SKILL if parts[0] == "lib" else self.root
-        path = base / relative
+        if len(parts) < 2 or parts[0] != "work" or ".." in parts:
+            raise Rejected("script must be a .py file under work/.")
+        path = self.root / relative
         if path.is_symlink() or not path.is_file():
             raise Rejected(f"{relative} does not exist or is not a regular file.")
         return path

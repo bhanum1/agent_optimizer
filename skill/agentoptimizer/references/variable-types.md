@@ -15,13 +15,12 @@ is told the encoded point it asked for, so its internal state stays consistent.
 | categorical | k: one per choice | `[0, 1]` each | the largest coordinate |
 
 A problem whose variables are all linear continuous encodes to exactly its own box,
-so points and arguments such as `x0` are in the user's units.
+so points are in the user's units.
 
 `space.json` holds `dim`, `bounds`, `n_constraints`, `noisy`, `indexed_pool`,
 `candidates` (encoded, for a candidates file), `all_continuous`, and `variables`:
 for each variable its `name`, `type`, `coords` (its coordinate indices), and its
-`low`/`high`/`log` or `choices`. Library optimizers that model types directly
-(`mixed_bo`) read `variables`.
+`low`/`high`/`log` or `choices`, for optimizers that treat each type its own way.
 
 To write an encoded point by hand, run `aopt encode '{"temperature_c": 80, ...}'`;
 `aopt decode '[...]'` goes the other way. In Python,

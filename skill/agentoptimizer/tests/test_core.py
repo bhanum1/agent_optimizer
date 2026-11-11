@@ -5,6 +5,8 @@ import math
 import sys
 from pathlib import Path
 
+import shutil
+
 import pytest
 import yaml
 
@@ -41,6 +43,9 @@ def loss_of(c):
     return sum((c[f"x{i}"] - 1) ** 2 for i in range(3))
 
 
+OPTIMIZERS = Path(__file__).resolve().parent / "optimizers"
+
+
 def make(tmp_path, problem, rows=()):
     root = tmp_path / ".agentoptimizer"
     root.mkdir()
@@ -54,6 +59,8 @@ def make(tmp_path, problem, rows=()):
             w.writerows(rows)
         args += ["--import", str(src)]
     assert cli.main(args) == 0
+    for f in OPTIMIZERS.glob("*.py"):  # the test optimizers, as the agent's own in work/
+        shutil.copy(f, root / "work" / f.name)
     return root
 
 
@@ -146,78 +153,69 @@ def test_import_rejects_out_of_range(tmp_path):
 
 
 # ---- blocks -------------------------------------------------------------------------------------
-@pytest.mark.parametrize("script,args", [
-    ("lib/sobol.py", {}), ("lib/random_search.py", {}), ("lib/cma_es.py", {"sigma0": 0.3}),
-    ("lib/de.py", {"pop_size": 6}), ("lib/pso.py", {"swarm": 5}), ("lib/nelder_mead.py", {}),
-    ("lib/turbo.py", {"n_init": 4}), ("lib/lbfgsb.py", {}), ("lib/powell.py", {}),
-    ("lib/bobyqa.py", {}), ("lib/cobyla.py", {}),
-])
-def test_library_blocks_on_mixed_space(tmp_path, script, args):
-    root = make(tmp_path, MIXED)
-    assert propose(root, script=script, label="main", args=args, n_points=8, state="restart") == 0
-    run_block(root, yield_of, "yield")
+@pytest.mark.parametrize("problem,f,objective", [(MIXED, yield_of, "yield"), (BOX, loss_of, "loss")])
+def test_adaptive_block(tmp_path, problem, f, objective):
+    root = make(tmp_path, problem)
+    assert propose(root, script="work/hill.py", label="main", n_points=8, state="restart") == 0
+    run_block(root, f, objective)
     rows = read(root)
-    assert 1 <= len(rows) <= 8 and all(r["status"] == "measured" for r in rows)
+    assert len(rows) == 8 and all(r["status"] == "measured" for r in rows)
 
 
-@pytest.mark.parametrize("script", ["lib/gp_bo.py", "lib/mixed_bo.py"])
-def test_bo_one_point_at_a_time(tmp_path, script):
-    root = make(tmp_path, MIXED)
-    args = {"n_init": 3, "num_restarts": 2, "raw_samples": 32}
-    assert propose(root, script=script, label="bo", args=args, n_points=5, state="restart") == 0
-    for _ in range(5):
+def test_max_ask_one_point_at_a_time(tmp_path):
+    root = make(tmp_path, dict(BOX, parallel=4))
+    assert propose(root, script="work/hill.py", label="h", args={"one_at_a_time": True}, n_points=4,
+                   state="restart") == 0
+    for _ in range(4):
         assert aopt(root, "suggest") == 0
         assert sum(r["status"] == "pending" for r in read(root)) == 1
-        measure(root, yield_of, "yield")
+        measure(root, loss_of, "loss")
     assert aopt(root, "suggest") == 0
-    assert len(read(root)) == 5
+    assert len(read(root)) == 4
 
 
 def test_continue_resumes_and_warm_start(tmp_path):
     root = make(tmp_path, BOX)
-    assert propose(root, script="lib/cma_es.py", label="cma", args={"sigma0": 0.3}, n_points=6, state="restart") == 0
+    assert propose(root, script="work/hill.py", label="h", n_points=6, state="restart") == 0
     run_block(root, loss_of, "loss")
-    assert propose(root, script="lib/cma_es.py", label="cma", n_points=6, state="continue") == 0
+    assert propose(root, script="work/hill.py", label="h", n_points=6, state="continue") == 0
     run_block(root, loss_of, "loss")
-    assert propose(root, script="lib/turbo.py", label="tr", args={"n_init": 2}, n_points=4,
-                   state="restart", warm_start=True) == 0
+    assert propose(root, script="work/hill.py", label="w", n_points=4, state="restart", warm_start=True) == 0
     run_block(root, loss_of, "loss")
     assert len(read(root)) == 16
-    st = json.loads((root / "state/tr.json").read_text())
+    st = json.loads((root / "state/w.json").read_text())
     assert len(st["told"]) == 16  # 12 warm-start rows + 4 of its own
-
-
-def test_local_solver_resumes_after_each_reload(tmp_path):
-    root = make(tmp_path, BOX)
-    assert propose(root, script="lib/nelder_mead.py", label="nm", n_points=12, state="restart") == 0
-    run_block(root, loss_of, "loss")
-    assert propose(root, script="lib/powell.py", label="pw", n_points=12, state="restart", warm_start=True) == 0
-    run_block(root, loss_of, "loss")
-    rows = read(root)
-    keys = [tuple(r[f"x{i}"] for i in range(3)) for r in rows]
-    assert len(set(keys)) == len(keys), "a reloaded solver asked for a point it had already been told"
 
 
 def test_parallel_requests(tmp_path):
     root = make(tmp_path, dict(BOX, parallel=4))
-    assert propose(root, script="lib/cma_es.py", label="cma", args={"sigma0": 0.3}, n_points=8, state="restart") == 0
+    assert propose(root, script="work/hill.py", label="h", n_points=8, state="restart") == 0
     assert aopt(root, "suggest") == 0
     assert sum(r["status"] == "pending" for r in read(root)) == 4
 
 
 def test_batch_method_lists_whole_block(tmp_path):
     root = make(tmp_path, BOX)
-    assert propose(root, script="lib/sobol.py", label="design", n_points=6, state="restart") == 0
+    assert propose(root, script="work/random_points.py", label="design", n_points=6, state="restart") == 0
     assert aopt(root, "suggest") == 0
     assert sum(r["status"] == "pending" for r in read(root)) == 6
+
+
+def test_batch_through_host_process(tmp_path):
+    from aoptcore.driver import HostProcess
+    root = make(tmp_path, BOX)
+    h = HostProcess(root / "work/random_points.py", root / "space.json", tmp_path / "s.state", {}, "new")
+    try:
+        assert h.batch is True and h.max_ask is None and len(h.ask(3)) == 3
+    finally:
+        h.close()
 
 
 def test_replicates_on_noisy_problem(tmp_path):
     rows = [{"x0": 1, "x1": 1, "x2": 1, "loss": 0.1}]
     root = make(tmp_path, dict(BOX, noise={"present": True}), rows)
-    pts = [{"x0": 1.0, "x1": 1.0, "x2": 1.0}] * 2
-    assert propose(root, script="lib/fixed_points.py", label="rep", args={"points": pts}, n_points=2,
-                   state="restart") == 0
+    assert propose(root, script="work/fixed.py", label="rep", args={"points": [[1.0, 1.0, 1.0]] * 2},
+                   n_points=2, state="restart") == 0
     assert aopt(root, "suggest") == 0
     data = read(root)
     assert [r["replicate_of"] for r in data[1:]] == ["1", "1"]
@@ -226,8 +224,8 @@ def test_replicates_on_noisy_problem(tmp_path):
 def test_deterministic_repeat_is_not_measured_again(tmp_path):
     rows = [{"x0": 1, "x1": 1, "x2": 1, "loss": 0.1}]
     root = make(tmp_path, BOX, rows)
-    pts = [{"x0": 1.0, "x1": 1.0, "x2": 1.0}, {"x0": 2.0, "x1": 1.0, "x2": 1.0}]
-    assert propose(root, script="lib/fixed_points.py", label="probe", args={"points": pts}, n_points=2,
+    pts = [[1.0, 1.0, 1.0], [2.0, 1.0, 1.0]]
+    assert propose(root, script="work/fixed.py", label="probe", args={"points": pts}, n_points=2,
                    state="restart") == 0
     assert aopt(root, "suggest") == 0
     data = read(root)
@@ -236,13 +234,13 @@ def test_deterministic_repeat_is_not_measured_again(tmp_path):
 
 def test_failed_rows_and_cancel_on_new_block(tmp_path):
     root = make(tmp_path, BOX)
-    assert propose(root, script="lib/random_search.py", label="rs", n_points=4, state="restart") == 0
+    assert propose(root, script="work/random_points.py", label="rs", n_points=4, state="restart") == 0
     assert aopt(root, "suggest") == 0
     measure(root, loss_of, "loss", fail={"2"})
     assert aopt(root, "suggest") == 0
-    assert propose(root, script="lib/sobol.py", label="s", n_points=3, state="restart") == 0
+    assert propose(root, script="work/random_points.py", label="s", n_points=3, state="restart") == 0
     assert aopt(root, "suggest") == 0
-    assert propose(root, script="lib/sobol.py", label="s2", n_points=2, state="restart") == 0
+    assert propose(root, script="work/random_points.py", label="s2", n_points=2, state="restart") == 0
     data = read(root)
     assert [r["status"] for r in data].count("cancelled") == 3
     assert data[1]["status"] == "failed"
@@ -250,17 +248,19 @@ def test_failed_rows_and_cancel_on_new_block(tmp_path):
 
 def test_rejections(tmp_path):
     root = make(tmp_path, BOX)
-    assert propose(root, script="lib/nope.py", label="a", n_points=2) == 1
-    assert propose(root, script="lib/sobol.py", label="Bad", n_points=2) == 1
-    assert propose(root, script="lib/sobol.py", label="a", n_points=99) == 1
-    assert propose(root, script="lib/sobol.py", label="a", n_points=2, state="continue") == 1
+    assert propose(root, script="work/nope.py", label="a", n_points=2) == 1
+    assert propose(root, script="lib/sobol.py", label="a", n_points=2) == 1
+    assert propose(root, script="work/hill.py", label="Bad", n_points=2) == 1
+    assert propose(root, script="work/hill.py", label="a", n_points=99) == 1
+    assert propose(root, script="work/hill.py", label="a", n_points=2, state="continue") == 1
     assert propose(root, script="../x.py", label="a", n_points=2) == 1
 
 
-def test_custom_optimizer_in_work(tmp_path):
-    root = make(tmp_path, BOX)
-    (root / "work/mine.py").write_text(
-        "import sys\nfrom random_search import Optimizer as R\n\nclass Optimizer(R):\n    pass\n")
-    assert propose(root, script="work/mine.py", label="mine", n_points=3, state="restart") == 0
-    run_block(root, loss_of, "loss")
-    assert len(read(root)) == 3
+def test_check_script(tmp_path):
+    import subprocess
+    root = make(tmp_path, MIXED)
+    for name in ("hill", "random_points"):
+        out = subprocess.run([sys.executable, str(Path(cli.__file__).resolve().parents[2] / "check.py"),
+                              f"work/{name}.py", "{}", "--warm", "3"], cwd=root.parent,
+                             capture_output=True, text=True)
+        assert out.returncode == 0 and "OK" in out.stdout, out.stdout + out.stderr

@@ -9,8 +9,8 @@ decides the next block.
 The repository has two parts:
 
 - **[`skill/agentoptimizer/`](skill/agentoptimizer/)** is the product: the skill,
-  its decision method, an optimizer library and the `aopt` command that keeps the
-  campaign's records.
+  its decision method and the `aopt` command that keeps the campaign's records. The
+  agent writes its own optimizers; there is no optimizer library.
 - **[`benchmark/`](benchmark/README.md)** is a small benchmark of six baseline
   optimizers, with tasks chosen so that each one is good on some task and bad on
   another.
@@ -88,8 +88,8 @@ The project folder:
 uv run --project skill/agentoptimizer pytest
 ```
 
-These tests drive whole blocks through `aopt` on synthetic problems, covering every
-library optimizer, mixed variable types, reloads between measurements, replicates,
+These tests drive whole blocks through `aopt` on synthetic problems, with small test
+optimizers in `tests/optimizers/`, covering mixed variable types, reloads between measurements, replicates,
 failed points and cancelled points.
 [`AGENTS.md`](AGENTS.md) has the contributor rules.
 
@@ -100,7 +100,7 @@ skill/agentoptimizer/
   SKILL.md                     the skill: interview, setup, each invocation
   METHOD.md                    the decision method
   aopt                         the command; scripts/aoptcore/ is its Python core
-  lib/                         optimizer library; host.py and check.py run and test optimizers
+  host.py, check.py            run and test the agent's optimizers
   references/                  problem format and variable encoding
   install.sh  pyproject.toml   install, and the optimizer runtime's dependencies
   tests/
