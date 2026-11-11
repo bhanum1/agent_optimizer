@@ -11,7 +11,7 @@ import argparse
 from pathlib import Path
 
 from .run import SOLVERS, default_workers, report, run_all
-from .tasks import DIM, SPECS
+from .tasks import SPECS
 
 
 def main():
@@ -21,13 +21,12 @@ def main():
     p.add_argument("--tasks", nargs="*", default=list(SPECS), choices=list(SPECS))
     p.add_argument("--solvers", nargs="*", default=SOLVERS, choices=SOLVERS)
     p.add_argument("--seeds", type=int, default=10, help="seeds 0..n-1 (BBOB instances 1..n)")
-    p.add_argument("--dim", type=int, default=DIM)
     p.add_argument("--workers", type=int, default=default_workers())
     p.add_argument("--report-only", action="store_true")
     a = p.parse_args()
-    out = a.out / f"d{a.dim}"
+    out = a.out
     if not a.report_only:
-        run_all(out, a.tasks, a.solvers, range(a.seeds), a.dim, a.workers)
+        run_all(out, a.tasks, a.solvers, range(a.seeds), a.workers)
     solvers = ["sobol"] + [s for s in a.solvers if s != "sobol"]
     text = report(out, a.tasks, solvers)
     out.mkdir(parents=True, exist_ok=True)

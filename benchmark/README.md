@@ -20,23 +20,32 @@ Every solver uses its library's defaults. The code is in
 
 ## Tasks
 
-BBOB functions from `ioh`, d = 5, box [-5, 5]^d, budget 300·d evaluations. The seed
-picks the BBOB instance, so each seed is a differently shifted and rotated copy.
-Noise, when present, is COCO's multiplicative model on the gap to the optimum,
-`g · exp(β · N(0, 1))`. Scores use the noise-free value of the best point the
-solver observed.
+BBOB functions from `ioh` on the box [-5, 5]^d. The seed picks the BBOB instance,
+so each seed is a differently shifted and rotated copy. Noise, when present, is
+COCO's multiplicative model on the gap to the optimum, `g · exp(β · N(0, 1))`.
+Scores use the noise-free value of the best point the solver observed.
 
-| Task | Function | Good | Bad | Why |
-|---|---|---|---|---|
-| `ellipsoid` | f10, condition 1e6 | L-BFGS-B | Sobol | smooth and unimodal, so gradients win |
-| `noisy_ellipsoid` | f10, β = 0.01 | COBYLA, CMA-ES | L-BFGS-B | 1% noise swamps finite-difference gradients |
-| `very_noisy_sphere` | f1, β = 1 | CMA-ES | COBYLA | noise as large as the signal: COBYLA's linear models fit noise |
-| `step_ellipsoid` | f7 | CMA-ES | L-BFGS-B | plateaus, zero gradient almost everywhere |
-| `katsuura` | f23 | COBYLA | CMA-ES, TuRBO | rugged at every scale, no trend to follow |
+| Task | Function | d | Budget | Good | Bad | Why |
+|---|---|---|---|---|---|---|
+| `ellipsoid` | f10, condition 1e6 | 5 | 1500 | L-BFGS-B | COBYLA, TuRBO, SMAC | smooth and unimodal, so gradients win |
+| `noisy_ellipsoid` | f10, β = 0.01 | 5 | 1500 | CMA-ES | L-BFGS-B | 1% noise swamps finite-difference gradients |
+| `very_noisy_sphere` | f1, β = 1 | 5 | 1500 | SMAC | L-BFGS-B, COBYLA | noise as large as the signal: local models fit noise |
+| `step_ellipsoid` | f7 | 5 | 1500 | CMA-ES | L-BFGS-B | plateaus, zero gradient almost everywhere |
+| `noisy_sphere` | f1, β = 0.01 | 10 | 300 | COBYLA | L-BFGS-B, CMA-ES, SMAC | few evaluations: linear models converge through small noise, CMA-ES is too slow to start |
 
-Still to find: a clear "good" task for TuRBO, and both tasks for SMAC. The tasks are
-defined in [`src/aobench/tasks.py`](src/aobench/tasks.py). Add one by adding an
-entry to `SPECS`.
+Median final log₁₀ regret, 10 seeds (lower is better; **bold** = best; ◦ = at least
+1 decade behind the best; ✗ = no better than Sobol):
+
+| Task | Sobol | L-BFGS-B | COBYLA | CMA-ES | TuRBO | SMAC |
+|---|---|---|---|---|---|---|
+| `ellipsoid` | 3.87 ◦ | **−5.84** | 2.73 ◦ | −5.20 | 2.46 ◦ | 3.15 ◦ |
+| `noisy_ellipsoid` | 3.87 ◦ | 5.25 ✗ | 3.05 ◦ | **−6.13** | 2.37 ◦ | 3.09 ◦ |
+| `very_noisy_sphere` | 1.04 ◦ | 1.49 ✗ | 1.06 ✗ | 0.04 | 0.36 | **−0.62** |
+| `step_ellipsoid` | 0.89 ◦ | 1.24 ✗ | 0.16 ◦ | **−4.42** | −0.23 ◦ | 0.06 ◦ |
+| `noisy_sphere` | 1.49 ◦ | 2.01 ✗ | **−6.03** | 0.40 ◦ | −1.73 ◦ | 0.64 ◦ |
+
+Still to find: a task where TuRBO is the clear best. The tasks are defined in
+[`src/aobench/tasks.py`](src/aobench/tasks.py). Add one by adding an entry to `SPECS`.
 
 ## Run
 
@@ -47,15 +56,14 @@ uv sync --locked
 .venv/bin/python -m aobench --out benchmark/runs/main
 ```
 
-- **Defaults:** every task and solver, seeds 0–9, d = 5, all cores but one.
-- **Narrow a run** with `--tasks`, `--solvers`, `--seeds N` and `--dim D`.
+- **Defaults:** every task and solver, seeds 0–9, all cores but one.
+- **Narrow a run** with `--tasks`, `--solvers`, `--seeds N` and `--workers N`.
 - **Re-print a finished run** with `--report-only`.
 
 Finished campaigns are skipped, so an interrupted run picks up where it stopped.
 
-Each campaign writes `<out>/d<dim>/<task>/<solver>/seed_<seed>.csv` with one row
-per evaluation: `eval, y, regret`, where `regret` is the noise-free regret of the
-best point observed so far. The report goes to `<out>/d<dim>/report.md`. It gives
-the median final log₁₀ regret per task and solver, marks the best solver, and
-marks a solver ✗ (bad) when it is less than 0.1 decades ahead of Sobol (median
-over seeds).
+Each campaign writes `<out>/<task>/<solver>/seed_<seed>.csv` with one row per
+evaluation: `eval, y, regret`, where `regret` is the noise-free regret of the best
+point observed so far. The report goes to `<out>/report.md`. It gives the median
+final log₁₀ regret per task and solver, marks the best solver, and marks soft (◦)
+and hard (✗) failures.

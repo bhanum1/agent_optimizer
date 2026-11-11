@@ -1,6 +1,5 @@
 .venv/
 /runs/
-/external/
 __pycache__/
 *.pyc
 *.egg-info/
@@ -9,7 +8,6 @@ dist/
 .DS_Store
 .env
 .ruff_cache/
-/plans/
 /benchmark/external/
 /benchmark/runs/
 skill/agentoptimizer/.python

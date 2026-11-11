@@ -1,7 +1,7 @@
 """Run every (task, solver, seed) campaign and report who is good and who is bad where.
 
 One campaign drives one optimizer one point at a time (ask -> evaluate -> tell)
-for `300 * dim` evaluations. L-BFGS-B, COBYLA and CMA-ES restart from a uniform
+for the task's budget. L-BFGS-B, COBYLA and CMA-ES restart from a uniform
 random point whenever they stop, so every solver uses the whole budget.
 
 Each campaign writes `<out>/<task>/<solver>/seed_<seed>.csv` with one row per
@@ -10,9 +10,12 @@ noise-free regret of the best point it has *observed* so far, i.e. what
 "return the best point you saw" would deliver. Finished campaigns are skipped,
 so an interrupted run resumes.
 
-Score = log10 of the final regret, floored at 1e-8. A solver is **bad** on a
-task when the median over seeds of score(Sobol) - score(solver) is below 0.1
-decades: it does no better than quasi-random sampling.
+Score = log10 of the final regret, floored at 1e-8. Two kinds of failure, both
+on medians over seeds:
+- **soft fail** (◦): the solver's median score is at least SOFT = 1 decade worse
+  than the best solver's on that task;
+- **hard fail** (✗): it is less than 0.1 decades ahead of Sobol, i.e. no better
+  than quasi-random sampling.
 """
 
 from __future__ import annotations
@@ -28,12 +31,13 @@ from pathlib import Path
 import numpy as np
 
 from .baselines import OptimizerExhausted
-from .tasks import BUDGET_PER_DIM, SPECS, make_task
+from .tasks import SPECS, make_task
 
 SOLVERS = ["sobol", "lbfgsb", "cobyla", "cma_es", "turbo", "smac"]
 RESTART = {"lbfgsb", "cobyla", "cma_es"}
 FLOOR = 1e-8
-FAIL = 0.1  # decades of advantage over Sobol
+FAIL = 0.1  # hard fail: less than this many decades ahead of Sobol
+SOFT = 1.0  # soft fail: at least this many decades behind the best solver
 
 
 def make_solver(name: str, bounds, seed: int, budget: int):
@@ -60,14 +64,14 @@ def make_solver(name: str, bounds, seed: int, budget: int):
     raise ValueError(f"unknown solver {name!r}; choose from {SOLVERS}")
 
 
-def run_campaign(task_key: str, solver: str, seed: int, dim: int, out: Path) -> Path:
+def run_campaign(task_key: str, solver: str, seed: int, out: Path) -> Path:
     path = out / task_key / solver / f"seed_{seed}.csv"
     if path.exists():
         return path
     warnings.filterwarnings("ignore", message=".*balance properties.*")  # scipy Sobol, one point at a time
     warnings.filterwarnings("ignore", message=".*not p.d., added jitter.*")  # GPyTorch, TuRBO
-    task = make_task(task_key, dim=dim, seed=seed)
-    budget = BUDGET_PER_DIM * dim
+    task = make_task(task_key, seed=seed)
+    budget = task.spec.budget
     opt = make_solver(solver, task.bounds, seed, budget)
     rows, best_y, regret = [], np.inf, np.inf
     for i in range(budget):
@@ -99,8 +103,8 @@ def _job(args):
         return args, traceback.format_exc(limit=3), time.time() - t
 
 
-def run_all(out: Path, tasks, solvers, seeds, dim: int, workers: int) -> None:
-    jobs = [(t, s, seed, dim, out) for t in tasks for s in solvers for seed in seeds
+def run_all(out: Path, tasks, solvers, seeds, workers: int) -> None:
+    jobs = [(t, s, seed, out) for t in tasks for s in solvers for seed in seeds
             if not (out / t / s / f"seed_{seed}.csv").exists()]
     jobs.sort(key=lambda j: j[1] not in ("turbo", "smac"))  # slow solvers first
     print(f"{len(jobs)} campaigns to run", flush=True)
@@ -126,31 +130,34 @@ def scores(out: Path, task: str, solver: str) -> list[float]:
 
 
 def report(out: Path, tasks, solvers) -> str:
-    """Markdown: median final log10 regret per task and solver, and the good/bad verdict."""
-    lines = ["Median final log10 regret over seeds (lower is better). "
-             f"**bold** = best on the task; ✗ = bad (less than {FAIL} decades ahead of Sobol).", "",
-             "| task | " + " | ".join(solvers) + " | expected good | expected bad |",
-             "|---" * (len(solvers) + 3) + "|"]
+    """Markdown: median final log10 regret per task and solver, with soft and hard failures."""
+    lines = ["Median final log10 regret over seeds (lower is better). **bold** = best on the task; "
+             f"◦ = soft fail (≥ {SOFT:g} decade behind the best); ✗ = hard fail (less than {FAIL} "
+             "decades ahead of Sobol).", "",
+             "| task | d | budget | seeds | " + " | ".join(solvers) + " | expected good | expected bad |",
+             "|---" * (len(solvers) + 6) + "|"]
     for t in tasks:
-        med = {s: float(np.median(v)) if (v := scores(out, t, s)) else None for s in solvers}
-        sob = scores(out, t, "sobol")
-        done = [m for m in med.values() if m is not None]
+        sc = {s: scores(out, t, s) for s in solvers}
+        med = {s: float(np.median(v)) for s, v in sc.items() if v}
+        if not med:
+            continue
+        best, sob = min(med.values()), sc.get("sobol", [])
         cells = []
         for s in solvers:
-            if med[s] is None:
+            if s not in med:
                 cells.append("–")
                 continue
             c = f"{med[s]:.2f}"
-            if s != "sobol" and sob:
-                v = scores(out, t, s)
-                n = min(len(v), len(sob))
-                if np.median(np.array(sob[:n]) - np.array(v[:n])) < FAIL:
-                    c += " ✗"
-            if med[s] == min(done):
-                c = f"**{c}**"
-            cells.append(c)
-        _, _, good, bad = SPECS[t]
-        lines.append(f"| {t} | " + " | ".join(cells) + f" | {good} | {bad} |")
+            n = min(len(sc[s]), len(sob))
+            if s != "sobol" and n and np.median(np.array(sob[:n]) - np.array(sc[s][:n])) < FAIL:
+                c += " ✗"
+            elif med[s] - best >= SOFT:
+                c += " ◦"
+            cells.append(f"**{c}**" if med[s] == best else c)
+        spec = SPECS[t]
+        n_seeds = max(len(v) for v in sc.values())
+        lines.append(f"| {t} | {spec.dim} | {spec.budget} | {n_seeds} | " + " | ".join(cells)
+                     + f" | {spec.good} | {spec.bad} |")
     return "\n".join(lines) + "\n"
 
 
