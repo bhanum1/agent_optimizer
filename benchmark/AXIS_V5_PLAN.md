@@ -153,3 +153,42 @@ All times Toronto (EST).
   the d = 40 decision was clear.
 - 21:40 submitted: cheap sweep **2825083**, TuRBO array **2825084_[0-2]**, analysis
   **2825085** (`afterany:2825083:2825084`).
+- 21:40 cheap sweep finished: 1,800/1,800 campaigns in 31 s, 0 errors.
+- 22:58 TuRBO array finished: 360/360, 0 errors. Per campaign:
+  - d = 5: median 0.4 min;
+  - d = 20: median 27 min, max 78 min (f12 bent cigar).
+
+  This matches the pilot's 1–2 h estimate for d = 20 illcond, which supports
+  the d = 40 extrapolation. No job died, so nothing was resubmitted.
+- 23:00 analysis 2825085 finished (analyze, curves, plot: exit 0).
+- 23:05–23:20 two fixes:
+  - plot layout: the legend overlapped the title;
+  - report section 3: per-cell detail for failed hypotheses, post-hoc collapses
+    listed separately, wall time in minutes.
+
+  These changed presentation only: definitions, tests and verdict rules were
+  untouched. The analysis was re-run as jobs 2825594 and 2825604 on the same raw
+  data. Summaries were pulled to `benchmark/runs/axis_v5_summary/`.
+
+**All 2,160 campaigns finished; none are missing.** The only cells not run are
+the d = 40 cells, dropped by decision (see above).
+
+## Results in one paragraph
+
+See `benchmark/runs/axis_v5_summary/report.md` (not in git).
+
+Confirmed on fresh instances:
+- H1–H4, including CMA-ES's post-hoc Katsuura failure;
+- 7 of 8 predicted reversals, including L-BFGS-B vs TuRBO.
+
+Failed:
+- **H5**: CMA-ES on Weierstrass d = 20 has advantage +0.66 (v4: +0.07); the
+  d = 40 cell that motivated H5 was not run;
+- **H6**: TuRBO fails on only 1 of 6 illcond cells, though L-BFGS-B beats it
+  6–0. This is the risk noted before the sweep;
+- **R2**: TuRBO doesn't beat CMA-ES on Katsuura, where it collapses too, or on
+  Weierstrass.
+
+Post hoc, not confirmations:
+- TuRBO collapses on Katsuura (2/2 cells);
+- Nelder–Mead collapses on Weierstrass.

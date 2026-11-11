@@ -280,17 +280,36 @@ def main():
           "- Every non-reference solver collapses on at least one group: "
           + ("yes" if all(collapses_any.values()) else
              "no (" + ", ".join(NAME[o] for o, v in collapses_any.items() if not v) + ")")]
-    for opt, hid in [("cma_es", "H4"), ("cma_es", "H5"), ("turbo", "H6")]:
+    for hid in failed_h:
+        opt, scope, wins = HYPOTHESES[hid]
+        group, sdims = parse_scope(scope)
+        lost = sorted(sdims - set(dims)) if sdims else []
+        sub = adv[scope_mask(adv, scope)]
+        fn = {c["key"]: c["fname"] for c in cells}
+        per = "; ".join(f"{fn[k]} d = {r.dim}: {r[opt]:+.2f}, mean rank {cell_rank.loc[k, opt]:.2f}, "
+                        f"best {NAME[cell_rank.loc[k].idxmin()]}" for k, r in sub.iterrows())
         c, w = verdict[hid]
-        cells_f = adv[adv[opt] < FAIL].index.tolist()
-        L.append(f"- **{NAME[opt]}, {hid}**: collapse {'confirmed' if c else 'NOT confirmed'}, "
-                 f"predicted winners {'confirmed' if w else 'NOT confirmed'}. "
-                 f"{NAME[opt]} fails on {len(cells_f)} cell(s) overall"
-                 + (f": {', '.join(cells_f)}." if cells_f else "."))
-    L.append("- CMA-ES has a confirmed failure: " +
-             ("yes" if verdict["H4"][0] or verdict["H5"][0] else "no") +
-             "; TuRBO has a confirmed failure: " + ("yes" if verdict["H6"][0] else "no") +
-             " (confirmed = the frozen collapse prediction held on fresh instances).\n")
+        L.append(f"- **{hid} ({NAME[opt]} on {scope})**: collapse {'held' if c else 'did not hold'}"
+                 + (f", predicted winners {'held' if w else 'did not hold'}" if wins else "")
+                 + f". Advantage per cell: {per}."
+                 + (f" Cells at d = {', '.join(map(str, lost))} were not run, so the scope is smaller than "
+                    "frozen." if lost else ""))
+    predicted = {(o, parse_scope(sc)[0]) for o, sc, _ in HYPOTHESES.values()} | \
+                {(o, g) for o, (yes, _) in SECONDARY_COLLAPSE.items() for g in yes}
+    post_hoc = [(o, g) for o in SOLVERS for g in collapses_any[o] if (o, g) not in predicted]
+    L.append("- Collapses observed but not predicted (post hoc; they need fresh instances to count): "
+             + ("; ".join(f"{NAME[o]} on {g} ({collapse(adv, o, g)[1]}/{collapse(adv, o, g)[2]})"
+                          for o, g in post_hoc) or "none") + ".")
+    for opt, hids in [("cma_es", ["H4", "H5"]), ("turbo", ["H6"])]:
+        held = [h for h in hids if verdict[h][0]]
+        ph = [g for o, g in post_hoc if o == opt]
+        L.append(f"- **Does {NAME[opt]} now have a confirmed failure?** "
+                 + (f"Yes: {', '.join(held)} held on instances not used to form it "
+                    f"({', '.join(HYPOTHESES[h][1] for h in held)})." if held else
+                    "No: its frozen collapse prediction did not hold.")
+                 + (f" Unpredicted collapse on {', '.join(ph)}: a candidate for the next study, not a "
+                    "confirmation." if ph else ""))
+    L.append("")
     conf = {rid: any(beats(pairs, a, b, s)[0] for s in ab) and any(beats(pairs, b, a, s)[0] for s in ba)
             for rid, (a, b, ab, ba) in PREDICTED_REVERSALS.items()}
     L += ["## Success criterion (frozen)\n",
@@ -299,8 +318,8 @@ def main():
           f"- R1 and R2 (TuRBO reversals) both confirmed: {'met' if conf['R1'] and conf['R2'] else 'not met'}",
           f"- At least 5 of R1–R8 confirmed: {n_conf}/8, {'met' if n_conf >= 5 else 'not met'}", ""]
     wall = final.groupby(["opt", "dim"]).wall.agg(["count", "median", "max"])
-    wall[["median", "max"]] /= 3600
-    L += ["## Wall time per campaign (hours)\n", md(wall.round(3)), ""]
+    wall[["median", "max"]] /= 60
+    L += ["## Wall time per campaign (minutes)\n", md(wall.round(1)), ""]
     (root / "report.md").write_text("\n".join(L))
     print("\n".join(L))
 

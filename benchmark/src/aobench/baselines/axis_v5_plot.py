@@ -62,11 +62,13 @@ def main():
                     ax.set_ylabel("log₁₀ regret (median)")
                 if i == len(fnames) - 1:
                     ax.set_xlabel("evaluations")
-        fig.suptitle(f"{TITLE[group]} (median, IQR band; 15 seeds)", x=0.01, ha="left", fontsize=12,
-                     fontweight="bold", color=INK)
+        H = fig.get_size_inches()[1]
+        fig.suptitle(f"{TITLE[group]} (median and IQR over 15 seeds)", x=0.01, y=1 - 0.08 / H, ha="left",
+                     va="top", fontsize=12, fontweight="bold", color=INK)
         h, l = axes[0, 0].get_legend_handles_labels()
-        fig.legend(h, l, loc="upper right", ncol=6, frameon=False, fontsize=9, handlelength=3)
-        fig.tight_layout(rect=[0, 0, 1, 1 - 0.75 / fig.get_size_inches()[1]])
+        fig.legend(h, l, loc="upper left", bbox_to_anchor=(0.0, 1 - 0.38 / H), ncol=3, frameon=False,
+                   fontsize=9, handlelength=3)
+        fig.tight_layout(rect=[0, 0, 1, 1 - 0.95 / H])
         fn_out = out / f"{group}.png"
         fig.savefig(fn_out, dpi=140); plt.close(fig); print(fn_out)
 
