@@ -21,10 +21,10 @@ Two settings are the only departures from a stock run:
   so SMAC sees the same continuous box as every other optimizer here.
 - `deterministic=True`, so SMAC does not re-run a configuration under new
   seeds. Noisy tasks are therefore handled by the surrogate's own noise
-  model, as for GP-BO, rather than by repeated evaluations.
+  model rather than by repeated evaluations.
 
 The budget is needed up front because it sets the initial-design cap;
-campaign.py passes it (`takes_budget = True`).
+aobench.run passes it (`takes_budget = True`).
 
 By convention, this optimizer MINIMIZES the objective (matching the rest
 of this package).
@@ -54,7 +54,7 @@ class SMAC:
         Number of evaluations the campaign will request.
     """
 
-    takes_budget = True  # campaign.py passes the budget to the constructor
+    takes_budget = True  # aobench.run passes the budget to the constructor
 
     def __init__(self, bounds, seed: Optional[int] = None, budget: int = 100):
         self.bounds = np.asarray(bounds, dtype=float)

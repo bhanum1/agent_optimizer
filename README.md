@@ -11,9 +11,9 @@ The repository has two parts:
 - **[`skill/agentoptimizer/`](skill/agentoptimizer/)** is the product: the skill,
   its decision method, an optimizer library and the `aopt` command that keeps the
   campaign's records.
-- **[`benchmark/`](benchmark/README.md)** is the research harness. It runs the same
-  skill on benchmark tasks under a sandbox, with a program standing in for the user,
-  and compares it with baseline optimizers.
+- **[`benchmark/`](benchmark/README.md)** is a small benchmark of six baseline
+  optimizers, with tasks chosen so that each one is good on some task and bad on
+  another.
 
 ## Install the skill
 
@@ -98,14 +98,13 @@ failed points and cancelled points.
 ```text
 skill/agentoptimizer/
   SKILL.md                     the skill: interview, setup, each invocation
-  METHOD.md                    the decision method (also the benchmark agent's prompt)
+  METHOD.md                    the decision method
   aopt                         the command; scripts/aoptcore/ is its Python core
   lib/                         optimizer library; host.py and check.py run and test optimizers
   references/                  problem format and variable encoding
   install.sh  pyproject.toml   install, and the optimizer runtime's dependencies
   tests/
 benchmark/
-  src/aobench/                 tasks, baselines, sandboxed runner
-  data/                        benchmark inputs and the pipelines that produced them
-  external/, runs/             git-ignored private data and outputs
+  src/aobench/                 tasks, baselines and the runner
+  runs/                        git-ignored outputs
 ```

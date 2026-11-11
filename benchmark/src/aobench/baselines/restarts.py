@@ -1,4 +1,4 @@
-"""Independent restarts from uniform random points (the axis study v3).
+"""Independent restarts from uniform random points.
 
 `Restarting(cls, bounds, seed)` starts `cls` at a uniform random point in the
 box. Whenever the solver signals OptimizerExhausted (it converged or stopped),

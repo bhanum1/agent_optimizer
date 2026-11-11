@@ -5,8 +5,7 @@ authors' code (uber-research/TuRBO) is a monolithic run-to-completion
 script on an older GP stack, not a pip package with an ask/tell API. The
 commonly used modern reference is BoTorch's own official tutorial, which
 is example code, not a library class. This module follows that tutorial's
-recipe directly, reusing this project's existing BoTorch-based GP setup
-(as in gp_bo.py).
+recipe directly, on BoTorch's SingleTaskGP.
 
 Standard, no-tuning defaults, all from the TuRBO paper / BoTorch's own
 tutorial:
@@ -34,7 +33,7 @@ tutorial:
   only the data used to fit the *current* trust region's GP is local.
 
 One deliberate departure from the tutorial, to make large budgets
-affordable (as in gp_bo.py): the GP hyperparameters are refit only every
+affordable: the GP hyperparameters are refit only every
 refit_every=50 evaluations, and always on a new trust region's first
 batch. In between, each batch still conditions the GP on all local data,
 reusing the last fitted hyperparameters (so the trust region's
@@ -64,7 +63,15 @@ from botorch.models.transforms.input import Normalize
 from botorch.models.transforms.outcome import Standardize
 from gpytorch.mlls import ExactMarginalLogLikelihood
 
-from .gp_bo import _gp_hyperparams
+
+
+def _gp_hyperparams(model):
+    """Copy of a fitted SingleTaskGP's kernel, mean and likelihood state."""
+    return {
+        k: v.clone()
+        for k, v in model.state_dict().items()
+        if k.startswith(("likelihood.", "mean_module.", "covar_module."))
+    }
 
 
 class TuRBO:
