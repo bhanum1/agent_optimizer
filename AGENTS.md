@@ -9,29 +9,21 @@ for the benchmark.
 
 ## Rules
 
-- **Two projects.** `skill/agentoptimizer/` is a standalone uv project (the skill's
-  runtime and its core, `aoptcore`). The root project is the benchmark (`aobench`,
-  in `benchmark/src/`). It depends on the skill as an editable path dependency. The
-  skill never imports `aobench`.
+- **Two independent projects.** `skill/agentoptimizer/` is a standalone uv project
+  (the skill's runtime and its core, `aoptcore`). The root project is the benchmark
+  (`aobench`, in `benchmark/src/`): six baseline optimizers on a few BBOB tasks.
+  Neither imports the other.
 - **Dependencies** live in `pyproject.toml` and `uv.lock` files. Change them with
   `uv add` / `uv lock` (`--project skill/agentoptimizer` for the skill), never by
-  installing into an environment by hand. Two environments:
-  - `.venv` is the evaluator.
-  - `.agent-venv` is the benchmark's agent runtime, built from the skill project
-    alone. Never install `aobench` or any objective backend into it.
-
-  The skill's `[tool.uv] constraint-dependencies` and the root's must agree: they
-  pin the optimizer libraries.
-- **The skill folder is an interface.** It is copied as-is into each benchmark
-  sandbox and linked into users' skills directories, so put nothing there a user or
-  the agent should not see. Keep `lib/` importable on its own (flat imports such as
-  `from _base import Base`), with no import of `aoptcore` or `aobench`. `aoptcore`
-  needs only the skill project's dependencies.
-- **The skill is an experimental condition.** Changing `METHOD.md`, `lib/` or the
-  core's validation and driver changes what every later benchmark run measures.
-  Record why in the commit message. `SKILL.md` affects only interactive use.
-- **Task identities stay private.** Nothing from `benchmark/src/aobench/tasks/` may
-  reach a sandbox. The benchmark's `PROBLEM.md` carries no domain knowledge.
+  installing into an environment by hand. The optimizer library versions pinned in
+  the two projects' `constraint-dependencies` should agree.
+- **The skill folder is an interface.** It is linked into users' skills
+  directories, so put nothing there a user or the agent should not see. Keep `lib/`
+  importable on its own (flat imports such as `from _base import Base`), with no
+  import of `aoptcore` or `aobench`.
+- **The benchmark stays small.** Its one purpose is to show that every solver fails
+  somewhere: each baseline should have a task where it is good and one where it is
+  bad. Add a task only when it shows something the others do not.
 - **Test the core** with `uv run --project skill/agentoptimizer pytest` after changing
   `aoptcore` or `lib/`.
-- **No results in git.** Campaign outputs go to `benchmark/runs/` (ignored).
+- **No results in git.** Benchmark outputs go to `benchmark/runs/` (ignored).

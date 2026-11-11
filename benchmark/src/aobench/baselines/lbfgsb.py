@@ -1,12 +1,9 @@
 """L-BFGS-B with finite-difference gradients (Byrd, Lu, Nocedal & Zhu, 1995).
 
-L-BFGS-B is closed-loop, like BOBYQA and NelderMead: scipy's
-implementation calls the objective function itself rather than accepting
-values back from outside. This module reuses the exact same thread+queue
-pattern as bobyqa.py and nelder_mead.py (see those modules' docstrings,
-and this project's own survey, docs/.../literature/A2_gradient_dfo_exact.md
-section 1.1, for why) to give it the same ask/tell interface as every
-other optimizer in this package.
+L-BFGS-B is closed-loop: scipy's implementation calls the objective itself
+rather than accepting values from outside. As in cobyla.py, the solver runs
+in a background thread and a pair of queues gives it the same ask/tell
+interface as every other optimizer in this package.
 
 No analytic gradient is supplied, deliberately: this is meant to be a
 fair black-box baseline, not one that secretly sees the objective's
@@ -28,10 +25,10 @@ Standard, no-tuning defaults:
   early -- this project's external budget controls how long the search
   runs, exactly as for every other optimizer here.
 
-Like Nelder-Mead, this is a local method: it is expected to converge (and
+This is a local method: it is expected to converge (and
 stop proposing points) well before a large budget is used. If `ask` is
 called after it has converged, `OptimizerExhausted` is raised, which
-baselines/campaign.py already handles by stopping the campaign cleanly.
+aobench.run handles by stopping the campaign cleanly.
 
 By convention, this optimizer MINIMIZES the objective (matching the rest
 of this package).
@@ -77,7 +74,7 @@ class LBFGSB:
 
     deterministic = True  # seed is unused; one seed is enough in sweeps
 
-    def __init__(self, bounds, seed: Optional[int] = None):
+    def __init__(self, bounds, seed: Optional[int] = None, x0=None):
         self.bounds = np.asarray(bounds, dtype=float)
         if self.bounds.ndim != 2 or self.bounds.shape[1] != 2:
             raise ValueError(
@@ -86,7 +83,7 @@ class LBFGSB:
         self.dim = self.bounds.shape[0]
 
         lower, upper = self.bounds[:, 0], self.bounds[:, 1]
-        self.x0 = (lower + upper) / 2
+        self.x0 = (lower + upper) / 2 if x0 is None else np.asarray(x0, dtype=float)
 
         self._ask_q: "queue.Queue" = queue.Queue()
         self._tell_q: "queue.Queue" = queue.Queue()
