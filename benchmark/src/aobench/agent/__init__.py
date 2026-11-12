@@ -1,7 +1,7 @@
 """The agent harness: run the skill on a benchmark task, with the harness as its user.
 
-    python -m aobench.agent --out benchmark/runs/agent --tasks gallagher --seeds 1
-    python -m aobench.agent --out benchmark/runs/try --tasks gallagher --agent fake
+    python -m aobench.agent --out benchmark/runs/agent --tasks unstructured_2d --seeds 1
+    python -m aobench.agent --out benchmark/runs/try --tasks unstructured_2d --agent fake
 
 One campaign, for one task and seed (campaign.py):
 1. Make a fresh workspace with a copy of the skill, write the problem definition

@@ -84,7 +84,7 @@ The project folder:
 
 ```bash
 uv sync --locked
-.venv/bin/python -m aobench.agent --out benchmark/runs/agent --tasks gallagher --seeds 1
+.venv/bin/python -m aobench.agent --out benchmark/runs/agent --tasks unstructured_2d --seeds 1
 ```
 
 The agent runs in a bubblewrap sandbox, so this needs Linux with `bwrap` and

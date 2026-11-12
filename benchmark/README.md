@@ -17,14 +17,16 @@ so each seed is a differently shifted and rotated copy. Noise, when present, is
 COCO's multiplicative model on the gap to the optimum, `g · exp(β · N(0, 1))`.
 Scores use the noise-free value of the best point observed.
 
-| Task | Function | d | Budget | Good | Bad | Why |
-|---|---|---|---|---|---|---|
-| `ellipsoid` | f10, condition 1e6 | 5 | 1500 | L-BFGS-B | COBYLA, SMAC | smooth and unimodal, so gradients win |
-| `noisy_ellipsoid` | f10, β = 0.01 | 5 | 1500 | CMA-ES | L-BFGS-B | 1% noise swamps finite-difference gradients |
-| `very_noisy_sphere` | f1, β = 1 | 5 | 1500 | SMAC | L-BFGS-B, COBYLA | noise as large as the signal: local models fit the noise |
-| `step_ellipsoid` | f7 | 5 | 1500 | CMA-ES | L-BFGS-B | plateaus, zero gradient almost everywhere |
-| `noisy_sphere` | f1, β = 0.01 | 10 | 300 | COBYLA | L-BFGS-B, CMA-ES, SMAC | few evaluations: linear models converge through small noise; CMA-ES is too slow to start |
-| `gallagher` | f21, 101 peaks | 2 | 60 | GP-BO | L-BFGS-B, COBYLA, CMA-ES | a global model finds the best peak; local solvers climb the nearest one |
+Each task is named for the one property it tests:
+
+| Task | Tests | Function | d | Budget | Good | Bad | Why |
+|---|---|---|---|---|---|---|---|
+| `ill_conditioned` | exploiting smooth, ill-conditioned structure | f10 ellipsoid, condition 1e6 | 5 | 1500 | L-BFGS-B | COBYLA, SMAC | smooth and unimodal, so gradients win |
+| `ill_conditioned_noisy` | the same, with small noise | f10 ellipsoid, β = 0.01 | 5 | 1500 | CMA-ES | L-BFGS-B | 1% noise swamps finite-difference gradients |
+| `noise_dominated` | noise as large as the signal | f1 sphere, β = 1 | 5 | 1500 | SMAC | L-BFGS-B, COBYLA | local models fit the noise |
+| `plateaus` | no local slope information | f7 step ellipsoid | 5 | 1500 | CMA-ES | L-BFGS-B | flat steps, zero gradient almost everywhere |
+| `few_evals_10d` | sample efficiency in moderate dimension | f1 sphere, β = 0.01 | 10 | 300 | COBYLA | L-BFGS-B, CMA-ES, SMAC | linear models converge through small noise; CMA-ES is too slow to start |
+| `unstructured_2d` | low dimension, no global structure | f21 Gallagher, 101 peaks | 2 | 60 | GP-BO | L-BFGS-B, COBYLA, CMA-ES | a global model finds the best peak; local solvers climb the nearest one |
 
 The tasks are defined in [`src/aobench/tasks.py`](src/aobench/tasks.py). Add one by
 adding an entry to `SPECS`, but only if it shows something the others do not.
@@ -33,9 +35,9 @@ adding an entry to `SPECS`, but only if it shows something the others do not.
 
 ```bash
 uv sync --locked
-.venv/bin/python -m aobench.agent --out benchmark/runs/agent --tasks gallagher --seeds 1
-.venv/bin/python -m aobench.agent --out benchmark/runs/agent --tasks gallagher --seed 3 --model claude-sonnet-5-5 --effort medium
-.venv/bin/python -m aobench.agent --out benchmark/runs/try --tasks gallagher --agent fake
+.venv/bin/python -m aobench.agent --out benchmark/runs/agent --tasks unstructured_2d --seeds 1
+.venv/bin/python -m aobench.agent --out benchmark/runs/agent --tasks unstructured_2d --seed 3 --model claude-sonnet-5-5 --effort medium
+.venv/bin/python -m aobench.agent --out benchmark/runs/try --tasks unstructured_2d --agent fake
 ```
 
 For each task and seed, the harness:

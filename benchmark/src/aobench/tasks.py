@@ -62,21 +62,27 @@ class BBOBTask:
 
 
 SPECS = {
-    # f10 rotated ellipsoid, condition 1e6. Smooth and unimodal: gradients win.
-    "ellipsoid": Spec(10, 5, 1500, "lbfgsb", "cobyla, smac"),
-    # The same ellipsoid with 1% noise: finite-difference gradients become noise.
-    "noisy_ellipsoid": Spec(10, 5, 1500, "cma_es", "lbfgsb", beta=0.01),
-    # f1 sphere with noise as large as the gap: L-BFGS-B's finite differences and
-    # COBYLA's linear models fit the noise.
-    "very_noisy_sphere": Spec(1, 5, 1500, "smac", "lbfgsb, cobyla", beta=1.0),
-    # f7 step ellipsoid: flat plateaus, zero gradient almost everywhere.
-    "step_ellipsoid": Spec(7, 5, 1500, "cma_es", "lbfgsb"),
-    # f1 sphere with 1% noise at d = 10 and 30d evaluations: COBYLA's linear models converge
-    # fast through the noise; finite differences turn to noise; CMA-ES is too slow to start.
-    "noisy_sphere": Spec(1, 10, 300, "cobyla", "lbfgsb, cma_es, smac", beta=0.01),
-    # f21 Gallagher, 101 Gaussian peaks, at d = 2 and 30d evaluations: a global GP finds the
-    # best peak; local solvers climb whichever peak is nearest.
-    "gallagher": Spec(21, 2, 60, "gpbo", "lbfgsb, cobyla, cma_es"),
+    # Each task tests one property of the problem; the name says which.
+    # Smooth and unimodal but ill-conditioned (f10 ellipsoid, condition 1e6): rewards exploiting
+    # smooth structure with gradients or quadratic models; COBYLA and SMAC fall short.
+    "ill_conditioned": Spec(10, 5, 1500, "lbfgsb", "cobyla, smac"),
+    # The same ellipsoid with 1% noise: small noise breaks finite-difference gradients, so the
+    # method has to cope with ill-conditioning without exact local slopes.
+    "ill_conditioned_noisy": Spec(10, 5, 1500, "cma_es", "lbfgsb", beta=0.01),
+    # An easy function (f1 sphere) whose noise is as large as the gap: tests averaging out noise.
+    # L-BFGS-B's finite differences and COBYLA's linear models fit the noise.
+    "noise_dominated": Spec(1, 5, 1500, "smac", "lbfgsb, cobyla", beta=1.0),
+    # f7 step ellipsoid: flat plateaus with zero gradient almost everywhere; tests search
+    # without local slope information.
+    "plateaus": Spec(7, 5, 1500, "cma_es", "lbfgsb"),
+    # f1 sphere with 1% noise at d = 10 and only 30d evaluations: tests sample efficiency in
+    # moderate dimension. COBYLA's linear models converge fast through the noise; finite
+    # differences turn to noise; CMA-ES is too slow to start.
+    "few_evals_10d": Spec(1, 10, 300, "cobyla", "lbfgsb, cma_es, smac", beta=0.01),
+    # f21 Gallagher, 101 Gaussian peaks placed at random, at d = 2 and 30d evaluations: low
+    # dimension with no global structure. A global GP finds the best peak; local solvers climb
+    # whichever peak is nearest.
+    "unstructured_2d": Spec(21, 2, 60, "gpbo", "lbfgsb, cobyla, cma_es"),
 }
 
 

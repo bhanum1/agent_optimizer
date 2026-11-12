@@ -44,12 +44,12 @@ METHODS = {
     "agent": ("Agent", "#7B2D8E", "-"),
 }
 TITLES = {
-    "ellipsoid": "Ellipsoid",
-    "noisy_ellipsoid": "Noisy ellipsoid",
-    "very_noisy_sphere": "Very noisy sphere",
-    "step_ellipsoid": "Step ellipsoid",
-    "noisy_sphere": "Noisy sphere",
-    "gallagher": "Gallagher",
+    "ill_conditioned": "Ill-conditioned",
+    "ill_conditioned_noisy": "Ill-conditioned, 1% noise",
+    "noise_dominated": "Noise-dominated",
+    "plateaus": "Plateaus",
+    "few_evals_10d": "Few evaluations",
+    "unstructured_2d": "Unstructured",
 }
 STYLE = {
     "font.family": "serif",
