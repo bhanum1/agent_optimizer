@@ -105,14 +105,14 @@ class Campaign:
                 self.best_y, self.regret = y, ev.y_true - self.task.f_opt
             self.rows.append((len(self.rows) + 1, y, self.regret))
         pending = self.measure_pending()
+        entries = [json.loads(line) for line in (self.logs / "calls.jsonl").read_text().splitlines() if line]
         # Finish the block that was running, if any: aopt saves its optimizer when the harness's end of
         # its input closes, so it can go on. On a finished block it only says so.
-        used, messages = self.run_block()
+        used, messages = self.run_block() if any(e.get("committed") for e in entries) else (0, [])
         with open(self.logs / "calls.jsonl", "a") as f:
             f.write(json.dumps({"resumed": True, "replayed": len(self.rows) - pending - used,
                                 "evaluations": pending + used, "messages": messages}) + "\n")
         calls = [int(d.name) for d in (self.logs / "calls").glob("[0-9]*") if d.name.isdigit()]
-        entries = [json.loads(line) for line in (self.logs / "calls.jsonl").read_text().splitlines() if line]
         entries = [e for e in entries if not self.unreached(e) and not e.get("resumed")]
         if messages:
             return max(calls, default=0) + 1, self.note({"committed": True, "messages": messages})
