@@ -63,6 +63,7 @@ The agent runs `aopt` for you, but you can run it yourself from the folder that 
 |---|---|
 | `aopt status` | Shows the budget used, the best point so far, the current block and the points to measure. |
 | `aopt suggest` | Passes new results back to the block's optimizer and requests the next point(s). |
+| `aopt suggest --serve` | The same for a whole block in one process, keeping the optimizer in memory: after each request, fill in the values and send a line on stdin. For scripted measurements. |
 | `aopt init [--import data.csv]` | Creates `.agentoptimizer/` around a `problem.yaml`. |
 | `aopt validate`, `aopt commit` | Check the agent's proposal, and record it as a new block. |
 | `aopt encode`, `aopt decode` | Convert between a configuration and the optimizer's numeric point. |

@@ -21,7 +21,8 @@ from .problem import problem_md, problem_yaml
 SKILL_IGNORE = shutil.ignore_patterns(".venv", "uv.lock", "tests", "install.sh", "__pycache__", ".DS_Store",
                                       "*.egg-info", ".pytest_cache")
 # `aopt suggest` output that is not news: everything else it prints is a message about the block.
-ROUTINE = ("Requested", "Still waiting", " ", "Measure them", "The budget is spent", "Block ")
+ROUTINE = ("Requested", "Still waiting", " ", "Measure them", "The budget is spent", "Block ", "Waiting:")
+WAITING = "Waiting:"  # `aopt suggest --serve` asks for the pending rows to be measured
 MAX_FAILURES = 3  # consecutive calls that yield no evaluation before the campaign stops
 
 PROMPT = """You are deciding the next block of an optimization campaign. The skill is in `skill/`: \
@@ -59,14 +60,16 @@ class Campaign:
         (self.project / "PROBLEM.md").write_text(problem_md(self.task))
         self.aopt("init")
 
-    def aopt(self, *args, check=True) -> subprocess.CompletedProcess:
+    def aopt_command(self, *args) -> tuple[list[str], dict]:
         # In the sandbox too: `aopt suggest` runs the agent's optimizer code.
         if self.sandboxed:
             aopt = sandbox.root(self.workspace) / "skill" / "aopt"
-            command, env = sandbox.sandboxed(self.workspace, [str(aopt), *args], {})
-        else:
-            command = [str(self.workspace / "skill" / "aopt"), *args]
-            env = {**os.environ, "AOPT_PYTHON": str(skill_python())}
+            return sandbox.sandboxed(self.workspace, [str(aopt), *args], {})
+        return ([str(self.workspace / "skill" / "aopt"), *args],
+                {**os.environ, "AOPT_PYTHON": str(skill_python())})
+
+    def aopt(self, *args, check=True) -> subprocess.CompletedProcess:
+        command, env = self.aopt_command(*args)
         out = subprocess.run(command, cwd=self.workspace, env=env, capture_output=True, text=True)
         if check and out.returncode != 0:
             raise RuntimeError(f"aopt {' '.join(args)} failed:\n{out.stdout}{out.stderr}")
@@ -136,18 +139,41 @@ class Campaign:
         return {"exit": code, **final_event(logs / "events.jsonl")}
 
     def run_block(self) -> tuple[int, list[str]]:
-        """Work through the committed block as a user would. Returns evaluations made and aopt's messages."""
+        """Work through the committed block as a user would. Returns evaluations made and aopt's messages.
+
+        One `aopt suggest --serve` for the whole block, so the optimizer stays in memory: after each
+        request it waits for the pending rows to be measured and a line on its stdin.
+        """
         used, messages = 0, []
-        while True:
-            out = self.aopt("suggest", check=False)
-            if out.returncode != 0:
-                messages.append((out.stderr or out.stdout).strip())
-                break
-            messages += [line for line in out.stdout.splitlines() if line and not line.startswith(ROUTINE)]
-            n = self.measure_pending()
-            if n == 0:
-                break
-            used += n
+        command, env = self.aopt_command("suggest", "--serve")
+        log = self.logs / "serve.log"  # aopt's stderr, block after block
+        start = log.stat().st_size if log.exists() else 0
+        with open(log, "a") as errors:
+            process = subprocess.Popen(command, cwd=self.workspace, env=env, stdin=subprocess.PIPE,
+                                       stdout=subprocess.PIPE, stderr=errors, text=True, bufsize=1)
+            try:
+                for line in process.stdout:
+                    line = line.rstrip("\n")
+                    if line and not line.startswith(ROUTINE):
+                        messages.append(line)
+                    if not line.startswith(WAITING):
+                        continue
+                    n = self.measure_pending()
+                    used += n
+                    if n == 0:
+                        break  # the budget is spent: stop, and aopt saves the optimizer
+                    process.stdin.write("\n")
+                    process.stdin.flush()
+                process.stdin.close()
+                process.wait(timeout=600)
+            except (BrokenPipeError, subprocess.TimeoutExpired):
+                process.kill()
+                process.wait()
+        if process.returncode:
+            with open(log) as f:
+                f.seek(start)
+                error = f.read().strip()[-4000:]
+            messages.append(error or f"aopt suggest exited with code {process.returncode}")
         return used, messages
 
     def measure_pending(self) -> int:

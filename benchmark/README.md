@@ -47,9 +47,12 @@ For each task and seed, the harness:
 2. **Calls the agent**: a fresh, headless `claude -p`, told to follow the skill's
    METHOD.md. The agent writes a proposal, either an optimizer of its own or a list
    of points, and validates it.
-3. **Runs the block** as a user would: `aopt commit` and `aopt suggest`, then it
-   evaluates the task at every pending row of `data.csv`, writes the values in and
-   runs `aopt suggest` again, until the block is done.
+3. **Runs the block** as a user would: `aopt commit`, then one `aopt suggest
+   --serve` for the whole block. Each time it waits, the harness evaluates the task
+   at every pending row of `data.csv`, writes the values in and sends it a line.
+   The optimizer stays in memory for the block, so a point costs milliseconds, not
+   a fresh Python and a reload of its state; it sees the same results in the same
+   order as with one `aopt suggest` per point.
 4. Repeats from step 2 until the budget is spent.
 
 The agent and every `aopt` call (which runs the agent's own code) run in a sandbox:
@@ -74,13 +77,13 @@ workspaces go, default `<out>/workspaces`).
 |---|---|
 | [`agent/campaign.py`](src/aobench/agent/campaign.py) | one campaign: the workspace, the call-commit-measure loop, the result |
 | [`agent/problem.py`](src/aobench/agent/problem.py) | the starting files for a task |
-| [`agent/sandbox.py`](src/aobench/agent/sandbox.py) | the bubblewrap sandbox |
+| [`agent/sandbox.py`](src/aobench/agent/sandbox.py) | the sandbox: bubblewrap on Linux, Seatbelt on macOS |
 | [`agent/claude.py`](src/aobench/agent/claude.py) | the `claude -p` command, its login, and its log |
 | [`agent/fake.py`](src/aobench/agent/fake.py) | the scripted stand-in agent |
 
 Per campaign it writes `<out>/<task>/agent/seed_<s>.csv` and, in `seed_<s>/`:
 `workspace.txt` (the workspace's path), one line per call in `calls.jsonl` (blocks,
-cost, time), `transcript.md` (the agent's summarized reasoning, messages, tool calls
+cost, time), `serve.log` (aopt's errors), `transcript.md` (the agent's summarized reasoning, messages, tool calls
 and results, call after call) and each call's prompt, event stream, transcript and
 outputs in `calls/NNN/`.
 

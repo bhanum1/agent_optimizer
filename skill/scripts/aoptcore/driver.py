@@ -3,8 +3,8 @@
 A `Session` opens the current block's optimizer, tells it every result of the
 block it has not seen, asks it for the next point(s), writes them to data.csv
 as pending rows, and saves its state. `aopt suggest` runs one session per call,
-so the optimizer is saved and reloaded between measurements; the benchmark keeps
-one session open for a whole block.
+so the optimizer is saved and reloaded between measurements; `aopt suggest
+--serve` (`serve` below) keeps one session open for the whole block.
 
 The optimizer runs through a handle: `InProcess` (the CLI) or `HostProcess`
 (the benchmark's sandboxed host.py, same JSON-lines protocol).
@@ -281,6 +281,33 @@ def suggest(project: Project) -> tuple[list[dict], list[str]]:
         raise
     s.close()
     return rows, s.messages
+
+
+def serve(project: Project, rounds, report) -> None:
+    """The block in one session: the optimizer stays in memory between measurements.
+
+    Each round writes the new pending rows to data.csv, calls `report(rows, messages)` and
+    then `rounds()`, which returns once the rows are measured (True) or to stop (False).
+    The optimizer's state is saved when the block ends or the rounds stop.
+    """
+    s = Session(project)
+    try:
+        s.open()
+        s.sync()
+        while True:
+            seen = len(s.messages)
+            rows = s.propose()
+            project.table.save()  # the pending rows, for the measurer
+            project.save_label_state(s.label, {**s.st, "saved": False})  # the saved state is behind
+            report(rows, s.messages[seen:])
+            if not project.block_progress(s.block)["pending"] or not rounds():
+                break
+            project.table.read()  # the measurer's values
+            s.sync()
+    except HandleError as e:
+        s.fail(str(e))
+        raise
+    s.close()
 
 
 def settle(project: Project) -> None:

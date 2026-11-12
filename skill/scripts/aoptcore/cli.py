@@ -5,6 +5,8 @@
     aopt validate                     check agent/proposal.json without committing it
     aopt commit                       record agent/proposal.json and agent/decision.md as a new block
     aopt suggest                      tell the block's optimizer new results; request the next point(s)
+    aopt suggest --serve              the same for the whole block, keeping the optimizer in memory:
+                                      after each request, fill in the values and send a line on stdin
     aopt encode '{"name": value}'     a configuration as the optimizer's encoded point
     aopt decode '[...]'               an encoded point as a configuration
 
@@ -32,7 +34,10 @@ def main(argv=None) -> int:
     sub.add_parser("status", help="budget, best point, current block, pending points")
     sub.add_parser("validate", help="check agent/proposal.json")
     sub.add_parser("commit", help="record the agent's proposal as a new block")
-    sub.add_parser("suggest", help="pass back new results and request the next point(s)")
+    p = sub.add_parser("suggest", help="pass back new results and request the next point(s)")
+    p.add_argument("--serve", action="store_true",
+                   help="stay running for the whole block: after each request, measure the pending rows, "
+                        "fill in the values, then send a line on stdin (end of input stops and saves)")
     p = sub.add_parser("encode", help="configuration JSON -> encoded point")
     p.add_argument("config")
     p = sub.add_parser("decode", help="encoded point JSON -> configuration")
@@ -101,7 +106,22 @@ def cmd_commit(a) -> int:
 
 def cmd_suggest(a) -> int:
     proj = project_mod.Project(a.project)
+    if a.serve:
+        driver.serve(proj, _next_round, lambda rows, messages: _report(proj, rows, messages, serving=True))
+        return 0
     rows, messages = driver.suggest(proj)
+    _report(proj, rows, messages)
+    return 0
+
+
+WAITING = "Waiting: fill in the values, then send a line (end of input stops and saves the optimizer)."
+
+
+def _next_round() -> bool:
+    return bool(sys.stdin.readline())
+
+
+def _report(proj, rows, messages, serving=False) -> None:
     for m in messages:
         print(m)
     block = proj.current()
@@ -111,7 +131,7 @@ def cmd_suggest(a) -> int:
         _show(proj, rows)
         print(f"Measure them, fill in {proj.problem.objective}"
               + (f" and {', '.join(proj.problem.constraints)}" if proj.problem.constraints else "")
-              + ", then run `aopt suggest` again.")
+              + (", then send a line." if serving else ", then run `aopt suggest` again."))
     elif progress["pending"]:
         print("Still waiting for these pending rows:")
         _show(proj, progress["pending"])
@@ -119,7 +139,9 @@ def cmd_suggest(a) -> int:
         print("The budget is spent. The best point is in `aopt status`.")
     elif progress["complete"]:
         print(f"Block {block['block']} is complete: ask the agent for the next block.")
-    return 0
+    if serving and progress["pending"]:
+        print(WAITING)
+    sys.stdout.flush()
 
 
 def cmd_encode(a) -> int:

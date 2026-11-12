@@ -48,6 +48,8 @@ class Table:
 
     # ---- reading ------------------------------------------------------------------------------
     def read(self) -> None:
+        """(Re)load data.csv from disk."""
+        self.rows = []
         with open(self.path, newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             fields = reader.fieldnames or []

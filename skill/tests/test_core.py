@@ -210,6 +210,54 @@ def test_batch_through_host_process(tmp_path):
         h.close()
 
 
+def serve_block(root, f, objective):
+    """`aopt suggest --serve` for the whole block, measuring whenever it waits."""
+    import subprocess
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    p = subprocess.Popen([sys.executable, str(scripts / "aopt.py"), "--project", str(root), "suggest", "--serve"],
+                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True,
+                         env={"PYTHONPATH": str(scripts), "PATH": "/usr/bin:/bin"})
+    rounds = 0
+    for line in p.stdout:
+        if line.startswith(cli.WAITING[:8]):
+            measure(root, f, objective)
+            p.stdin.write("\n")
+            p.stdin.flush()
+            rounds += 1
+    p.stdin.close()
+    assert p.wait(30) == 0
+    return rounds
+
+
+@pytest.mark.parametrize("parallel", [1, 3])
+def test_serve_matches_suggest(tmp_path, parallel):
+    def campaign(where, run):
+        root = make(where, dict(BOX, parallel=parallel))
+        assert propose(root, script="work/hill.py", label="h", n_points=9, state="restart") == 0
+        run(root, loss_of, "loss")
+        assert propose(root, script="work/hill.py", label="h", n_points=5, state="continue") == 0
+        run(root, loss_of, "loss")  # resumes from the state the first block saved
+        return [(r["block"], r["x0"], r["x1"], r["x2"], r["status"]) for r in read(root)]
+    (tmp_path / "a").mkdir(), (tmp_path / "b").mkdir()
+    one_by_one = campaign(tmp_path / "a", run_block)
+    served = campaign(tmp_path / "b", serve_block)
+    assert served == one_by_one and len(served) == 14 and all(r[-1] == "measured" for r in served)
+
+
+def test_serve_stops_and_saves_on_end_of_input(tmp_path):
+    import subprocess
+    root = make(tmp_path, BOX)
+    assert propose(root, script="work/hill.py", label="h", n_points=6, state="restart") == 0
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    p = subprocess.run([sys.executable, str(scripts / "aopt.py"), "--project", str(root), "suggest", "--serve"],
+                       input="", capture_output=True, text=True, env={"PYTHONPATH": str(scripts)})
+    assert p.returncode == 0 and cli.WAITING in p.stdout
+    assert json.loads((root / "state/h.json").read_text())["saved"] is True
+    measure(root, loss_of, "loss")
+    run_block(root, loss_of, "loss")  # the plain command picks up where it stopped
+    assert len(read(root)) == 6
+
+
 def test_replicates_on_noisy_problem(tmp_path):
     rows = [{"x0": 1, "x1": 1, "x2": 1, "loss": 0.1}]
     root = make(tmp_path, dict(BOX, noise={"present": True}), rows)
