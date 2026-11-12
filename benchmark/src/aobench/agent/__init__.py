@@ -9,9 +9,9 @@ One campaign, for one task and seed (campaign.py):
 2. Call the agent: a fresh, headless `claude -p` in the workspace (claude.py),
    told to follow the skill's METHOD.md. It writes a proposal: an optimizer of
    its own, or a list of points.
-3. `aopt commit`, then `aopt suggest`; evaluate the task at every pending row of
-   `data.csv`, write the values in, and `aopt suggest` again, until the block is
-   done. This is exactly what a user does by hand.
+3. `aopt commit`, then one `aopt suggest --serve` for the block: each time it
+   waits, evaluate the task at every pending row of `data.csv`, write the values
+   in and send it a line, until the block is done. This is what a user does by hand.
 4. Repeat from 2 until the budget is spent.
 
 The harness talks to the skill only through `aopt` and the project files, as a
@@ -38,8 +38,15 @@ Layout, per campaign:
     <out>/<task>/agent/seed_<s>/transcript.md  every call's reasoning, messages, tool calls and results
     <out>/<task>/agent/seed_<s>/calls/NNN/     prompt, event stream, transcript.md, stderr, the agent's outputs
 
-Finished campaigns (their CSV exists) are skipped. An unfinished one is not
-resumed: its workspace is removed and it starts again.
+    <out>/<task>/agent/seed_<s>/end.json       why the campaign ended: budget, failures, api or calls
+
+Campaigns that ended (end.json) are skipped. An interrupted one is resumed from
+its workspace (--fresh starts it again): the harness replays data.csv's measured
+rows through the task, which also replays the noise stream, measures any rows a
+killed block left pending, runs that block to its end and calls the agent again.
+--retry-stopped also resumes campaigns that ended before the budget. A call that
+cannot reach the API is not counted as a failure: the harness waits (30 s,
+doubling to 15 min) and calls again, and ends the campaign as "api" after 4 hours.
 """
 from __future__ import annotations
 

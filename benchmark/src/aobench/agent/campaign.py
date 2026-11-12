@@ -24,6 +24,9 @@ SKILL_IGNORE = shutil.ignore_patterns(".venv", "uv.lock", "tests", "install.sh",
 ROUTINE = ("Requested", "Still waiting", " ", "Measure them", "The budget is spent", "Block ", "Waiting:")
 WAITING = "Waiting:"  # `aopt suggest --serve` asks for the pending rows to be measured
 MAX_FAILURES = 3  # consecutive calls that yield no evaluation before the campaign stops
+# A call that fails to reach the API (network down, a proxy, an outage) is not the agent's failure: the harness
+# waits and calls again, for up to API_PATIENCE seconds in a row, then stops the campaign as "api".
+API_WAIT, API_WAIT_MAX, API_PATIENCE = 30, 900, 4 * 3600
 
 PROMPT = """You are deciding the next block of an optimization campaign. The skill is in `skill/`: \
 read `skill/METHOD.md` and follow it. The project folder is `.agentoptimizer/`, and `aopt` is `skill/aopt`, \
@@ -75,16 +78,74 @@ class Campaign:
             raise RuntimeError(f"aopt {' '.join(args)} failed:\n{out.stdout}{out.stderr}")
         return out
 
-    def run(self) -> str:
-        self.prepare()
-        failures, note = 0, ""
-        for number in range(1, self.max_calls + 1):
+    def resumable(self) -> bool:
+        return (self.project / "data.csv").is_file() and (self.logs / "calls.jsonl").is_file()
+
+    def resume(self) -> tuple[int, str]:
+        """Pick up an interrupted or stopped campaign from its workspace. Returns the next call's number and note.
+
+        The harness's own record is rebuilt from data.csv: its measured rows are evaluated again in order,
+        which replays the noise stream, so the campaign goes on exactly as if it had not stopped. Rows a
+        killed block left pending are measured and the block is run to its end, as a user would. If that
+        block's optimizer was not saved, aopt says so, and the agent hears it in the next prompt.
+        """
+        (self.logs / "end.json").unlink(missing_ok=True)
+        self.result.unlink(missing_ok=True)
+        with open(self.project / "data.csv", newline="") as f:
+            rows = [r for r in csv.DictReader(f) if r["status"] == "measured" and r["y"] != ""]
+        for r in rows[:self.budget]:
+            ev = self.task.evaluate(np.array([float(r[f"x{i}"]) for i in range(self.task.dim)]))
+            if float(r["y"]) != ev.y:
+                raise RuntimeError(f"cannot resume: row {r['id']} of data.csv does not match its replay")
+            if ev.y < self.best_y:
+                self.best_y, self.regret = ev.y, ev.y_true - self.task.f_opt
+            self.rows.append((len(self.rows) + 1, ev.y, self.regret))
+        pending = self.measure_pending()
+        # Finish the block that was running, if any: aopt saves its optimizer when the harness's end of
+        # its input closes, so it can go on. On a finished block it only says so.
+        used, messages = self.run_block()
+        with open(self.logs / "calls.jsonl", "a") as f:
+            f.write(json.dumps({"resumed": True, "replayed": len(self.rows) - pending - used,
+                                "evaluations": pending + used, "messages": messages}) + "\n")
+        calls = [int(d.name) for d in (self.logs / "calls").glob("[0-9]*") if d.name.isdigit()]
+        entries = [json.loads(line) for line in (self.logs / "calls.jsonl").read_text().splitlines() if line]
+        entries = [e for e in entries if not self.unreached(e) and not e.get("resumed")]
+        if messages:
+            return max(calls, default=0) + 1, self.note({"committed": True, "messages": messages})
+        return max(calls, default=0) + 1, self.note(entries[-1]) if entries else ""
+
+    @staticmethod
+    def unreached(entry: dict) -> bool:
+        """A call that never reached the API (logs from before `api_error` was recorded show it as a free error)."""
+        return not entry.get("committed") and bool(
+            entry.get("api_error") or (entry.get("is_error") and not entry.get("total_cost_usd")))
+
+    @staticmethod
+    def note(entry: dict) -> str:
+        """What the next prompt says about the previous call."""
+        if entry.get("committed"):
+            messages = entry.get("messages") or []
+            return ("" if not messages else
+                    " The last block ended early: " + " ".join(messages) + " Details are in decisions.md.")
+        if "rejected" in entry:
+            return f" Your previous call produced no block that could be committed: {entry['rejected']}"
+        return ""
+
+    def run(self, resume: bool = False) -> str:
+        if resume and self.resumable():
+            first, note = self.resume()
+        else:
+            self.prepare()
+            first, note = 1, ""
+        failures, api_down, api_errors = 0, 0.0, 0
+        for number in range(first, first + self.max_calls):
             remaining = self.budget - len(self.rows)
             if remaining <= 0:
                 return self.finish("budget")
             for name in ("proposal.json", "decision.md"):
                 (self.project / "agent" / name).unlink(missing_ok=True)
             prompt = PROMPT.format(used=len(self.rows), budget=self.budget, remaining=remaining, note=note)
+            previous_note = note
             t0 = time.time()
             info = self.call(number, prompt)
             commit = self.aopt("commit", check=False)
@@ -96,15 +157,22 @@ class Campaign:
                 entry["proposal"] = proposal
                 used, messages = self.run_block()
                 entry["messages"] = messages
-                note = ("" if not messages else
-                        " The last block ended early: " + " ".join(messages) + " Details are in decisions.md.")
             else:
-                error = (commit.stderr or commit.stdout).strip()
-                entry["rejected"] = error
-                note = f" Your previous call produced no block that could be committed: {error}"
+                entry["rejected"] = (commit.stderr or commit.stdout).strip()
+            note = self.note(entry)
             entry["evaluations"] = used
             with open(self.logs / "calls.jsonl", "a") as f:
                 f.write(json.dumps(entry) + "\n")
+            if self.unreached(entry):
+                # The call never reached the agent: wait and call again, with the same note as before.
+                wait = min(API_WAIT * 2 ** api_errors, API_WAIT_MAX)
+                if api_down + wait > API_PATIENCE:
+                    return self.finish("api")
+                time.sleep(wait)
+                api_down, api_errors = api_down + wait, api_errors + 1
+                note = previous_note
+                continue
+            api_down, api_errors = 0.0, 0
             failures = 0 if used else failures + 1
             if failures >= MAX_FAILURES:
                 return self.finish("failures")

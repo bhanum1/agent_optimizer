@@ -101,7 +101,7 @@ def final_event(events: Path) -> dict:
         except json.JSONDecodeError:
             continue
         if e.get("type") == "result":
-            info = {k: e.get(k) for k in ("total_cost_usd", "num_turns", "duration_ms", "is_error")}
+            info = {k: e.get(k) for k in ("total_cost_usd", "num_turns", "duration_ms", "is_error", "api_error")}
     return info
 
 

@@ -71,7 +71,19 @@ this machine's claude.ai login.
 
 Options: `--model`, `--effort`, `--seeds N` (seeds 0..N-1) or `--seed S` (one seed),
 `--workers` (campaigns at once), `--call-timeout`, `--max-calls`, `--work` (where the
-workspaces go, default `<out>/workspaces`).
+workspaces go, default `<out>/workspaces`), `--fresh`, `--retry-stopped`.
+
+**Interrupted runs continue.** Run the same command again. Campaigns that ended are
+skipped, and an interrupted one is resumed from its workspace: the harness replays the
+measured rows of `data.csv` through the task, which replays the noise stream too, so
+the campaign goes on as if it had not stopped. Rows that a killed block left pending
+are measured, the block runs to its end, and the agent is called again. If that
+block's optimizer was killed with the harness, aopt says its state was lost, and the
+next prompt passes that on. `--fresh` starts interrupted campaigns again instead, and
+`--retry-stopped` also resumes campaigns that ended before the budget (after
+failures, say). A call that cannot reach the API (the network is down, a proxy is in
+the way) does not count as the agent's failure: the harness waits, from 30 s doubling
+to 15 min, and calls again. After 4 hours of that it ends the campaign as `api`.
 
 | Code | Role |
 |---|---|
@@ -83,7 +95,8 @@ workspaces go, default `<out>/workspaces`).
 
 Per campaign it writes `<out>/<task>/agent/seed_<s>.csv` and, in `seed_<s>/`:
 `workspace.txt` (the workspace's path), one line per call in `calls.jsonl` (blocks,
-cost, time), `serve.log` (aopt's errors), `transcript.md` (the agent's summarized reasoning, messages, tool calls
+cost, time, and a `resumed` line where a run picked it up), `end.json` (why it ended:
+`budget`, `failures`, `api` or `calls`), `serve.log` (aopt's errors), `transcript.md` (the agent's summarized reasoning, messages, tool calls
 and results, call after call) and each call's prompt, event stream, transcript and
 outputs in `calls/NNN/`.
 
@@ -126,7 +139,7 @@ in its `__init__.py`.
   `regret.pdf` (mean log₁₀ regret per task, ±1 standard error) and `rank.pdf` (average rank over
   tasks, with each task's rank behind it). Pass more run folders to `--runs` to add an agent run.
 
-Finished campaigns are skipped, so an interrupted run picks up where it stopped.
+Finished baseline campaigns are skipped, so an interrupted run picks up where it stopped.
 
 Each campaign writes `<out>/<task>/<solver>/seed_<seed>.csv` with one row per
 evaluation: `eval, y, regret`. Here `regret` is the noise-free regret of the best
