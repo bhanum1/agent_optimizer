@@ -15,6 +15,7 @@ dependencies = [
     "cma",
     "botorch",
     "smac",
+    "nevergrad",
 ]
 
 [tool.uv]
@@ -28,6 +29,7 @@ constraint-dependencies = [
     "gpytorch==1.15.2",
     "torch==2.14.1",
     "smac==2.4.1",
+    "nevergrad==1.0.12",
     "configspace==1.2.2",
     "scikit-learn==1.9.1",
 ]

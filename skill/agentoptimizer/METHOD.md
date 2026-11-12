@@ -3,9 +3,15 @@
 You run an optimization campaign by deciding one block at a time. Someone else
 measures the objective: a person running experiments, or a program. You never do.
 Each time you are called, you read what has been observed so far and decide the next
-block: an optimizer that you write, its settings, and how many measurements to make
-with it. The block is then worked through point by point, and you are called again
-with the new data.
+block, in one of two ways:
+
+- **Write an optimizer**, choose its settings and how many measurements to make with
+  it. The block is then worked through point by point, the optimizer seeing each
+  result before it proposes the next.
+- **List the points yourself**, in the user's units: a probe of a region, replicates
+  of the best point, a hand-made design.
+
+Either way you are called again when the block is done.
 
 The goal is the best final value: the best measurement (the best feasible one, on a
 constrained problem) when the budget is spent. The whole budget is always used;
@@ -112,17 +118,30 @@ already recorded, at no cost.
 
 ## The proposal
 
-`agent/proposal.json`:
+`agent/proposal.json` takes one of two forms. Both have a `label`: a name of your
+choice matching `[a-z][a-z0-9_]{0,39}`. It labels the block's rows in `data.csv`, and
+each label keeps its own saved state in `state/<label>.state`.
+
+**Listed points.** The block measures exactly these configurations, in the user's
+units, one value per variable:
+
+```json
+{"label": "probe", "points": [{"x0": 1.5, "x1": -2.0}, {"x0": 1.5, "x1": -1.0}]}
+```
+
+Each point must lie within the variables' ranges (and be one of the candidates, if
+there is a candidates file). The whole list is requested at once. Repeats follow
+*Repeated points*: on a deterministic problem an already-measured point is skipped,
+so the block may end with fewer measurements.
+
+**An optimizer you wrote:**
 
 ```json
 {"script": "work/<name>.py", "label": "main", "args": {"seed": 0},
  "n_points": 12, "state": "restart", "warm_start": false}
 ```
 
-- `script`: your optimizer, a file in `work/`.
-- `label`: a name of your choice matching `[a-z][a-z0-9_]{0,39}`. It labels the
-  block's rows in `data.csv`, and each label keeps its own saved state in
-  `state/<label>.state`.
+- `script`: your optimizer, a file in `work/` (see *Writing an optimizer*).
 - `args`: keyword arguments for the optimizer's constructor. They are ignored when
   `state` is `continue`.
 - `n_points`: measurements in this block, from 1 to the remaining budget.

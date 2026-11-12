@@ -10,7 +10,8 @@ The report is printed and written to <out>/report.md.
 import argparse
 from pathlib import Path
 
-from .run import SOLVERS, default_workers, report, run_all
+from .baselines import SOLVERS
+from .run import default_workers, report, run_all
 from .tasks import SPECS
 
 

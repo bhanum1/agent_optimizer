@@ -6,7 +6,7 @@ the maximizer of the acquisition function over the whole box. This is the
 recipe, with no trust region (contrast TuRBO).
 
 Standard, no-tuning defaults:
-- Initial design: 2 * dim scrambled Sobol points (as TuRBO here).
+- Initial design: 2 * dim scrambled Sobol points.
 - Model: SingleTaskGP with BoTorch's default kernel and priors (RBF with
   dimension-scaled lognormal lengthscale prior), inputs normalized to the unit
   cube, outcomes standardized. Hyperparameters refit by marginal likelihood

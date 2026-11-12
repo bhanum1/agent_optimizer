@@ -8,6 +8,9 @@
     blocks/NNN_label.py/.json    each block's optimizer source and proposal
     state/label.state/.json      each label's optimizer state and bookkeeping
     work/                        the agent's scripts and custom optimizers
+
+A proposal names an optimizer the agent wrote (`script`, in work/) or lists the
+block's points itself (`points`); see METHOD.md.
 """
 from __future__ import annotations
 
@@ -18,11 +21,13 @@ from pathlib import Path
 
 from . import problem as problem_mod
 from .data import Table
-from .encoding import Encoder
+from .encoding import Encoder, parse_value
 
 SKILL = Path(__file__).resolve().parents[2]  # the skill folder: host.py, check.py, METHOD.md
 LABEL = re.compile(r"[a-z][a-z0-9_]{0,39}")
 FIELDS = {"script", "label", "args", "n_points", "state", "warm_start"}
+POINTS_FIELDS = {"points", "label", "n_points"}
+POINTS_OPTIMIZER = Path(__file__).with_name("points.py")
 DIRS = ["agent", "blocks", "state", "work"]
 
 
@@ -97,16 +102,17 @@ class Project:
         `cancelling` pending rows will be cancelled when it is committed (they free budget)."""
         if not isinstance(p, dict):
             raise Rejected("the proposal is not a JSON object.")
+        if "points" in p:
+            return self._validate_points(p, self.remaining + cancelling)
         unknown = set(p) - FIELDS
         if unknown:
-            raise Rejected(f"unknown fields {sorted(unknown)}; allowed: {sorted(FIELDS)}.")
+            raise Rejected(f"unknown fields {sorted(unknown)}; allowed: {sorted(FIELDS)}, "
+                           f"or {sorted(POINTS_FIELDS)} to list the points yourself.")
         remaining = self.remaining + cancelling
         n = p.get("n_points")
         if not isinstance(n, int) or isinstance(n, bool) or not 1 <= n <= remaining:
             raise Rejected(f"n_points must be an integer from 1 to {remaining} (the remaining budget).")
-        label, state = p.get("label"), p.get("state", "restart")
-        if not isinstance(label, str) or not LABEL.fullmatch(label):
-            raise Rejected("label must match [a-z][a-z0-9_]{0,39}.")
+        label, state = _label(p), p.get("state", "restart")
         if state not in ("continue", "restart"):
             raise Rejected('state must be "continue" or "restart".')
         args, warm = p.get("args", {}), p.get("warm_start", False)
@@ -121,6 +127,34 @@ class Project:
                 raise Rejected(f'{p["script"]} changed since "{label}" last ran; use "restart" or a new label.')
         return {"script": p["script"], "label": label, "args": args, "n_points": n, "state": state,
                 "warm_start": warm, "_source": source}
+
+    def _validate_points(self, p: dict, remaining: int) -> dict:
+        """A proposal that lists its points, as configurations in the user's units."""
+        unknown = set(p) - POINTS_FIELDS
+        if unknown:
+            raise Rejected(f"unknown fields {sorted(unknown)} with points; allowed: {sorted(POINTS_FIELDS)}.")
+        label, points = _label(p), p["points"]
+        if not isinstance(points, list) or not 1 <= len(points) <= remaining:
+            raise Rejected(f"points must be a list of 1 to {remaining} configurations (the remaining budget).")
+        if p.get("n_points", len(points)) != len(points):
+            raise Rejected("n_points, if given, must equal the number of points.")
+        names = [v.name for v in self.problem.variables]
+        encoded = []
+        for i, config in enumerate(points, 1):
+            if not isinstance(config, dict) or set(config) != set(names):
+                raise Rejected(f"point {i} must be an object with exactly the variables {names}.")
+            try:
+                config = {v.name: parse_value(v, config[v.name]) for v in self.problem.variables}
+            except ValueError as e:
+                raise Rejected(f"point {i}: {e}.")
+            if self.encoder.candidates is None:
+                encoded.append(self.encoder.encode(config))
+            elif (index := self.encoder.candidate_index(config)) is not None:
+                encoded.append(index)
+            else:
+                raise Rejected(f"point {i} is not one of the candidates.")
+        return {"script": "points", "label": label, "args": {"points": encoded}, "n_points": len(points),
+                "state": "restart", "warm_start": False, "_source": POINTS_OPTIMIZER.read_text()}
 
     def read_agent_files(self) -> tuple[dict, str]:
         agent = self.root / "agent"
@@ -167,6 +201,13 @@ class Project:
 
     def note(self, text: str) -> None:
         self.append(f"## Note after {self.table.used} measurements\n\n{text}\n")
+
+
+def _label(p: dict) -> str:
+    label = p.get("label")
+    if not isinstance(label, str) or not LABEL.fullmatch(label):
+        raise Rejected("label must match [a-z][a-z0-9_]{0,39}.")
+    return label
 
 
 def init(root: Path, import_csv: Path | None = None) -> Project:

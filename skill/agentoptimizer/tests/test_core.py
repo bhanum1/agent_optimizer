@@ -2,10 +2,9 @@
 import csv
 import json
 import math
+import shutil
 import sys
 from pathlib import Path
-
-import shutil
 
 import pytest
 import yaml
@@ -214,8 +213,7 @@ def test_batch_through_host_process(tmp_path):
 def test_replicates_on_noisy_problem(tmp_path):
     rows = [{"x0": 1, "x1": 1, "x2": 1, "loss": 0.1}]
     root = make(tmp_path, dict(BOX, noise={"present": True}), rows)
-    assert propose(root, script="work/fixed.py", label="rep", args={"points": [[1.0, 1.0, 1.0]] * 2},
-                   n_points=2, state="restart") == 0
+    assert propose(root, label="rep", points=[{"x0": 1, "x1": 1, "x2": 1}] * 2) == 0
     assert aopt(root, "suggest") == 0
     data = read(root)
     assert [r["replicate_of"] for r in data[1:]] == ["1", "1"]
@@ -224,9 +222,8 @@ def test_replicates_on_noisy_problem(tmp_path):
 def test_deterministic_repeat_is_not_measured_again(tmp_path):
     rows = [{"x0": 1, "x1": 1, "x2": 1, "loss": 0.1}]
     root = make(tmp_path, BOX, rows)
-    pts = [[1.0, 1.0, 1.0], [2.0, 1.0, 1.0]]
-    assert propose(root, script="work/fixed.py", label="probe", args={"points": pts}, n_points=2,
-                   state="restart") == 0
+    pts = [{"x0": 1, "x1": 1, "x2": 1}, {"x0": 2, "x1": 1, "x2": 1}]
+    assert propose(root, label="probe", points=pts) == 0
     assert aopt(root, "suggest") == 0
     data = read(root)
     assert len(data) == 2 and data[1]["x0"] == "2.0"
@@ -254,6 +251,29 @@ def test_rejections(tmp_path):
     assert propose(root, script="work/hill.py", label="a", n_points=99) == 1
     assert propose(root, script="work/hill.py", label="a", n_points=2, state="continue") == 1
     assert propose(root, script="../x.py", label="a", n_points=2) == 1
+
+
+def test_listed_points_mixed(tmp_path):
+    root = make(tmp_path, MIXED)
+    point = {"temp": 80, "pressure": 5, "cycles": 3, "solvent": "dmso", "rpm": 400}
+    assert propose(root, label="probe", points=[point, dict(point, temp=100.5)]) == 0
+    run_block(root, yield_of, "yield")
+    data = read(root)
+    assert [(r["temp"], r["solvent"], r["status"]) for r in data] == [("80.0", "dmso", "measured"),
+                                                                     ("100.5", "dmso", "measured")]
+    assert propose(root, script="work/hill.py", label="h", n_points=2) == 0  # back to an optimizer
+
+
+def test_listed_points_rejections(tmp_path):
+    root = make(tmp_path, BOX)
+    ok = {"x0": 0, "x1": 0, "x2": 0}
+    assert propose(root, label="p", points=[]) == 1
+    assert propose(root, label="p", points=[dict(ok, x0=9)]) == 1  # out of range
+    assert propose(root, label="p", points=[{"x0": 0, "x1": 0}]) == 1  # a variable missing
+    assert propose(root, label="p", points=[ok], n_points=2) == 1
+    assert propose(root, label="p", points=[ok], script="work/hill.py") == 1
+    assert propose(root, label="p", points=[ok] * 41) == 1  # over budget
+    assert propose(root, label="p", points=[ok]) == 0
 
 
 def test_check_script(tmp_path):

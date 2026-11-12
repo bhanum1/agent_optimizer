@@ -81,9 +81,9 @@ reports. With no earlier data, the first block is the initial design.
 
 ## Deciding a block
 
-Read `<skill>/METHOD.md` and follow it: decide the block, write its optimizer, write
-`agent/proposal.json`, `agent/decision.md` and `agent/context.md`, and run
-`<skill>/aopt validate` until it is valid. Then:
+Read `<skill>/METHOD.md` and follow it: decide the block (an optimizer you write, or
+points you list yourself), write `agent/proposal.json`, `agent/decision.md` and
+`agent/context.md`, and run `<skill>/aopt validate` until it is valid. Then:
 
 1. `<skill>/aopt commit` records the block.
 2. `<skill>/aopt suggest` requests its first point(s) in `data.csv`.

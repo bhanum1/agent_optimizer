@@ -28,7 +28,6 @@ class Restarting:
         self.seed = int(seed)
         self._starts = np.random.default_rng([self.seed, 20261110])
         self.n_restarts = 0  # restarts after the first start
-        self.uses_constraints = getattr(cls, "uses_constraints", False)
         self._inner = self._new(0)
 
     def _new(self, k: int):

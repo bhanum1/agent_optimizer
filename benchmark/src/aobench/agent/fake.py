@@ -1,10 +1,12 @@
 """A scripted stand-in for the agent, to test the harness without model calls.
 
 Run in the workspace with the harness's prompt on stdin, it does what a call
-must: write an optimizer in work/, a proposal and a decision, and validate.
-Each block is 25% of the budget (at least 5) of uniform random points.
+must: write a proposal and a decision, and validate. Each block is 25% of the
+budget (at least 5) of uniform random points, and the blocks alternate between
+the two kinds of proposal: an optimizer written to work/, and listed points.
 """
 import json
+import random
 import re
 import subprocess
 import sys
@@ -41,12 +43,18 @@ def main():
     prompt = sys.stdin.read()
     used, budget, remaining = map(int, re.search(r"(\d+) of (\d+) measurements are used; (\d+) remain", prompt).groups())
     project = Path(".agentoptimizer")
-    (project / "work" / "random_points.py").write_text(OPTIMIZER)
     n = min(remaining, max(5, budget // 4))
     block = used // max(5, budget // 4)
-    (project / "agent" / "proposal.json").write_text(json.dumps(
-        {"script": "work/random_points.py", "label": f"rs{block}", "args": {"seed": block},
-         "n_points": n, "state": "restart"}))
+    if block % 2 == 0:
+        (project / "work" / "random_points.py").write_text(OPTIMIZER)
+        proposal = {"script": "work/random_points.py", "label": f"rs{block}", "args": {"seed": block},
+                    "n_points": n, "state": "restart"}
+    else:
+        space = json.loads((project / "space.json").read_text())
+        rng = random.Random(block)
+        points = [{v["name"]: rng.uniform(v["low"], v["high"]) for v in space["variables"]} for _ in range(n)]
+        proposal = {"label": f"listed{block}", "points": points}
+    (project / "agent" / "proposal.json").write_text(json.dumps(proposal))
     (project / "agent" / "decision.md").write_text(
         f"**Budget:** {used} used / {budget} total; {remaining} remaining.\n"
         f"**Rationale:** fake agent: {n} uniform random points.\n**Review:** nothing.\n")

@@ -21,6 +21,7 @@ on medians over seeds:
 from __future__ import annotations
 
 import csv
+import json
 import os
 import time
 import traceback
@@ -30,38 +31,12 @@ from pathlib import Path
 
 import numpy as np
 
-from .baselines import OptimizerExhausted
+from .baselines import SELECTORS, SLOW, OptimizerExhausted, make_solver
 from .tasks import SPECS, make_task
 
-SOLVERS = ["sobol", "lbfgsb", "cobyla", "cma_es", "smac", "gpbo"]
-RESTART = {"lbfgsb", "cobyla", "cma_es"}
 FLOOR = 1e-8
 FAIL = 0.1  # hard fail: less than this many decades ahead of Sobol
 SOFT = 1.0  # soft fail: at least this many decades behind the best solver
-
-
-def make_solver(name: str, bounds, seed: int, budget: int):
-    # Imported lazily: torch (GP-BO) and SMAC are slow to import.
-    if name == "sobol":
-        from .baselines.sobol import SobolSearch
-        return SobolSearch(bounds, seed=seed)
-    if name == "gpbo":
-        from .baselines.gpbo import GPBO
-        return GPBO(bounds, seed=seed)
-    if name == "smac":
-        from .baselines.smac import SMAC
-        return SMAC(bounds, seed=seed, budget=budget)
-    from .baselines.restarts import Restarting
-    if name == "lbfgsb":
-        from .baselines.lbfgsb import LBFGSB
-        return Restarting(LBFGSB, bounds, seed)
-    if name == "cobyla":
-        from .baselines.cobyla import COBYLA
-        return Restarting(COBYLA, bounds, seed)
-    if name == "cma_es":
-        from .baselines.cma_es import CMAES
-        return Restarting(CMAES, bounds, seed, stop_when_converged=True)
-    raise ValueError(f"unknown solver {name!r}; choose from {SOLVERS}")
 
 
 def run_campaign(task_key: str, solver: str, seed: int, out: Path) -> Path:
@@ -72,7 +47,7 @@ def run_campaign(task_key: str, solver: str, seed: int, out: Path) -> Path:
     warnings.filterwarnings("ignore", message=".*not p.d., added jitter.*")  # GPyTorch, GP-BO
     task = make_task(task_key, seed=seed)
     budget = task.spec.budget
-    opt = make_solver(solver, task.bounds, seed, budget)
+    opt = make_solver(solver, task.bounds, seed, budget, noisy=task.spec.beta > 0)
     rows, best_y, regret = [], np.inf, np.inf
     for i in range(budget):
         try:
@@ -91,6 +66,8 @@ def run_campaign(task_key: str, solver: str, seed: int, out: Path) -> Path:
         w.writerow(["eval", "y", "regret"])
         w.writerows(rows)
     tmp.rename(path)
+    if hasattr(opt, "metadata"):  # the selectors say what they picked
+        path.with_suffix(".json").write_text(json.dumps(opt.metadata(), indent=1, default=float))
     return path
 
 
@@ -106,7 +83,7 @@ def _job(args):
 def run_all(out: Path, tasks, solvers, seeds, workers: int) -> None:
     jobs = [(t, s, seed, out) for t in tasks for s in solvers for seed in seeds
             if not (out / t / s / f"seed_{seed}.csv").exists()]
-    jobs.sort(key=lambda j: j[1] not in ("gpbo", "smac"))  # slow solvers first
+    jobs.sort(key=lambda j: j[1] not in SLOW)  # slow solvers first
     print(f"{len(jobs)} campaigns to run", flush=True)
     if not jobs:
         return
@@ -116,7 +93,7 @@ def run_all(out: Path, tasks, solvers, seeds, workers: int) -> None:
             tag = f"{args[0]} {args[1]} seed {args[2]}"
             if err:
                 print(f"ERROR {tag}:\n{err}", flush=True)
-            elif args[1] in ("gpbo", "smac") or k % 50 == 0 or k == len(jobs):
+            elif args[1] in SLOW or k % 50 == 0 or k == len(jobs):
                 print(f"[{k}/{len(jobs)}, {time.time() - t0:.0f}s] {tag}: {secs:.0f}s", flush=True)
 
 
@@ -133,7 +110,7 @@ def report(out: Path, tasks, solvers) -> str:
     """Markdown: median final log10 regret per task and solver, with soft and hard failures."""
     lines = ["Median final log10 regret over seeds (lower is better). **bold** = best on the task; "
              f"◦ = soft fail (≥ {SOFT:g} decade behind the best); ✗ = hard fail (less than {FAIL} "
-             "decades ahead of Sobol).", "",
+             f"decades ahead of Sobol). {' and '.join(sorted(SELECTORS))} are reported but never set the best.", "",
              "| task | d | budget | seeds | " + " | ".join(solvers) + " | expected good | expected bad |",
              "|---" * (len(solvers) + 6) + "|"]
     for t in tasks:
@@ -141,7 +118,8 @@ def report(out: Path, tasks, solvers) -> str:
         med = {s: float(np.median(v)) for s, v in sc.items() if v}
         if not med:
             continue
-        best, sob = min(med.values()), sc.get("sobol", [])
+        best = min(v for s, v in med.items() if s not in SELECTORS)
+        sob = sc.get("sobol", [])
         cells = []
         for s in solvers:
             if s not in med:
@@ -153,7 +131,7 @@ def report(out: Path, tasks, solvers) -> str:
                 c += " ✗"
             elif med[s] - best >= SOFT:
                 c += " ◦"
-            cells.append(f"**{c}**" if med[s] == best else c)
+            cells.append(f"**{c}**" if med[s] == best and s not in SELECTORS else c)
         spec = SPECS[t]
         n_seeds = max(len(v) for v in sc.values())
         lines.append(f"| {t} | {spec.dim} | {spec.budget} | {n_seeds} | " + " | ".join(cells)

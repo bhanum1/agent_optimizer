@@ -11,8 +11,9 @@ for the benchmark.
 
 - **Two independent projects.** `skill/agentoptimizer/` is a standalone uv project
   (the skill's runtime and its core, `aoptcore`). The root project is the benchmark
-  (`aobench`, in `benchmark/src/`): six baseline optimizers on a few BBOB tasks.
-  Neither imports the other.
+  (`aobench`, in `benchmark/src/`): the agent harness (`aobench.agent`) and eight
+  baseline optimizers on a few BBOB tasks. Neither imports the other: the harness
+  uses the skill only through `aopt` and the project files, as a user would.
 - **Dependencies** live in `pyproject.toml` and `uv.lock` files. Change them with
   `uv add` / `uv lock` (`--project skill/agentoptimizer` for the skill), never by
   installing into an environment by hand. The optimizer package versions pinned in
@@ -20,10 +21,12 @@ for the benchmark.
 - **The skill folder is an interface.** It is linked into users' skills
   directories, so put nothing there a user or the agent should not see. There is no
   optimizer library: the agent writes every optimizer itself, in the project's
-  `work/`.
-- **The benchmark stays small.** Its one purpose is to show that every solver fails
-  somewhere: each baseline should have a task where it is good and one where it is
+  `work/`, or lists a block's points itself.
+- **The benchmark stays small.** Its tasks show that every solver fails somewhere:
+  each single-method baseline should have a task where it is good and one where it is
   bad. Add a task only when it shows something the others do not.
+- **Test the harness** with `--agent fake` after changing `aobench.agent`; it needs
+  no model calls and no sandbox.
 - **Test the core** with `uv run --project skill/agentoptimizer pytest` after changing
   `aoptcore`, `host.py` or `check.py`.
 - **No results in git.** Benchmark outputs go to `benchmark/runs/` (ignored).

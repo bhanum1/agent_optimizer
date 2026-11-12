@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # The skill's command. `aopt <command>` runs the core CLI; `aopt python ...` runs Python
 # with the optimizer runtime (for analysis scripts), with this folder's aoptcore importable.
-# The interpreter: $AOPT_PYTHON if set, else the one named in .python next to this script
-# (the benchmark writes it), else the skill's own uv environment, created on first use.
+# The interpreter: $AOPT_PYTHON if set (the benchmark's sandbox sets it), else the skill's
+# own uv environment, created on first use.
 set -euo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-if [[ -z "${AOPT_PYTHON:-}" && -f "$here/.python" ]]; then AOPT_PYTHON="$(<"$here/.python")"; fi
 if [[ -n "${AOPT_PYTHON:-}" ]]; then
   py=("$AOPT_PYTHON")
 else

@@ -32,6 +32,7 @@ import json
 import sys
 import traceback
 
+
 def load_class(path):
     # Registered under a fixed name, so pickled state from one block loads in the next.
     spec = importlib.util.spec_from_file_location("block_optimizer", path)

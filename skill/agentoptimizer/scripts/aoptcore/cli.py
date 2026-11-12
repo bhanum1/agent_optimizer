@@ -17,7 +17,8 @@ import json
 import sys
 from pathlib import Path
 
-from . import driver, project as project_mod
+from . import driver
+from . import project as project_mod
 from .data import DataError
 from .problem import ProblemError
 
@@ -69,7 +70,7 @@ def cmd_status(a) -> int:
         return 0
     progress = proj.block_progress(block)
     done = len(progress["rows"]) - len(progress["pending"])
-    print(f"Block {block['block']}: {block['script']} as \"{block['label']}\" ({block['state']}), "
+    print(f"Block {block['block']}: {_source(block)} as \"{block['label']}\", "
           f"{done} of {block['n_points']} measured, {len(progress['pending'])} pending.")
     if progress["pending"]:
         print("Measure the pending rows of data.csv, fill in the values, then run `aopt suggest`:")
@@ -85,7 +86,7 @@ def cmd_validate(a) -> int:
     proj = project_mod.Project(a.project)
     proposal, _ = proj.read_agent_files()
     p = proj.validate(proposal, cancelling=len(proj.table.by_status("pending")))
-    print(f"Valid: {p['n_points']} points of {p['script']} as \"{p['label']}\" ({p['state']}).")
+    print(f"Valid: {p['n_points']} points, {_source(p)}, as \"{p['label']}\".")
     return 0
 
 
@@ -93,7 +94,7 @@ def cmd_commit(a) -> int:
     proj = project_mod.Project(a.project)
     proposal, decision = proj.read_agent_files()
     record = proj.commit(proposal, decision, settle=driver.settle)
-    print(f"Committed block {record['block']}: {record['n_points']} points of {record['script']} "
+    print(f"Committed block {record['block']}: {record['n_points']} points, {_source(record)}, "
           f"as \"{record['label']}\". Run `aopt suggest` for its first point(s).")
     return 0
 
@@ -131,6 +132,13 @@ def cmd_decode(a) -> int:
     proj = project_mod.Project(a.project)
     print(json.dumps(proj.encoder.decode(json.loads(a.point))))
     return 0
+
+
+def _source(block: dict) -> str:
+    """Where a block's points come from, in words."""
+    if block["script"] == "points":
+        return "listed by the agent"
+    return f"from {block['script']} ({block['state']})"
 
 
 def _show(proj, rows) -> None:

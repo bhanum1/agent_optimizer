@@ -1,5 +1,4 @@
 .venv/
-/runs/
 __pycache__/
 *.pyc
 *.egg-info/
@@ -10,4 +9,4 @@ dist/
 .ruff_cache/
 /benchmark/external/
 /benchmark/runs/
-skill/agentoptimizer/.python
+.pytest_cache/

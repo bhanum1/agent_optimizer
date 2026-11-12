@@ -23,8 +23,7 @@ Two settings are the only departures from a stock run:
   seeds. Noisy tasks are therefore handled by the surrogate's own noise
   model rather than by repeated evaluations.
 
-The budget is needed up front because it sets the initial-design cap;
-aobench.run passes it (`takes_budget = True`).
+The budget is needed up front because it sets the initial-design cap.
 
 By convention, this optimizer MINIMIZES the objective (matching the rest
 of this package).
@@ -53,8 +52,6 @@ class SMAC:
     budget : int
         Number of evaluations the campaign will request.
     """
-
-    takes_budget = True  # aobench.run passes the budget to the constructor
 
     def __init__(self, bounds, seed: Optional[int] = None, budget: int = 100):
         self.bounds = np.asarray(bounds, dtype=float)
