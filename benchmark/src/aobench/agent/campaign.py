@@ -97,12 +97,13 @@ class Campaign:
         with open(self.project / "data.csv", newline="") as f:
             rows = [r for r in csv.DictReader(f) if r["status"] == "measured" and r["y"] != ""]
         for r in rows[:self.budget]:
-            ev = self.task.evaluate(np.array([float(r[f"x{i}"]) for i in range(self.task.dim)]))
-            if float(r["y"]) != ev.y:
+            ev, y = self.task.evaluate(np.array([float(r[f"x{i}"]) for i in range(self.task.dim)])), float(r["y"])
+            # Equal up to rounding: the task's last bits differ between machines (about 1e-13 relative).
+            if not np.isclose(y, ev.y, rtol=1e-9, atol=0):
                 raise RuntimeError(f"cannot resume: row {r['id']} of data.csv does not match its replay")
-            if ev.y < self.best_y:
-                self.best_y, self.regret = ev.y, ev.y_true - self.task.f_opt
-            self.rows.append((len(self.rows) + 1, ev.y, self.regret))
+            if y < self.best_y:
+                self.best_y, self.regret = y, ev.y_true - self.task.f_opt
+            self.rows.append((len(self.rows) + 1, y, self.regret))
         pending = self.measure_pending()
         # Finish the block that was running, if any: aopt saves its optimizer when the harness's end of
         # its input closes, so it can go on. On a finished block it only says so.
