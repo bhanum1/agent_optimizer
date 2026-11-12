@@ -26,6 +26,10 @@ VENV_IN_BOX = "/opt/aopt-venv"
 PASSED = ("ANTHROPIC_", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC",
           "ENABLE_CLAUDEAI_MCP_SERVERS", "CLAUDE_CODE_DISABLE_AUTO_MEMORY")
 MACOS = sys.platform == "darwin"
+# One thread per process for numpy/torch/BLAS: campaigns run in parallel, and each one's optimizer would
+# otherwise claim every core.
+THREADS = {k: "1" for k in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "VECLIB_MAXIMUM_THREADS",
+                            "NUMEXPR_NUM_THREADS")}
 
 SEATBELT = """(version 1)
 (allow default)
@@ -67,7 +71,7 @@ def _seatbelt(workspace: Path, command: list[str], env: dict) -> tuple[list[str]
     inner = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": str(box_home), "USER": "agent", "LANG": "C.UTF-8",
              "TERM": "dumb", "TMPDIR": str(box_home / "tmp"), "AOPT_PYTHON": str(python),
              "TMPPREFIX": str(box_home / "tmp" / "zsh"),  # zsh heredocs use /tmp/zsh otherwise, ignoring TMPDIR
-             "DISABLE_AUTOUPDATER": "1", "GIT_CEILING_DIRECTORIES": str(workspace.parent)}
+             "DISABLE_AUTOUPDATER": "1", "GIT_CEILING_DIRECTORIES": str(workspace.parent), **THREADS}
     if command and command[0] == "claude":
         claude = Path(shutil.which("claude")).resolve()
         readable.add(claude)
@@ -98,7 +102,7 @@ def _bwrap(workspace: Path, command: list[str], env: dict) -> tuple[list[str], d
         box += ["--ro-bind", str(p.resolve()), str(p)]
     box += ["--bind", str(workspace), "/work", "--chdir", "/work"]
     inner = {"PATH": "/opt/claude:/usr/bin:/bin", "HOME": "/home/agent", "USER": "agent", "LANG": "C.UTF-8",
-             "TERM": "dumb", "AOPT_PYTHON": f"{VENV_IN_BOX}/bin/python", "DISABLE_AUTOUPDATER": "1"}
+             "TERM": "dumb", "AOPT_PYTHON": f"{VENV_IN_BOX}/bin/python", "DISABLE_AUTOUPDATER": "1", **THREADS}
     if command and command[0] == "claude":
         box += ["--ro-bind", str(Path(shutil.which("claude")).resolve()), "/opt/claude/claude"]
         inner |= {k: v for k, v in env.items() if k.startswith(PASSED)}
