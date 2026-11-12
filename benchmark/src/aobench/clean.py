@@ -10,6 +10,9 @@ Writes, for each campaign that ended at its budget:
     <out>/<run>/<task>/seed_<s>/trace.md  call by call: the agent's reasoning, the block it proposed and
                                           why, and how far the regret got; tool calls in one line each
     <out>/<run>/<task>/seed_<s>/scripts/  the source of every optimizer it ran, each version once
+
+<out> is benchmark/clean_runs by default, which is kept in git, unlike the run folders. Absolute paths
+are written as <workspace> and ~, since they name this machine's user.
 """
 from __future__ import annotations
 
@@ -17,10 +20,20 @@ import argparse
 import csv
 import json
 import math
+import re
 import shutil
 from pathlib import Path
 
 RUNS = Path("benchmark/runs")
+OUT = Path("benchmark/clean_runs")  # kept in git, unlike the run folders
+# Absolute paths in the logs name this machine's user: a workspace becomes <workspace>, any other home ~.
+WORKSPACE = re.compile(r"(?:/(?:Users|home)/[^/\s]+)?/\S*?/workspaces/[0-9a-f]{16}(?:\.home)?")
+HOME = re.compile(r"/(?:Users|home)/[^/\s`'\"]+")
+DASHED = re.compile(r"-(?:Users|home)-[^-/\s]+-")  # the same path in a folder name, as claude's temp folders spell it
+
+
+def scrub(text: str) -> str:
+    return DASHED.sub("-~-", HOME.sub("~", WORKSPACE.sub("<workspace>", text)))
 FLOOR = 1e-8
 
 
@@ -50,7 +63,7 @@ def call_content(folder: Path) -> tuple[list[tuple[str, str]], str | None]:
                 args = b.get("input", {})
                 what = (args.get("command") or args.get("file_path") or args.get("pattern") or
                         args.get("description") or "")
-                what = " ".join(str(what).split())
+                what = scrub(" ".join(str(what).split()))  # before cutting, which would split a path
                 out.append(("tool", f"{b.get('name')}: {what[:110]}" + ("…" if len(what) > 110 else "")))
     return out, model
 
@@ -111,7 +124,7 @@ def campaign(run: Path, task: str, seed_dir: Path, out: Path) -> dict | None:
             if text not in saved:
                 saved[text] = f"{int(meta['block']):03d}_{meta['label']}.py"
                 (out / "scripts").mkdir(exist_ok=True)
-                (out / "scripts" / saved[text]).write_text(text)
+                (out / "scripts" / saved[text]).write_text(scrub(text))
             meta["saved"] = saved[text]
 
     entries = {e["call"]: e for e in events(seed_dir / "calls.jsonl") if "call" in e}
@@ -176,7 +189,7 @@ def campaign(run: Path, task: str, seed_dir: Path, out: Path) -> dict | None:
             "Regret is the noise-free gap to the optimum of the best point so far (1e-8 counts as solved).\n",
             "| Block | Call | Method | Script | Evaluations | log10 regret after |", "|---|---|---|---|---|---|"]
     head += [f"| {b} | {c} | {lab} | {s} | {sp} | {r} |" for b, c, lab, s, sp, r in table]
-    (out / "trace.md").write_text("\n".join(head) + "\n\n" + "\n".join(body))
+    (out / "trace.md").write_text(scrub("\n".join(head) + "\n\n" + "\n".join(body)))
     return {"task": task, "seed": seed, "regret": lg(regret[-1]), "calls": len(calls), "cost": cost,
             "methods": methods, "model": model}
 
@@ -225,7 +238,7 @@ def clean(run: Path, out: Path) -> int:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--runs", nargs="*", type=Path, help="run folders (default: every one in benchmark/runs)")
-    ap.add_argument("--out", type=Path, default=RUNS / "clean_runs")
+    ap.add_argument("--out", type=Path, default=OUT)
     a = ap.parse_args()
     runs = a.runs or sorted(p for p in RUNS.iterdir() if p.is_dir() and any(p.glob("*/agent/seed_*/end.json")))
     for run in runs:
