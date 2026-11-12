@@ -19,20 +19,24 @@ user would; it imports nothing from the skill.
 
 The task is a black box. The problem definition names no function: variables
 x0.., objective y, a neutral project name. The agent and every `aopt` call (which
-runs the agent's own optimizer code) run in a bubblewrap sandbox (sandbox.py)
-that holds the workspace at /work, the skill's Python read-only and an empty
-home, and nothing else: not the repository, the task definitions, other
-workspaces or results. The fake agent (fake.py) runs without a sandbox.
+runs the agent's own optimizer code) run in a sandbox (sandbox.py): bubblewrap on
+Linux, Seatbelt (sandbox-exec) on macOS. It lets them read the workspace, the
+skill's Python and an empty home, and nothing else: not the repository, the task
+definitions, other workspaces or results, even though the workspaces are stored
+inside the run folder. The fake agent (fake.py) runs without a sandbox.
 
 Layout, per campaign:
 
-    <work>/<id>/                the workspace, /work in the sandbox, outside the repository; the id is
+    <out>/workspaces/<id>/      the workspace (/work in the Linux sandbox); --work moves it. The id is
                                 opaque, since the sandbox's command line is visible inside it
       skill/                    copy of the skill folder
       .agentoptimizer/          the project: problem.yaml, data.csv, decisions.md, agent/, work/, ...
-    <out>/<task>/agent/seed_<s>.csv           eval, y, regret: the same format as the baselines
-    <out>/<task>/agent/seed_<s>/calls.jsonl   one line per agent call: blocks, cost, time
-    <out>/<task>/agent/seed_<s>/calls/NNN/    prompt, event stream, stderr, the agent's outputs
+    <out>/workspaces/<id>.home/ the agent's empty home and temp folder (macOS only)
+    <out>/<task>/agent/seed_<s>.csv            eval, y, regret: the same format as the baselines
+    <out>/<task>/agent/seed_<s>/workspace.txt  the path of the campaign's workspace
+    <out>/<task>/agent/seed_<s>/calls.jsonl    one line per agent call: blocks, cost, time
+    <out>/<task>/agent/seed_<s>/transcript.md  every call's reasoning, messages, tool calls and results
+    <out>/<task>/agent/seed_<s>/calls/NNN/     prompt, event stream, transcript.md, stderr, the agent's outputs
 
 Finished campaigns (their CSV exists) are skipped. An unfinished one is not
 resumed: its workspace is removed and it starts again.

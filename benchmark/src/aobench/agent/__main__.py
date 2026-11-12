@@ -11,7 +11,7 @@ import numpy as np
 
 from ..run import FLOOR
 from ..tasks import SPECS
-from . import REPO, sandbox
+from . import sandbox
 from . import __doc__ as DOC
 from .campaign import Campaign
 
@@ -20,10 +20,10 @@ def main(argv=None):
     p = argparse.ArgumentParser(prog="python -m aobench.agent", description=DOC,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--out", type=Path, required=True, help="results and logs (same layout as the baselines)")
-    p.add_argument("--work", type=Path, default=Path.home() / ".aobench" / "work",
-                   help="agent workspaces; keep this outside the repository")
+    p.add_argument("--work", type=Path, help="agent workspaces (default: <out>/workspaces)")
     p.add_argument("--tasks", nargs="*", default=list(SPECS), choices=list(SPECS))
     p.add_argument("--seeds", type=int, default=1, help="seeds 0..n-1")
+    p.add_argument("--seed", type=int, help="run only this seed (instead of --seeds)")
     p.add_argument("--agent", default="claude", choices=["claude", "fake"])
     p.add_argument("--model")
     p.add_argument("--effort")
@@ -31,11 +31,11 @@ def main(argv=None):
     p.add_argument("--call-timeout", type=float, default=3600, help="seconds per agent call")
     p.add_argument("--max-calls", type=int, default=200, help="agent calls per campaign")
     a = p.parse_args(argv)
-    if REPO in a.work.resolve().parents:
-        p.error("--work must be outside the repository, so the agent cannot read the tasks")
+    a.work = a.work or a.out / "workspaces"
     if a.agent == "claude" and not (sandbox.available() and shutil.which("claude")):
-        p.error("the claude agent needs `bwrap` (its sandbox, Linux only) and `claude` on PATH")
-    jobs = [(t, s) for t in a.tasks for s in range(a.seeds)
+        p.error("the claude agent needs its sandbox (bwrap on Linux, sandbox-exec on macOS) and `claude` on PATH")
+    seeds = [a.seed] if a.seed is not None else range(a.seeds)
+    jobs = [(t, s) for t in a.tasks for s in seeds
             if not (a.out / t / "agent" / f"seed_{s}.csv").exists()]
     print(f"{len(jobs)} campaigns to run", flush=True)
 

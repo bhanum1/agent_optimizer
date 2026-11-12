@@ -28,7 +28,8 @@ def agent_command(agent: str, model: str | None, effort: str | None) -> tuple[li
     # No user settings, memory, skills or MCP servers, and no session kept between calls.
     command = ["claude", "-p", "--output-format", "stream-json", "--verbose", "--no-session-persistence",
                "--setting-sources", "", "--strict-mcp-config", "--disable-slash-commands",
-               "--tools", ",".join(TOOLS), "--allowedTools", *TOOLS, "--permission-mode", "dontAsk"]
+               "--tools", ",".join(TOOLS), "--allowedTools", *TOOLS, "--permission-mode", "dontAsk",
+               "--thinking-display", "summarized"]  # keep the reasoning text in the log (empty otherwise)
     if model:
         command += ["--model", model]
     if effort:
@@ -102,3 +103,42 @@ def final_event(events: Path) -> dict:
         if e.get("type") == "result":
             info = {k: e.get(k) for k in ("total_cost_usd", "num_turns", "duration_ms", "is_error")}
     return info
+
+
+def transcript(events: Path, prompt: str, limit: int = 4000) -> str:
+    """A readable Markdown log of one call: the prompt, then the agent's reasoning, messages, tool calls and
+    their results, in order. Long tool inputs and results are cut to `limit` characters."""
+    def cut(text: str) -> str:
+        return text if len(text) <= limit else text[:limit] + f"\n... [{len(text) - limit} more characters]"
+
+    def fence(text: str) -> str:
+        return "````\n" + cut(text).rstrip() + "\n````\n"
+
+    out = ["## Prompt\n", prompt.strip() + "\n"]
+    for line in events.read_text().splitlines():
+        try:
+            e = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        content = e.get("message", {}).get("content") if e.get("type") in ("assistant", "user") else None
+        if e.get("type") == "result":
+            out.append(f"## Result\n\n{e.get('num_turns')} turns, {(e.get('duration_ms') or 0) / 1000:.0f} s, "
+                       f"${e.get('total_cost_usd') or 0:.3f}" + (", error" if e.get("is_error") else "") + "\n")
+        if not isinstance(content, list):
+            continue
+        for b in content:
+            kind = b.get("type")
+            if kind == "thinking" and b.get("thinking", "").strip():
+                out.append("### Reasoning\n\n" + "\n".join("> " + l for l in b["thinking"].strip().splitlines()) + "\n")
+            elif kind == "text" and b.get("text", "").strip():
+                out.append("### Message\n\n" + b["text"].strip() + "\n")
+            elif kind == "tool_use":
+                args = b.get("input", {})
+                body = args.get("command") if b.get("name") == "Bash" else json.dumps(args, indent=1)
+                out.append(f"### Tool: {b.get('name')}\n\n" + fence(str(body)))
+            elif kind == "tool_result":
+                c = b.get("content")
+                if isinstance(c, list):
+                    c = "\n".join(x.get("text", "") for x in c if isinstance(x, dict))
+                out.append("Result" + (" (error)" if b.get("is_error") else "") + ":\n\n" + fence(str(c or "")))
+    return "\n".join(out)

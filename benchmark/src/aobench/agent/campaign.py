@@ -14,7 +14,7 @@ import numpy as np
 
 from ..tasks import make_task
 from . import SKILL, sandbox, skill_python
-from .claude import agent_command, final_event
+from .claude import agent_command, final_event, transcript
 from .problem import problem_md, problem_yaml
 
 # Copied into each workspace: the skill as a user installs it, without its development files.
@@ -39,7 +39,7 @@ class Campaign:
         self.logs = out / task_key / "agent" / f"seed_{seed}"
         # An opaque name: the host path appears in the sandbox command line, which the agent can read.
         key = f"{out.resolve()}|{task_key}|{seed}".encode()
-        self.workspace = work / hashlib.sha256(key).hexdigest()[:16]
+        self.workspace = work.resolve() / hashlib.sha256(key).hexdigest()[:16]
         self.project = self.workspace / ".agentoptimizer"
         self.agent, self.model, self.effort = agent, model, effort
         self.sandboxed = agent == "claude"
@@ -48,7 +48,7 @@ class Campaign:
         self.best_y, self.regret = np.inf, np.inf
 
     def prepare(self) -> None:
-        for d in (self.workspace, self.logs):
+        for d in (self.workspace, sandbox.home(self.workspace), self.logs):
             if d.exists():
                 shutil.rmtree(d)
         self.logs.mkdir(parents=True)
@@ -62,7 +62,8 @@ class Campaign:
     def aopt(self, *args, check=True) -> subprocess.CompletedProcess:
         # In the sandbox too: `aopt suggest` runs the agent's optimizer code.
         if self.sandboxed:
-            command, env = sandbox.sandboxed(self.workspace, ["/work/skill/aopt", *args], {})
+            aopt = sandbox.root(self.workspace) / "skill" / "aopt"
+            command, env = sandbox.sandboxed(self.workspace, [str(aopt), *args], {})
         else:
             command = [str(self.workspace / "skill" / "aopt"), *args]
             env = {**os.environ, "AOPT_PYTHON": str(skill_python())}
@@ -128,6 +129,10 @@ class Campaign:
             src = self.project / "agent" / name
             if src.is_file():
                 shutil.copyfile(src, logs / name)
+        log = transcript(logs / "events.jsonl", prompt)
+        (logs / "transcript.md").write_text(log)
+        with open(self.logs / "transcript.md", "a") as f:  # the whole campaign's reasoning, call after call
+            f.write(f"# Call {number}\n\n{log}\n")
         return {"exit": code, **final_event(logs / "events.jsonl")}
 
     def run_block(self) -> tuple[int, list[str]]:

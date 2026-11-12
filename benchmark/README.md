@@ -34,12 +34,13 @@ adding an entry to `SPECS`, but only if it shows something the others do not.
 ```bash
 uv sync --locked
 .venv/bin/python -m aobench.agent --out benchmark/runs/agent --tasks gallagher --seeds 1
+.venv/bin/python -m aobench.agent --out benchmark/runs/agent --tasks gallagher --seed 3 --model claude-sonnet-5-5 --effort medium
 .venv/bin/python -m aobench.agent --out benchmark/runs/try --tasks gallagher --agent fake
 ```
 
 For each task and seed, the harness:
 
-1. **Builds the workspace**: a fresh folder outside the repository with a copy of
+1. **Builds the workspace**: a fresh folder in `<out>/workspaces/` with a copy of
    the skill, and the starting files `problem.yaml` and `PROBLEM.md`. They name no
    function: the variables are `x0`.., the objective is `y`, and the problem says
    its identity is withheld. Then it runs `aopt init`.
@@ -51,19 +52,23 @@ For each task and seed, the harness:
    runs `aopt suggest` again, until the block is done.
 4. Repeats from step 2 until the budget is spent.
 
-The agent and every `aopt` call (which runs the agent's own code) run in a
-bubblewrap sandbox. It holds the workspace at `/work`, the skill's Python read-only
-and an empty home, and nothing else: not the repository, the task definitions or
-other results. So the `claude` agent needs Linux with `bwrap`. The `fake` agent is a
-scripted stand-in that alternates the two kinds of proposal. It runs without a
-sandbox, on any platform, and is how to test the harness without model calls.
+The agent and every `aopt` call (which runs the agent's own code) run in a sandbox:
+bubblewrap on Linux, and Seatbelt (`sandbox-exec`, built in) on macOS, so runs work
+on either. Inside it they can read the workspace, the skill's Python and an empty
+home, and nothing else: not the repository, the task definitions, other workspaces
+or results, though the workspaces sit inside the run folder. On Linux the workspace
+is mounted at `/work`. On macOS the agent sees its real path but cannot read or list
+anything else in the home folder or `/tmp`, nor see other processes. The `fake`
+agent is a scripted stand-in that alternates the two kinds of proposal. It runs
+without a sandbox and is how to test the harness without model calls.
 
 Claude logs in with the `ANTHROPIC_*` settings in the repository's `.env`
 (git-ignored), either an API key or a gateway URL and key. If there are none, it uses
 this machine's claude.ai login.
 
-Options: `--model`, `--effort`, `--workers` (campaigns at once), `--call-timeout`,
-`--max-calls`, `--work` (where the workspaces go, default `~/.aobench/work`).
+Options: `--model`, `--effort`, `--seeds N` (seeds 0..N-1) or `--seed S` (one seed),
+`--workers` (campaigns at once), `--call-timeout`, `--max-calls`, `--work` (where the
+workspaces go, default `<out>/workspaces`).
 
 | Code | Role |
 |---|---|
@@ -73,9 +78,11 @@ Options: `--model`, `--effort`, `--workers` (campaigns at once), `--call-timeout
 | [`agent/claude.py`](src/aobench/agent/claude.py) | the `claude -p` command, its login, and its log |
 | [`agent/fake.py`](src/aobench/agent/fake.py) | the scripted stand-in agent |
 
-Per campaign it writes `<out>/<task>/agent/seed_<s>.csv` and, in `seed_<s>/`, one
-line per call in `calls.jsonl` (blocks, cost, time) and each call's prompt, event
-stream and outputs in `calls/NNN/`.
+Per campaign it writes `<out>/<task>/agent/seed_<s>.csv` and, in `seed_<s>/`:
+`workspace.txt` (the workspace's path), one line per call in `calls.jsonl` (blocks,
+cost, time), `transcript.md` (the agent's summarized reasoning, messages, tool calls
+and results, call after call) and each call's prompt, event stream, transcript and
+outputs in `calls/NNN/`.
 
 ## The baselines
 
@@ -112,6 +119,9 @@ in its `__init__.py`.
 - **Defaults:** every task and solver, seeds 0–9, all cores but one.
 - **Narrow a run** with `--tasks`, `--solvers`, `--seeds N` and `--workers N`.
 - **Re-print a finished run** with `--report-only`.
+- **Draw the figures** with `.venv/bin/python -m aobench.figures --runs benchmark/runs/main --out benchmark/runs/figures`:
+  `regret.pdf` (mean log₁₀ regret per task, ±1 standard error) and `rank.pdf` (average rank over
+  tasks, with each task's rank behind it). Pass more run folders to `--runs` to add an agent run.
 
 Finished campaigns are skipped, so an interrupted run picks up where it stopped.
 
