@@ -100,6 +100,13 @@ cost, time, and a `resumed` line where a run picked it up), `end.json` (why it e
 and results, call after call) and each call's prompt, event stream, transcript and
 outputs in `calls/NNN/`.
 
+`python -m aobench.clean` turns those logs into a small readable folder per finished
+campaign, in `benchmark/runs/clean_runs/<run>/<task>/seed_<s>/`. Each holds a copy of
+`data.csv`, `scripts/` (every version of the agent's optimizers) and `trace.md`: for
+each call, the agent's reasoning, its messages, the block it proposed and why, and the
+regret after the block. Tool calls appear as one line each. `<run>/README.md` lists
+every campaign with its result, cost and the methods it used, block by block.
+
 ## The baselines
 
 | Key | Solver | Notes |
