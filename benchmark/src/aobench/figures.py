@@ -10,7 +10,9 @@
   out of that task's ranking and of its own average.
 
 Run folders are merged, so an agent run (`<out>/<task>/agent/`) can be added to
-the baselines. Scores are floored at 1e-8, as in the report.
+the baselines. `--seeds N` keeps seeds 0..N-1 only, so methods run on different
+numbers of seeds are compared on the same instances. Scores are floored at 1e-8,
+as in the report.
 """
 from __future__ import annotations
 
@@ -39,7 +41,7 @@ METHODS = {
     "gpbo": ("GP-BO", "#D55E00", "-"),
     "shiwa": ("Shiwa", "#0072B2", "--"),
     "bandit": ("Bandit", "#000000", "--"),
-    "agent": ("Agent", "#F0E442", "-"),
+    "agent": ("Agent", "#7B2D8E", "-"),
 }
 TITLES = {
     "ellipsoid": "Ellipsoid",
@@ -75,7 +77,7 @@ STYLE = {
 WIDTH = 6.75  # inches: a two-column page
 
 
-def load(runs: list[Path]) -> dict[str, dict[str, np.ndarray]]:
+def load(runs: list[Path], seeds: int | None = None) -> dict[str, dict[str, np.ndarray]]:
     """task -> method -> (seeds, budget) array of log10 best-so-far regret."""
     data: dict[str, dict[str, np.ndarray]] = {}
     for task in SPECS:
@@ -83,6 +85,8 @@ def load(runs: list[Path]) -> dict[str, dict[str, np.ndarray]]:
             curves = {}
             for run in runs:
                 for f in sorted((run / task / method).glob("seed_*.csv")):
+                    if seeds is not None and int(f.stem.split("_")[1]) >= seeds:
+                        continue
                     with open(f, newline="") as fh:
                         curves[f.stem] = [float(r["regret"]) for r in csv.DictReader(fh)]
             if curves:
@@ -181,10 +185,11 @@ def main(argv=None):
     p.add_argument("--runs", type=Path, nargs="+", default=[Path("benchmark/runs/main")],
                    help="run folders, merged (e.g. the baselines and an agent run)")
     p.add_argument("--out", type=Path, default=Path("benchmark/runs/figures"))
+    p.add_argument("--seeds", type=int, help="use seeds 0..N-1 only (default: every seed found)")
     a = p.parse_args(argv)
     a.out.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(STYLE)
-    data = load(a.runs)
+    data = load(a.runs, a.seeds)
     regret_figure(data, a.out)
     rk = rank_figure(data, a.out)
     tasks = [t for t in SPECS if t in data]
