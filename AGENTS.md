@@ -2,20 +2,20 @@
 
 Instructions for people and coding assistants working on this repository. The
 skill's own prompts are different files:
-[skill/agentoptimizer/SKILL.md](skill/agentoptimizer/SKILL.md) (the interactive skill)
-and [METHOD.md](skill/agentoptimizer/METHOD.md) (the decision method). See
+[skill/SKILL.md](skill/SKILL.md) (the interactive skill)
+and [METHOD.md](skill/METHOD.md) (the decision method). See
 [README.md](README.md) for the skill and [benchmark/README.md](benchmark/README.md)
 for the benchmark.
 
 ## Rules
 
-- **Two independent projects.** `skill/agentoptimizer/` is a standalone uv project
+- **Two independent projects.** `skill/` is a standalone uv project
   (the skill's runtime and its core, `aoptcore`). The root project is the benchmark
   (`aobench`, in `benchmark/src/`): the agent harness (`aobench.agent`) and eight
   baseline optimizers on a few BBOB tasks. Neither imports the other: the harness
   uses the skill only through `aopt` and the project files, as a user would.
 - **Dependencies** live in `pyproject.toml` and `uv.lock` files. Change them with
-  `uv add` / `uv lock` (`--project skill/agentoptimizer` for the skill), never by
+  `uv add` / `uv lock` (`--project skill` for the skill), never by
   installing into an environment by hand. The optimizer package versions pinned in
   the two projects' `constraint-dependencies` should agree.
 - **The skill folder is an interface.** It is linked into users' skills
@@ -27,6 +27,6 @@ for the benchmark.
   bad. Add a task only when it shows something the others do not.
 - **Test the harness** with `--agent fake` after changing `aobench.agent`; it needs
   no model calls and no sandbox.
-- **Test the core** with `uv run --project skill/agentoptimizer pytest` after changing
+- **Test the core** with `uv run --project skill pytest` after changing
   `aoptcore`, `host.py` or `check.py`.
 - **No results in git.** Benchmark outputs go to `benchmark/runs/` (ignored).

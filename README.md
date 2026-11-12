@@ -10,7 +10,7 @@ The repository has two independent parts:
 
 | Part | What it is |
 |---|---|
-| [`skill/agentoptimizer/`](skill/agentoptimizer/) | The skill. [`SKILL.md`](skill/agentoptimizer/SKILL.md) is the **interview**: it sets up a campaign with the user and runs it. [`METHOD.md`](skill/agentoptimizer/METHOD.md) is the **method**: how the agent decides each block, by writing an optimizer or by listing points. The `aopt` command keeps the campaign's records and runs the agent's optimizers. |
+| [`skill/`](skill/) | The skill. [`SKILL.md`](skill/SKILL.md) is the **interview**: it sets up a campaign with the user and runs it. [`METHOD.md`](skill/METHOD.md) is the **method**: how the agent decides each block, by writing an optimizer or by listing points. The `aopt` command keeps the campaign's records and runs the agent's optimizers. |
 | [`benchmark/`](benchmark/README.md) | The **harness**, which runs the skill on a black-box task with the harness as the user: it builds a sandbox, writes the starting files and calls the agent once per block. Also eight baseline optimizers on BBOB tasks, for comparison. |
 
 ## Install the skill
@@ -18,7 +18,7 @@ The repository has two independent parts:
 You need [uv](https://docs.astral.sh/uv/) 0.12 or later, and Claude Code or Codex.
 
 ```bash
-skill/agentoptimizer/install.sh
+skill/install.sh
 ```
 
 This links the skill folder into `~/.claude/skills` and `~/.codex/skills`. Pass
@@ -51,13 +51,13 @@ Variables can be `continuous` (optionally on a log scale or rounded to a
 resolution), `integer`, `ordinal` or `categorical`. A finite list of allowed
 configurations can be given as a candidates file. On noisy problems the agent may
 ask for deliberate replicates. The format is in
-[problem-format.md](skill/agentoptimizer/references/problem-format.md).
+[problem-format.md](skill/references/problem-format.md).
 
 ### The `aopt` command
 
 The agent runs `aopt` for you, but you can run it yourself from the folder that holds
 `.agentoptimizer/`. Here `aopt` stands for `~/.claude/skills/agentoptimizer/aopt`, or
-`skill/agentoptimizer/aopt` in this repository.
+`skill/aopt` in this repository.
 
 | Command | What it does |
 |---|---|
@@ -93,7 +93,7 @@ The agent runs in a bubblewrap sandbox, so this needs Linux with `bwrap` and
 ## Layout
 
 ```text
-skill/agentoptimizer/            the skill (linked into the user's skills folder)
+skill/                           the skill (linked into the user's skills folder)
   SKILL.md                       the interview, and each invocation
   METHOD.md                      the decision method: write an optimizer or list points
   aopt                           the command; scripts/aoptcore/ is its Python core
@@ -113,7 +113,7 @@ benchmark/
 ## Develop
 
 ```bash
-uv run --project skill/agentoptimizer pytest
+uv run --project skill pytest
 ```
 
 These tests drive whole blocks through `aopt` on synthetic problems: mixed variable

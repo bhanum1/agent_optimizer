@@ -7,6 +7,5 @@ dist/
 .DS_Store
 .env
 .ruff_cache/
-/benchmark/external/
 /benchmark/runs/
 .pytest_cache/

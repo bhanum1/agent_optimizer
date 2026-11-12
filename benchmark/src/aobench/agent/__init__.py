@@ -43,7 +43,7 @@ import subprocess
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
-SKILL = REPO / "skill" / "agentoptimizer"
+SKILL = REPO / "skill"
 
 
 def skill_python() -> Path:
