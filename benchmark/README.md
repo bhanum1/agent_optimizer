@@ -148,6 +148,8 @@ in its `__init__.py`.
 - **Draw the figures** with `.venv/bin/python -m aobench.figures --runs benchmark/runs/main --out benchmark/runs/figures`:
   `regret.pdf` (mean log₁₀ regret per task, ±1 standard error) and `rank.pdf` (average rank over
   tasks, with each task's rank behind it). Pass more run folders to `--runs` to add an agent run.
+  The current figures are kept in git in [`figures/`](figures/README.md), with the commands that
+  drew them.
 
 Finished baseline campaigns are skipped, so an interrupted run picks up where it stopped.
 

@@ -29,6 +29,7 @@ for the benchmark.
   no model calls and no sandbox.
 - **Test the core** with `uv run --project skill pytest` after changing
   `aoptcore`, `host.py` or `check.py`.
-- **No results in git**, except the summaries. Benchmark outputs go to
-  `benchmark/runs/` (ignored). The readable summaries of finished agent runs, made by
-  `python -m aobench.clean`, go to `benchmark/clean_runs/` and are committed.
+- **No results in git**, except summaries and figures. Benchmark outputs go to
+  `benchmark/runs/` (ignored). Two things are committed: the readable summaries of
+  finished agent runs (`python -m aobench.clean`, in `benchmark/clean_runs/`) and the
+  current figures (`benchmark/figures/`, see its README).
