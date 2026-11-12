@@ -43,7 +43,10 @@ class Campaign:
         self.logs = out / task_key / "agent" / f"seed_{seed}"
         # An opaque name: the host path appears in the sandbox command line, which the agent can read.
         key = f"{out.resolve()}|{task_key}|{seed}".encode()
-        self.workspace = work.resolve() / hashlib.sha256(key).hexdigest()[:16]
+        name = hashlib.sha256(key).hexdigest()[:16]
+        if (self.logs / "workspace.txt").is_file():  # keep an existing workspace, even if the run folder moved
+            name = Path((self.logs / "workspace.txt").read_text().strip()).name
+        self.workspace = work.resolve() / name
         self.project = self.workspace / ".agentoptimizer"
         self.agent, self.model, self.effort = agent, model, effort
         self.sandboxed = agent == "claude"
