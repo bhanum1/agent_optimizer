@@ -15,9 +15,10 @@ log10 regret of all methods, the agent included).
     along one line, where it swamps the change a finite difference would measure.
 (b) Each method's loss on each task, mean over seeds, coloured by loss (lower is
     better); the number is its worst task.
-(c) fig2_bars: each method's loss averaged over tasks, mean +/- one standard error
-    over seeds. fig2_profile: a performance profile (Dolan & More 2002), the
-    fraction of runs whose loss is at most tau.
+(c) Each method's loss averaged over tasks, mean +/- one standard error over seeds.
+(d) Each method's loss against the fraction of the budget spent: at each fraction, its
+    log10 regret minus the lowest of all methods' at that fraction, averaged over tasks
+    and seeds (the agent with a band of one standard error over seeds).
 
 SMAC and Shiwa are left out: CMA-ES beats SMAC on every task. Every method uses seeds
 0..N-1 (--seeds). Scores are floored at 1e-8, as in the report.
@@ -195,40 +196,59 @@ def panel_c(ax, loss):
     ax.tick_params(axis="y", length=0)
     ax.grid(axis="x", lw=0.3, color="0.85", zorder=0)
     ax.spines["left"].set_visible(False)
-    ax.set_xlabel(r"$\log_{10}$ regret ratio (mean over tasks)")
+    ax.set_xlabel("$\\log_{10}$ regret ratio\nat the end, mean over tasks")
     return mean, se
 
 
-def panel_c_profile(ax, loss):
-    """Performance profile (Dolan & More 2002): fraction of instances within tau of the best."""
-    tau = np.linspace(0, 11, 1101)
-    order = sorted(METHODS_C, key=lambda m: loss[m].mean())
-    out = {}
+FRACS = np.linspace(0.01, 1, 100)  # panel d: fractions of each task's budget
+
+
+def anytime_losses(data):
+    """method -> (fraction, seed) log10 regret ratio after that fraction of the budget, mean over tasks.
+
+    At each fraction, each method's log10 regret on an instance minus the lowest of all methods' at
+    the same fraction: the ratio of regrets at equal spend, as panel c's is at the end."""
+    out = {m: [] for m in METHODS_C}
+    for t in TASKS:
+        budget = SPECS[t].budget
+        idx = np.ceil(FRACS * budget).astype(int) - 1
+        L = np.array([data[t][m][:, idx] for m in METHODS_C])  # method, seed, fraction
+        loss = L - L.min(0, keepdims=True)
+        for i, m in enumerate(METHODS_C):
+            out[m].append(loss[i].T)  # fraction, seed
+    return {m: np.mean(v, axis=0) for m, v in out.items()}
+
+
+def panel_d(ax, anytime):
+    """Each method's log10 regret ratio against the fraction of the budget spent."""
+    order = sorted(METHODS_C, key=lambda m: anytime[m][-1].mean())
+    n = anytime["agent"].shape[1]
+    ends = []
     for m in reversed(order):  # agent drawn last, on top
-        v = loss[m].ravel()
-        frac = (v[None, :] <= tau[:, None] + 1e-9).mean(1)
         name, colour, _ = METHODS[m]
         agent = m == "agent"
-        ax.step(tau, frac, where="post", color=colour, lw=2.0 if agent else 1.0,
-                ls=":" if m == "sobol" else "-", zorder=4 if agent else 2, label=name)
-        out[m] = (frac[0], frac[100])  # at tau = 0 and tau = 1
-    ax.set_xlim(0, 11)
-    ax.set_ylim(0, 1.02)
-    ax.set_xticks([0, 2, 4, 6, 8, 10])
-    ax.set_yticks([0, 0.25, 0.5, 0.75, 1], ["0", "", "0.5", "", "1"])
+        mean, se = anytime[m].mean(1), anytime[m].std(1, ddof=1) / np.sqrt(n)
+        if agent:
+            ax.fill_between(FRACS, mean - se, mean + se, color=colour, alpha=0.15, lw=0, zorder=3)
+        ax.plot(FRACS, mean, color=colour, lw=2.0 if agent else 1.0, ls=":" if m == "sobol" else "-",
+                zorder=4 if agent else 2)
+        ends.append([mean[-1], name, colour, agent])
+    # Labels at the right end, nudged apart so they do not overlap.
+    ends.sort(key=lambda e: e[0])
+    ys = [e[0] for e in ends]
+    for i in range(1, len(ys)):
+        ys[i] = max(ys[i], ys[i - 1] + 0.62)
+    for (_, name, colour, agent), y in zip(ends, ys):
+        ax.text(1.02, y, name, color=colour, fontsize=6.3, va="center", ha="left",
+                fontweight="bold" if agent else "normal", clip_on=False)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 9.5)
+    ax.set_xticks([0, 0.25, 0.5, 0.75, 1], ["0", "", "0.5", "", "1"])
+    ax.set_yticks([0, 2, 4, 6, 8])
     ax.grid(lw=0.3, color="0.88", zorder=0)
-    ax.set_xlabel(r"$\log_{10}$ regret ratio, $\tau$")
-    ax.set_ylabel(r"Fraction of runs within $\tau$")
-    handles, labels = ax.get_legend_handles_labels()
-    leg = ax.legend(handles[::-1], labels[::-1], loc="lower right", frameon=True, fontsize=6.5, handlelength=1.6,
-                    labelspacing=0.3, borderpad=0.4, framealpha=0.95)
-    leg.get_frame().set(facecolor="white", edgecolor="none")
-    leg.set_zorder(5)
-    for lab in ax.get_legend().get_texts():
-        if lab.get_text() == METHODS["agent"][0]:
-            lab.set_color(AGENT)
-            lab.set_fontweight("bold")
-    return out
+    ax.set_xlabel("Fraction of budget")
+    ax.set_ylabel(r"$\log_{10}$ regret ratio")
+    return {m: anytime[m].mean(1) for m in METHODS_C}
 
 
 def colour_bar(fig, axb, box):
@@ -248,17 +268,19 @@ def colour_bar(fig, axb, box):
     cb.text(10.4, 0.5, "worse", ha="left", va="center", fontsize=6, color="0.3")
 
 
-def draw(loss, variant: str, path: Path, gap: float = 0.075):
+def draw(loss, anytime, path: Path, gap: float = 0.06):
     fig = plt.figure(figsize=(WIDTH, 4.9))
     outer = GridSpec(2, 1, figure=fig, height_ratios=[1.2, 1.55], hspace=0.3, left=0.02, right=0.98,
                      top=0.93, bottom=0.14)
     top = outer[0].subgridspec(1, len(TASKS), wspace=0.22)
-    bottom = outer[1].subgridspec(1, 2, width_ratios=[1.0, 1], wspace=0.3)
+    bottom = outer[1].subgridspec(1, 3, width_ratios=[1.0, 0.55, 0.6], wspace=0.3)
     grid_b = bottom[0].subgridspec(2, 3, wspace=0.14, hspace=0.55)
     axa = panel_a(fig, top)
     axb = panel_b(fig, grid_b, loss)
     axc = fig.add_subplot(bottom[1])
-    summary = panel_c_profile(axc, loss) if variant == "profile" else panel_c(axc, loss)
+    axd = fig.add_subplot(bottom[2])
+    mean, se = panel_c(axc, loss)
+    curve = panel_d(axd, anytime)
 
     fig.canvas.draw()
     r = fig.canvas.get_renderer()
@@ -273,21 +295,28 @@ def draw(loss, variant: str, path: Path, gap: float = 0.075):
     for ax in axb:
         ax.set_position(ax.get_position().translated(shift, 0))
     fig.canvas.draw()
+    # c and d share what is left after b: c's tight box starts one gap after b, d's ends at a's edge.
     b_right = max(box(ax)[1, 0] for ax in axb)
-    pc = axc.get_position()
+    y0, h = b3.y0, b0.y1 - b3.y0
+    pc, pd = axc.get_position(), axd.get_position()
     (cl, _), (cr, _) = box(axc)
-    x0, x1 = pc.x0 + (b_right + gap) - cl, pc.x1 + right - cr  # c fills from one gap after b to a's edge
-    axc.set_position([x0, b3.y0, x1 - x0, b0.y1 - b3.y0])
+    (dl, _), (dr, _) = box(axd)
+    pad_c, pad_d = (pc.x0 - cl, cr - pc.x1), (pd.x0 - dl, dr - pd.x1)
+    room = right - (b_right + gap) - gap - sum(pad_c) - sum(pad_d)
+    wc, wd = 0.46 * room, 0.54 * room
+    xc = b_right + gap + pad_c[0]
+    axc.set_position([xc, y0, wc, h])
+    axd.set_position([xc + wc + pad_c[1] + gap + pad_d[0], y0, wd, h])
     fig.canvas.draw()
     colour_bar(fig, axb, box)
     at = box(axa[0])[1, 1]
-    bt = max(box(axb[0])[1, 1], box(axc)[1, 1])
-    for x, y, letter in ((left, at, "a"), (left, bt, "b"), (box(axc)[0, 0], bt, "c")):
+    bt = max(box(axb[0])[1, 1], box(axc)[1, 1], box(axd)[1, 1])
+    for x, y, letter in ((left, at, "a"), (left, bt, "b"), (box(axc)[0, 0], bt, "c"), (box(axd)[0, 0], bt, "d")):
         fig.text(x - 0.012, y + 0.008, letter, fontsize=11, fontweight="bold", va="bottom", ha="left")
     for ext in ("pdf", "png"):
         fig.savefig(path.with_suffix(f".{ext}"))
     plt.close(fig)
-    return summary
+    return mean, se, curve
 
 
 def main(argv=None):
@@ -305,13 +334,12 @@ def main(argv=None):
         n = {m: len(data[t][m]) for m in METHODS_C}
         assert len(set(n.values())) == 1, f"{t}: uneven seeds {n}"
     loss = losses(data)
-    mean, se = draw(loss, "bars", a.out / "fig2_bars")
-    prof = draw(loss, "profile", a.out / "fig2_profile")
-    print("log10 regret ratio per task (mean over seeds) | average +/- s.e. | best on, within 1 on:")
+    mean, se, curve = draw(loss, anytime_losses(data), a.out / "fig2")
+    print("log10 regret ratio per task (mean over seeds) | average +/- s.e. | at 10%, 25%, 50% of budget:")
     for m in METHODS_C:
         print(f"  {METHODS[m][0]:9s}" + " ".join(f"{v:5.1f}" for v in loss[m].mean(1))
-              + f" | {mean[m]:.2f} +/- {se[m]:.2f} | {prof[m][0]:.0%}, {prof[m][1]:.0%}")
-    print(f"wrote {a.out}/fig2_bars and fig2_profile (.pdf and .png)")
+              + f" | {mean[m]:.2f} +/- {se[m]:.2f} | " + " ".join(f"{curve[m][i]:.2f}" for i in (9, 24, 49)))
+    print(f"wrote {a.out}/fig2 (.pdf and .png)")
 
 
 if __name__ == "__main__":
