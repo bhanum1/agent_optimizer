@@ -39,3 +39,18 @@ Shiwa are left out: CMA-ES beats SMAC on every task. To redraw:
 ```bash
 .venv/bin/python -m aobench.fig2 --runs benchmark/runs/main --agent benchmark/runs/opus_high --seeds 5 --out benchmark/figures/fig2
 ```
+
+`fig3/` is Figure 3 of the paper: one campaign, Opus high on `few_evals_10d` seed 1 (a
+10-D sphere with 1% noise, 300 evaluations), chosen because the agent leads the best
+baseline from start to end. (a) The task and the agent's two key decisions, each as its
+evidence, reasoning and decision, from its rationales; (b) regret against evaluations for
+the agent, the best baseline on that instance (Bandit), and one counterfactual per
+decision: what would have run had the agent not made it. A counterfactual rewinds the
+campaign to the decision, replaying its noise draws, and runs the agent's own previous
+optimizer on to the end of the budget (`aobench.counterfactual`). The branches live in
+`benchmark/runs/counterfactual`; the commands that make them are in the docstring of
+`aobench/fig3.py`. To redraw:
+
+```bash
+.venv/bin/python -m aobench.fig3 --out benchmark/figures/fig3
+```
