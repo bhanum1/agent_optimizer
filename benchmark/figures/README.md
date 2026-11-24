@@ -27,14 +27,16 @@ differences under about two decades may be luck. "(approx.)" marks branches afte
 replay stopped matching the original run exactly. The script that made it is not in
 the repository.
 
-`fig2/` is Figure 2 of the paper, against seeds 0–4. The log₁₀ regret ratio is log₁₀ of a
-method's regret divided by the best method's on the same instance (0 = best). (a) A 2-D
-slice of each task's landscape through the optimum of the seed-0 instance, as observed,
-with an inset showing the 1% noise at the scale of a finite-difference step; (b) each
-optimizer's final ratio per task, coloured by size, its worst task labelled; (c) with the
-agent (Opus high), the final ratio averaged over tasks (mean ± s.e. over seeds); (d) the
-ratio against the fraction of the budget spent, averaged over tasks and seeds. SMAC and
-Shiwa are left out: CMA-ES beats SMAC on every task. To redraw:
+`fig2/` is Figure 2 of the paper, against seeds 0–4. The log₁₀ regret ratio is log₁₀ of
+a method's regret divided by the best method's on the same instance (0 = best). (a) A
+2-D slice of each task's landscape through the optimum of the seed-0 instance, as
+observed, with an inset showing the 1% noise at the scale of a finite-difference step;
+(b) each optimizer's final ratio per task, coloured by size on panel a's scale, its
+worst task labelled and a task it was best on, on every seed, drawn as a stub in the
+optimum's colour and marked "best"; (c) with the agent (Opus high), the final ratio
+averaged over tasks (mean ± s.e. over seeds); (d) the ratio against the fraction of the
+budget spent, averaged over tasks and seeds. SMAC and Shiwa are left out: CMA-ES beats
+SMAC on every task. To redraw:
 
 ```bash
 .venv/bin/python -m aobench.fig2 --runs benchmark/runs/main --agent benchmark/runs/opus_high --seeds 5 --out benchmark/figures/fig2

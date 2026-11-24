@@ -14,7 +14,8 @@ log10 regret of all methods, the agent included).
     show on a log scale; the inset on the noisy ellipsoid zooms into a step of 1e-7
     along one line, where it swamps the change a finite difference would measure.
 (b) Each method's loss on each task, mean over seeds, coloured by loss (lower is
-    better); the number is its worst task.
+    better); a "best" stub marks a task the method was best on, on every seed, and the number is its
+    worst task.
 (c) Each method's loss averaged over tasks, mean +/- one standard error over seeds.
 (d) Each method's loss against the fraction of the budget spent: at each fraction, its
     log10 regret minus the lowest of all methods' at that fraction, averaged over tasks
@@ -70,6 +71,9 @@ BAR_WORST = "#4A525A"
 SCALE = LinearSegmentedColormap.from_list("scale", plt.get_cmap("magma_r")(np.linspace(0.10, 0.90, 256)))
 LOSS_CMAP = SCALE
 LOSS_NORM = Normalize(0, 10)
+# Panel b: this method was the best on this task. The bottom of the scale, so a win is drawn
+# in the colour panel a gives the optimum.
+BEST = SCALE(0.0)
 YMAX = 12.0
 
 
@@ -127,7 +131,7 @@ def panel_a(fig, gs):
         for s in ax.spines.values():
             s.set_visible(True)
             s.set_linewidth(0.4)
-        ax.set_xlabel(f"$d={spec.dim}$, {spec.budget} evals", fontsize=6.5, labelpad=2)
+        ax.set_xlabel(f"$d={spec.dim}$, {spec.budget} Evals", fontsize=6.5, labelpad=2)
         axes.append(ax)
     return axes
 
@@ -154,7 +158,10 @@ def panel_b(fig, gs, loss):
         if agent:
             ax.set_facecolor(AGENT_TINT)
         ax.bar(x, v, width=0.72, color=colours, zorder=2)
-        ax.plot(x[v < 0.15], np.full((v < 0.15).sum(), 0.25), "_", color="0.55", ms=4, mew=1, zorder=3)  # zero-height bars
+        best = v < 0.15  # best, or within a rounding of it: a win, drawn as a stub so it is visible
+        ax.bar(x[best], np.full(best.sum(), 0.45), width=0.72, color=BEST, zorder=3)
+        for i in np.flatnonzero(best):  # say what the stub means, so the figure needs no key
+            ax.text(x[i], 0.8, "best", ha="center", va="bottom", fontsize=6, color="black")
         for i in np.flatnonzero(dark):
             ax.text(x[i], v[i] + 0.35, f"{v[i]:.1f}", ha="center", va="bottom", fontsize=6.5,
                     color=AGENT if agent else "0.25", fontweight="bold" if agent else "normal")
@@ -200,7 +207,7 @@ def panel_c(ax, loss):
     ax.tick_params(axis="y", length=0)
     ax.grid(axis="x", lw=0.3, color="0.85", zorder=0)
     ax.spines["left"].set_visible(False)
-    ax.set_xlabel("Final $\\log_{10}$ regret ratio")
+    ax.set_xlabel("Final Log$_{10}$ Regret Ratio")
     return mean, se
 
 
@@ -250,8 +257,8 @@ def panel_d(ax, anytime):
     ax.set_xticks([0, 0.25, 0.5, 0.75, 1], ["0", "", "0.5", "", "1"])
     ax.set_yticks([0, 2, 4, 6, 8])
     ax.grid(lw=0.3, color="0.88", zorder=0)
-    ax.set_xlabel("Fraction of budget")
-    ax.set_ylabel(r"$\log_{10}$ regret ratio $\downarrow$")
+    ax.set_xlabel("Fraction of Budget")
+    ax.set_ylabel(r"Log$_{10}$ Regret Ratio $\downarrow$")
     return {m: anytime[m].mean(1) for m in METHODS_C}
 
 
@@ -286,7 +293,7 @@ def draw(loss, anytime, path: Path, gap: float = 0.055):
     left, right = box(axa[0])[0, 0], box(axa[-1])[1, 0]
     # One y-axis label for panel b's six subplots, at a's left edge; the row makes room for it.
     b0, b3 = axb[0].get_position(), axb[3].get_position()
-    ylab = fig.text(left, (b0.y1 + b3.y0) / 2, r"$\log_{10}$ regret ratio $\downarrow$", rotation=90,
+    ylab = fig.text(left, (b0.y1 + b3.y0) / 2, r"Log$_{10}$ Regret Ratio $\downarrow$", rotation=90,
                     va="center", ha="left", fontsize=7)
     fig.canvas.draw()
     b_left = inv.transform(ylab.get_window_extent(r).get_points())[1, 0] + 0.012
