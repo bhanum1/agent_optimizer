@@ -63,10 +63,14 @@ AGENT = METHODS["agent"][1]
 AGENT_TINT = "#F4EDF7"
 BAR = "#9AA3AD"
 BAR_WORST = "#4A525A"
-# Panel b: bar colour follows loss, light (near the best) to deep red (far behind).
-LOSS_CMAP = LinearSegmentedColormap.from_list("loss", ["#D9DEE3", "#F6C3A5", "#E0694A", "#A3201C", "#5C0A0E"])
+# One scale for panels a and b: both show orders of magnitude above the best value, so a colour
+# means the same number of decades in either panel. It runs light and warm (at the best) to dark
+# (far behind), truncated so neither end is paper-white or ink-black; perceptually uniform, and
+# it survives greyscale printing.
+SCALE = LinearSegmentedColormap.from_list("scale", plt.get_cmap("magma_r")(np.linspace(0.10, 0.90, 256)))
+LOSS_CMAP = SCALE
 LOSS_NORM = Normalize(0, 10)
-YMAX = 12.5
+YMAX = 12.0
 
 
 def landscape(task_key: str, n: int = 161):
@@ -108,7 +112,7 @@ def panel_a(fig, gs):
         ax = fig.add_subplot(gs[k])
         z, xo, task = landscape(t)
         lo, hi = np.percentile(z, [1, 99.5])
-        ax.imshow(z, origin="lower", extent=(-5, 5, -5, 5), cmap="viridis", vmin=lo, vmax=hi,
+        ax.imshow(z, origin="lower", extent=(-5, 5, -5, 5), cmap=SCALE, vmin=lo, vmax=hi,
                   interpolation="nearest", rasterized=True)
         ax.plot(xo[0], xo[1], marker="*", ms=7, mfc="white", mec="black", mew=0.5)
         if t == "ill_conditioned_noisy":
@@ -196,7 +200,7 @@ def panel_c(ax, loss):
     ax.tick_params(axis="y", length=0)
     ax.grid(axis="x", lw=0.3, color="0.85", zorder=0)
     ax.spines["left"].set_visible(False)
-    ax.set_xlabel("$\\log_{10}$ regret ratio\nat the end, mean over tasks")
+    ax.set_xlabel("Final $\\log_{10}$ regret ratio")
     return mean, se
 
 
@@ -247,38 +251,31 @@ def panel_d(ax, anytime):
     ax.set_yticks([0, 2, 4, 6, 8])
     ax.grid(lw=0.3, color="0.88", zorder=0)
     ax.set_xlabel("Fraction of budget")
-    ax.set_ylabel(r"$\log_{10}$ regret ratio")
+    ax.set_ylabel(r"$\log_{10}$ regret ratio $\downarrow$")
     return {m: anytime[m].mean(1) for m in METHODS_C}
 
 
-def colour_bar(fig, axb, box):
-    """Horizontal key for panel b's bar colours, centred under its bottom row."""
-    x0, x1 = axb[3].get_position().x0, axb[5].get_position().x1
-    w = 0.45 * (x1 - x0)
-    y = box(axb[3])[0, 1] - 0.035
-    cb = fig.add_axes([(x0 + x1 - w) / 2, y, w, 0.014])
-    cb.imshow(np.linspace(0, 10, 256)[None, :], aspect="auto", cmap=LOSS_CMAP, norm=LOSS_NORM,
-              extent=(0, 10, 0, 1))
-    cb.set_yticks([])
-    cb.set_xticks([0, 5, 10])
-    cb.tick_params(length=0, labelsize=6, pad=1.5)
-    for sp in cb.spines.values():
-        sp.set_visible(False)
-    cb.text(-0.4, 0.5, "best", ha="right", va="center", fontsize=6, color="0.3")
-    cb.text(10.4, 0.5, "worse", ha="left", va="center", fontsize=6, color="0.3")
+def fit_row(axes, x0, x1, box):
+    """Squeeze a row of axes into [x0, x1], keeping their relative widths and gaps."""
+    pos = [ax.get_position() for ax in axes]
+    a, b = pos[0].x0, pos[-1].x1
+    s = (x1 - x0) / (b - a)
+    for ax, p in zip(axes, pos):
+        ax.set_position([x0 + (p.x0 - a) * s, p.y0, p.width * s, p.height])
 
 
-def draw(loss, anytime, path: Path, gap: float = 0.06):
-    fig = plt.figure(figsize=(WIDTH, 4.9))
-    outer = GridSpec(2, 1, figure=fig, height_ratios=[1.2, 1.55], hspace=0.3, left=0.02, right=0.98,
-                     top=0.93, bottom=0.14)
+def draw(loss, anytime, path: Path, gap: float = 0.055):
+    fig = plt.figure(figsize=(WIDTH, 7.0))
+    # Row a's height is set so the square landscapes fill it; b and c/d get the rest.
+    outer = GridSpec(3, 1, figure=fig, height_ratios=[0.90, 2.10, 1.75], hspace=0.40, left=0.02,
+                     right=0.98, top=0.96, bottom=0.06)
     top = outer[0].subgridspec(1, len(TASKS), wspace=0.22)
-    bottom = outer[1].subgridspec(1, 3, width_ratios=[1.0, 0.55, 0.6], wspace=0.3)
-    grid_b = bottom[0].subgridspec(2, 3, wspace=0.14, hspace=0.55)
+    grid_b = outer[1].subgridspec(2, 3, wspace=0.11, hspace=0.45)
+    bottom = outer[2].subgridspec(1, 2, wspace=0.3)
     axa = panel_a(fig, top)
     axb = panel_b(fig, grid_b, loss)
-    axc = fig.add_subplot(bottom[1])
-    axd = fig.add_subplot(bottom[2])
+    axc = fig.add_subplot(bottom[0])
+    axd = fig.add_subplot(bottom[1])
     mean, se = panel_c(axc, loss)
     curve = panel_d(axd, anytime)
 
@@ -287,32 +284,38 @@ def draw(loss, anytime, path: Path, gap: float = 0.06):
     inv = fig.transFigure.inverted()
     box = lambda ax: inv.transform(ax.get_tightbbox(r).get_points())
     left, right = box(axa[0])[0, 0], box(axa[-1])[1, 0]
+    # One y-axis label for panel b's six subplots, at a's left edge; the row makes room for it.
     b0, b3 = axb[0].get_position(), axb[3].get_position()
-    ylab = fig.text(left, (b0.y1 + b3.y0) / 2, r"$\log_{10}$ regret ratio", rotation=90, va="center",
-                    ha="left", fontsize=7)
+    ylab = fig.text(left, (b0.y1 + b3.y0) / 2, r"$\log_{10}$ regret ratio $\downarrow$", rotation=90,
+                    va="center", ha="left", fontsize=7)
     fig.canvas.draw()
-    shift = inv.transform(ylab.get_window_extent(r).get_points())[1, 0] + 0.012 - box(axb[0])[0, 0]
-    for ax in axb:
-        ax.set_position(ax.get_position().translated(shift, 0))
+    b_left = inv.transform(ylab.get_window_extent(r).get_points())[1, 0] + 0.012
+    b_left += axb[0].get_position().x0 - box(axb[0])[0, 0]  # room for the y tick labels too
+    for row in (axb[:3], axb[3:]):
+        fit_row(row, b_left, right, box)
     fig.canvas.draw()
-    # c and d share what is left after b: c's tight box starts one gap after b, d's ends at a's edge.
-    b_right = max(box(ax)[1, 0] for ax in axb)
-    y0, h = b3.y0, b0.y1 - b3.y0
-    pc, pd = axc.get_position(), axd.get_position()
+    # c and d share the bottom row: tight boxes from a's left edge to its right, one gap between.
     (cl, _), (cr, _) = box(axc)
     (dl, _), (dr, _) = box(axd)
+    pc, pd = axc.get_position(), axd.get_position()
     pad_c, pad_d = (pc.x0 - cl, cr - pc.x1), (pd.x0 - dl, dr - pd.x1)
-    room = right - (b_right + gap) - gap - sum(pad_c) - sum(pad_d)
-    wc, wd = 0.46 * room, 0.54 * room
-    xc = b_right + gap + pad_c[0]
-    axc.set_position([xc, y0, wc, h])
-    axd.set_position([xc + wc + pad_c[1] + gap + pad_d[0], y0, wd, h])
+    room = right - left - gap - sum(pad_c) - sum(pad_d)
+    wc, wd = 0.45 * room, 0.55 * room
+    axc.set_position([left + pad_c[0], pc.y0, wc, pc.height])
+    axd.set_position([left + pad_c[0] + wc + pad_c[1] + gap + pad_d[0], pd.y0, wd, pd.height])
+
     fig.canvas.draw()
-    colour_bar(fig, axb, box)
+    # One "Task" label for panel b's six subplots, centred under its bottom row.
+    bx0, bx1 = axb[3].get_position().x0, axb[5].get_position().x1
+    fig.text((bx0 + bx1) / 2, min(box(ax)[0, 1] for ax in axb[3:]) - 0.010, "Task",
+             ha="center", va="top", fontsize=7)
+    fig.canvas.draw()
     at = box(axa[0])[1, 1]
-    bt = max(box(axb[0])[1, 1], box(axc)[1, 1], box(axd)[1, 1])
-    for x, y, letter in ((left, at, "a"), (left, bt, "b"), (box(axc)[0, 0], bt, "c"), (box(axd)[0, 0], bt, "d")):
-        fig.text(x - 0.012, y + 0.008, letter, fontsize=11, fontweight="bold", va="bottom", ha="left")
+    bt = max(box(ax)[1, 1] for ax in axb[:3])
+    ct = max(box(axc)[1, 1], box(axd)[1, 1])
+    for x, y, letter in ((left, at, "a"), (left, bt, "b"), (box(axc)[0, 0], ct, "c"),
+                         (box(axd)[0, 0], ct, "d")):
+        fig.text(x - 0.012, y + 0.006, letter, fontsize=11, fontweight="bold", va="bottom", ha="left")
     for ext in ("pdf", "png"):
         fig.savefig(path.with_suffix(f".{ext}"))
     plt.close(fig)
