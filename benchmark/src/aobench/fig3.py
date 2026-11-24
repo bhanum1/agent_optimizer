@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import textwrap
 from pathlib import Path
 
 import matplotlib
@@ -41,26 +42,29 @@ FLOOR = 1e-8
 AGENT = METHODS["agent"][1]
 BASELINES = ["lbfgsb", "cobyla", "cma_es", "gpbo", "bandit", "sobol"]
 BOLD = dict(fontfamily="STIXGeneral", fontweight="bold")  # STIX Two Text has no bold weight here
-INK, MUTED, FAINT, RULE = "#1A1A1A", "#5F5F5F", "#9A9A9A", "#D9D9D9"
+# All text is black: colour is left to the curves, the badge rings and the stems, and every
+# label sits against the thing it names, so no label needs its colour to be found.
+INK = MUTED = FAINT = "black"
+RULE = "#D9D9D9"
 GREY = "#9A9A9A"  # the baseline
 COLOURS = ["#D55E00", "#0072B2", "#009E73"]  # Okabe-Ito vermillion, blue, green: one per decision
 
-# The task as the agent saw it, what was hidden from it, and each key decision: when, the evidence,
-# the reasoning and the decision (from its rationale in decisions.md), its counterfactual branch,
-# and that branch's label in panel b (what runs instead). `label_at` places a label by hand.
+# The task as shape, function, budget and noise, and each key decision: when, the decision and why
+# (from its rationale in decisions.md), its counterfactual branch, and that branch's label in
+# panel b (what runs instead), as the three steps of the agent's loop. `label_at` places a
+# label by hand.
 CAMPAIGNS = {
     "few_evals_10d/1": dict(
-        task=r"Black box on $[-5, 5]^{10}$, 300 evaluations, 1% noise",
-        hidden=r"Hidden from the agent: a sphere (BBOB $f_1$)",
+        task="10-dimensional black box with 1% noise. 300 evaluation budget.",
         decisions=[
-            dict(after=47, branch="gpbo_47", instead="restart GP-BO",
-                 evidence="A separable quadratic fits all 47 points.",
-                 reasoning="So its minimum can be computed, not searched.",
-                 decision="Jump to the fitted minimum, then refine locally."),
-            dict(after=126, branch="lq_126", instead="keep the trust region", label_at=(243, -4.72),
-                 evidence="The trust region stalled; repeats agree to 5e-7.",
-                 reasoning="Noise is negligible, so slopes can be measured.",
-                 decision="Write its own finite-difference Newton method."),
+            dict(after=47, branch="gpbo_47", instead="GP-BO continued",
+                 observe="A separable quadratic fits all 47 points.",
+                 reason="Its minimum can be computed, not searched.",
+                 act="Jump to the fitted minimum, then refine locally."),
+            dict(after=126, branch="lq_126", instead="Trust region continued", label_at=(240, -4.35),
+                 observe=r"The trust region stalled; repeats agree to $5{\times}10^{-7}$.",
+                 reason="Noise is negligible, so slopes can be measured.",
+                 act="Write its own finite-difference Newton method."),
         ],
         agent_label=(104, -5.1), base_label=(172, 0.95)),
 }
@@ -89,9 +93,9 @@ def trace(path: Path) -> np.ndarray:
 def verdict(gain: float) -> str:
     """What a decision bought, from the gap in final log10 regret to its counterfactual."""
     if abs(gain) < 0.3:
-        return "no effect on the final regret"
+        return "no change"
     k = round(abs(gain))
-    return rf"$10^{{{k}}}\times$ {'lower' if gain > 0 else 'higher'} final regret"
+    return rf"$10^{{{k}}}\times$ {'less' if gain > 0 else 'more'} regret"
 
 
 def load(name: str, runs: Path, baselines: Path, branches: Path):
@@ -115,42 +119,82 @@ def badge(ax, x, y, number, colour, size=11.5, transform=None):
     """A numbered ring: the same mark in both panels, so a decision reads across them."""
     kw = {"transform": transform} if transform is not None else {}
     ax.plot([x], [y], "o", ms=size, mfc="white", mec=colour, mew=1.3, zorder=6, clip_on=False, **kw)
-    ax.text(x, y, str(number), ha="center", va="center", fontsize=size * 0.6, color=colour, zorder=7,
+    ax.text(x, y, str(number), ha="center", va="center", fontsize=size * 0.6, color="black", zorder=7,
             **kw, **BOLD)
 
 
-def panel_a(fig, ax, name, decisions):
-    """Typeset in points from the top of the panel, so spacing stays even at any figure size."""
+def rendered_len(text: str) -> int:
+    """Length of a string as it is drawn: a $...$ run sets about a third of its source."""
+    out, math = 0, False
+    for part in text.split("$"):
+        out += round(len(part) / 3) if math else len(part)
+        math = not math
+    return out
+
+
+def run(fig, ax, x, y, parts, size, gap=3.0):
+    """A left-to-right run of differently styled pieces, laid out as one right-aligned block."""
+    tr = ax.transAxes
+    r = fig.canvas.get_renderer()
+    inv = tr.inverted()
+    g = gap / (ax.get_position().width * fig.get_figwidth() * 72)
+    objs, cx = [], 0.0
+    for text, font in parts:
+        t = ax.text(cx, y, text, ha="left", va="top", fontsize=size, color=INK, transform=tr, **font)
+        box = inv.transform(t.get_window_extent(r).get_points())
+        objs.append(t)
+        cx += box[1, 0] - box[0, 0] + g
+    for t in objs:
+        t.set_x(t.get_position()[0] + x - (cx - g))
+
+
+def panel_a(fig, ax, name, decisions, wrap=58):
+    """Typeset in points from the top of the panel, so spacing stays even at any figure size.
+
+    Each decision is one turn of the agent's loop, read down a stem with a stop at each step:
+    what it observed (roman), what it inferred (italic), what it then did (bold). The three
+    steps are named once, above the first card, instead of labelling all six lines.
+    """
     ax.set_axis_off()
     cfg = CAMPAIGNS[name]
     h_pt = ax.get_position().height * fig.get_figheight() * 72
     y_of = lambda pt: 1 - pt / h_pt  # noqa: E731  distance from the top, in points, to axes units
     tr = ax.transAxes
-    x_label, x_text = 0.115, 0.305
+    x_stem, x_text = 0.022, 0.085
+    wrapped = lambda s, w: textwrap.wrap(s, w + len(s) - rendered_len(s))  # noqa: E731
 
-    ax.text(0.0, y_of(2), "TASK", ha="left", va="top", fontsize=6.0, color=FAINT, transform=tr)
-    ax.text(x_label, y_of(1), cfg["task"], ha="left", va="top", fontsize=7.4, color=INK, transform=tr)
-    ax.text(x_label, y_of(12), cfg["hidden"], ha="left", va="top", fontsize=6.8, color=MUTED,
-            style="italic", transform=tr)
-    ax.plot([0, 1], [y_of(27)] * 2, color=RULE, lw=0.6, transform=tr, clip_on=False)
+    ax.text(0.0, y_of(1), cfg["task"], ha="left", va="top", fontsize=7.6, color=INK, transform=tr)
+    ax.plot([0, 1], [y_of(15)] * 2, color=RULE, lw=0.6, transform=tr, clip_on=False)
+    arrow = (r"$\rightarrow$", {})  # STIX Two Text has no arrow glyph of its own
+    run(fig, ax, 1.0, y_of(19.5), [("Observe", {}), arrow, ("Reason", {"style": "italic"}), arrow,
+                                   ("Act", BOLD)], 6.2)
 
-    rows = (("EVIDENCE", "evidence", MUTED, {}), ("REASONING", "reasoning", MUTED, {}),
-            ("DECISION", "decision", INK, BOLD))
-    top, line, block = 37, 12.5, 66
+    # (key, size, line height, extra font kwargs) -- one block per step of the loop.
+    STEPS = (("observe", 6.9, 9.6, {}), ("reason", 6.9, 9.6, {"style": "italic"}),
+             ("act", 7.5, 10.6, BOLD))
+    t, gap = 36, 18
     for i, d in enumerate(decisions):
-        t = top + i * block
-        badge(ax, 0.042, y_of(t + 7), i + 1, d["colour"], transform=tr)
-        ax.text(0.042, y_of(t + 19), f"eval {d['after']}", ha="center", va="top", fontsize=6.0, color=FAINT,
+        stops = []
+        for key, size, lead, font in STEPS:
+            lines = wrapped(d[key], round(wrap * 6.9 / size))
+            stops.append(t + 1)
+            for line in lines:
+                ax.text(x_text, y_of(t), line, ha="left", va="top", fontsize=size, color=INK,
+                        transform=tr, **font)
+                t += lead
+            t += 2.6
+        foot = t + 1.5
+        ax.text(x_text, y_of(foot), f"eval {d['after']}", ha="left", va="top", fontsize=6.4, color=FAINT,
                 transform=tr)
-        for j, (label, key, colour, font) in enumerate(rows):
-            y = y_of(t + 2 + j * line)
-            ax.text(x_label, y, label, ha="left", va="top", fontsize=6.0, color=FAINT, transform=tr)
-            ax.text(x_text, y + 0.004, d[key], ha="left", va="top", fontsize=7.2, color=colour, transform=tr,
-                    **font)
-        ax.text(x_text, y_of(t + 2 + 3 * line + 1), verdict(d["gain"]), ha="left", va="top", fontsize=7.2,
-                color=d["colour"], transform=tr)
-        if i < len(decisions) - 1:
-            ax.plot([x_label, 1], [y_of(t + block - 8)] * 2, color=RULE, lw=0.5, transform=tr, clip_on=False)
+        ax.text(1.0, y_of(foot - 0.6), verdict(d["gain"]), ha="right", va="top", fontsize=7.5,
+                color="black", transform=tr)
+        badge(ax, x_stem, y_of(stops[0] + 2.6), i + 1, d["colour"], size=9.5, transform=tr)
+        ax.plot([x_stem] * 2, [y_of(stops[0] + 9), y_of(foot + 6)], color=d["colour"], lw=1.1,
+                alpha=0.45, transform=tr, clip_on=False, solid_capstyle="butt")
+        for y in stops[1:]:  # a stop on the stem beside each later step
+            ax.plot([x_stem], [y_of(y + 2.6)], "o", ms=2.6, color=d["colour"], transform=tr,
+                    clip_on=False, zorder=6)
+        t = foot + 6 + gap
 
 
 def panel_b(ax, name, task, agent, base, decisions):
@@ -159,7 +203,7 @@ def panel_b(ax, name, task, agent, base, decisions):
     best, b = base
     ax.grid(axis="y", lw=0.35, color="#EBEBEB", zorder=0)
     ax.plot(np.arange(1, len(b) + 1), b, color=GREY, lw=1.0, zorder=2)
-    ax.text(*cfg["base_label"], f"{METHODS[best][0]}, best baseline", fontsize=6.5, color=GREY,
+    ax.text(*cfg["base_label"], f"{METHODS[best][0]}, best baseline", fontsize=6.5, color="black",
             ha="left", va="top")
     x = np.arange(1, budget + 1)
     for d in decisions:
@@ -167,9 +211,9 @@ def panel_b(ax, name, task, agent, base, decisions):
         ax.plot(x[k - 1:], c[k - 1:], color=d["colour"], lw=1.0, ls=(0, (3.2, 1.8)), zorder=3)
         ax.plot([budget], [c[-1]], "o", ms=3, color=d["colour"], zorder=4, clip_on=False)
         lx, ly = d.get("label_at", (budget - budget / 60, c[-1] + 0.25))
-        ax.text(lx, ly, d["instead"], ha="right", va="bottom", fontsize=6.5, color=d["colour"])
+        ax.text(lx, ly, d["instead"], ha="right", va="bottom", fontsize=6.5, color="black")
     ax.plot(np.arange(1, len(agent) + 1), agent, color=AGENT, lw=1.7, zorder=5, solid_joinstyle="miter")
-    ax.text(*cfg["agent_label"], "Agent", color=AGENT, fontsize=7.2, ha="right", va="center", **BOLD)
+    ax.text(*cfg["agent_label"], "Agent", color="black", fontsize=7.2, ha="right", va="center", **BOLD)
     for i, d in enumerate(decisions):
         badge(ax, d["after"], agent[d["after"] - 1], i + 1, d["colour"], size=10)
     top = np.ceil(max(agent.max(), b.max()))
@@ -178,7 +222,7 @@ def panel_b(ax, name, task, agent, base, decisions):
     ax.set_yticks(np.arange(-8, top + 1, 2))
     ax.set_yticklabels([f"$10^{{{int(v)}}}$" for v in np.arange(-8, top + 1, 2)])
     ax.set_xlabel("Evaluations")
-    ax.set_ylabel("Regret")
+    ax.set_ylabel(r"Regret $\downarrow$")
     ax.tick_params(axis="y", length=0, pad=3)
     ax.spines["left"].set_visible(False)
 
@@ -193,13 +237,13 @@ def main(argv=None):
     a = p.parse_args(argv)
     task, agent, base, decisions = load(a.campaign, a.runs, a.baselines, a.branches)
     plt.rcParams.update(STYLE)
-    fig = plt.figure(figsize=(WIDTH, 2.45))
-    ax_a = fig.add_axes([0.035, 0.04, 0.44, 0.83])
-    ax_b = fig.add_axes([0.585, 0.17, 0.405, 0.70])
+    fig = plt.figure(figsize=(WIDTH, 2.72))
+    ax_a = fig.add_axes([0.035, 0.05, 0.44, 0.83])
+    ax_b = fig.add_axes([0.585, 0.17, 0.405, 0.68])
     panel_a(fig, ax_a, a.campaign, decisions)
     panel_b(ax_b, a.campaign, task, agent, base, decisions)
-    for ax, letter, title in ((ax_a, "a", "The task, and the agent's key decisions"),
-                              (ax_b, "b", "Had the agent not made each decision")):
+    for ax, letter, title in ((ax_a, "a", "Agent's Key Decisions and Reasoning"),
+                              (ax_b, "b", "Benefits of Each Key Decision")):
         x0 = 0.0 if letter == "a" else ax.get_position().x0 - 0.065
         fig.text(x0, 0.975, letter, fontsize=11, va="top", ha="left", **BOLD)
         fig.text(x0 + 0.025, 0.968, title, fontsize=8, va="top", ha="left", color=INK)

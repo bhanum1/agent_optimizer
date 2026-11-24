@@ -44,8 +44,9 @@ SMAC on every task. To redraw:
 
 `fig3/` is Figure 3 of the paper: one campaign, Opus high on `few_evals_10d` seed 1 (a
 10-D sphere with 1% noise, 300 evaluations), chosen because the agent leads the best
-baseline from start to end. (a) The task and the agent's two key decisions, each as its
-evidence, reasoning and decision, from its rationales; (b) regret against evaluations for
+baseline from start to end. (a) The task, and the agent's two key decisions as one turn
+each of its loop: what it observed, what it inferred from that, and what it then did
+(from its rationales), with what the decision bought; (b) regret against evaluations for
 the agent, the best baseline on that instance (Bandit), and one counterfactual per
 decision: what would have run had the agent not made it. A counterfactual rewinds the
 campaign to the decision, replaying its noise draws, and runs the agent's own previous
