@@ -60,11 +60,11 @@ CAMPAIGNS = {
             dict(after=47, branch="gpbo_47", instead="GP-BO continued",
                  observe="A separable quadratic fits all 47 points.",
                  reason="Its minimum can be computed, not searched.",
-                 act="Jump to the fitted minimum, then refine locally."),
+                 design="Jump to the fitted minimum, then refine locally."),
             dict(after=126, branch="lq_126", instead="Trust region continued", label_at=(240, -4.35),
                  observe=r"The trust region stalled; repeats agree to $5{\times}10^{-7}$.",
                  reason="Noise is negligible, so slopes can be measured.",
-                 act="Write its own finite-difference Newton method."),
+                 design="Write its own finite-difference Newton method."),
         ],
         agent_label=(104, -5.1), base_label=(172, 0.95)),
 }
@@ -152,7 +152,7 @@ def panel_a(fig, ax, name, decisions, wrap=58):
     """Typeset in points from the top of the panel, so spacing stays even at any figure size.
 
     Each decision is one turn of the agent's loop, read down a stem with a stop at each step:
-    what it observed (roman), what it inferred (italic), what it then did (bold). The three
+    what it observed (roman), what it inferred (italic), the optimizer it designed (bold). The three
     steps are named once, above the first card, instead of labelling all six lines.
     """
     ax.set_axis_off()
@@ -167,11 +167,11 @@ def panel_a(fig, ax, name, decisions, wrap=58):
     ax.plot([0, 1], [y_of(15)] * 2, color=RULE, lw=0.6, transform=tr, clip_on=False)
     arrow = (r"$\rightarrow$", {})  # STIX Two Text has no arrow glyph of its own
     run(fig, ax, 1.0, y_of(19.5), [("Observe", {}), arrow, ("Reason", {"style": "italic"}), arrow,
-                                   ("Act", BOLD)], 6.2)
+                                   ("Design", BOLD)], 6.2)
 
     # (key, size, line height, extra font kwargs) -- one block per step of the loop.
     STEPS = (("observe", 6.9, 9.6, {}), ("reason", 6.9, 9.6, {"style": "italic"}),
-             ("act", 7.5, 10.6, BOLD))
+             ("design", 7.5, 10.6, BOLD))
     t, gap = 36, 18
     for i, d in enumerate(decisions):
         stops = []

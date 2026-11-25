@@ -30,7 +30,8 @@ the repository.
 `fig2/` is Figure 2 of the paper, against seeds 0–4. The log₁₀ regret ratio is log₁₀ of
 a method's regret divided by the best method's on the same instance (0 = best). (a) A
 2-D slice of each task's landscape through the optimum of the seed-0 instance, as
-observed, with an inset showing the 1% noise at the scale of a finite-difference step;
+observed, with insets on the two 1%-noise tasks showing that noise at the scale of a
+finite-difference step;
 (b) each optimizer's final ratio per task, coloured by size on panel a's scale, its
 worst task labelled and a task it was best on, on every seed, drawn as a stub in the
 optimum's colour and marked "best"; (c) with the agent (Opus high), the final ratio
@@ -45,8 +46,8 @@ SMAC on every task. To redraw:
 `fig3/` is Figure 3 of the paper: one campaign, Opus high on `few_evals_10d` seed 1 (a
 10-D sphere with 1% noise, 300 evaluations), chosen because the agent leads the best
 baseline from start to end. (a) The task, and the agent's two key decisions as one turn
-each of its loop: what it observed, what it inferred from that, and what it then did
-(from its rationales), with what the decision bought; (b) regret against evaluations for
+each of its loop: what it observed, what it inferred from that, and the optimizer it then
+designed (from its rationales), with what the decision bought; (b) regret against evaluations for
 the agent, the best baseline on that instance (Bandit), and one counterfactual per
 decision: what would have run had the agent not made it. A counterfactual rewinds the
 campaign to the decision, replaying its noise draws, and runs the agent's own previous

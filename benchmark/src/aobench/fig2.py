@@ -11,7 +11,7 @@ log10 regret of all methods, the agent included).
 (a) Each task's landscape: log10(f - f*) on a 2-D slice through the optimum of the
     seed-0 instance (coordinates 1 and 2 vary over the box, the others sit at x*),
     as observed, noise included. The 1% noise is a relative error, so it does not
-    show on a log scale; the inset on the noisy ellipsoid zooms into a step of 1e-7
+    show on a log scale; the insets on the noisy tasks zoom into a step of 1e-7
     along one line, where it swamps the change a finite difference would measure.
 (b) Each method's loss on each task, mean over seeds, coloured by loss (lower is
     better); a "best" stub marks a task the method was best on, on every seed, and the number is its
@@ -90,7 +90,7 @@ def landscape(task_key: str, n: int = 161):
     return np.log10(np.maximum(z, 1e-8)), xo, task
 
 
-def noise_inset(ax, task):
+def noise_inset(ax, task, box=(0.58, 0.15, 0.38, 0.26)):
     """Observed vs true value along a 1e-7 step from a point near the optimum."""
     xo = np.asarray(task._problem.optimum.x, dtype=float)
     x0 = xo + 0.5
@@ -98,7 +98,7 @@ def noise_inset(ax, task):
     t = np.linspace(0, 1e-7, 40)
     true = np.array([task._problem(x0 + s * u) for s in t]) - task.f_opt
     seen = np.array([task.evaluate(x0 + s * u).y for s in t]) - task.f_opt
-    ins = ax.inset_axes([0.5, 0.04, 0.46, 0.4])
+    ins = ax.inset_axes(list(box))
     ins.set_facecolor("white")
     ins.plot(t, seen / true[0] - 1, ".", ms=1.6, color="0.45")
     ins.plot(t, true / true[0] - 1, "-", lw=0.9, color=AGENT)
@@ -107,7 +107,11 @@ def noise_inset(ax, task):
     for s in ins.spines.values():
         s.set_visible(True)
         s.set_linewidth(0.4)
-    ins.set_title(r"zoom: step $10^{-7}$", fontsize=5, pad=1.2)
+    # Under the inset and right-aligned on its edge: clear of the optimum marker at the centre
+    # of every panel, and inside the panel whatever the label's width. White, because down there
+    # it sits over the dark end of the scale.
+    ax.text(box[0] + box[2], box[1] - 0.025, r"zoom: step $10^{-7}$", transform=ax.transAxes,
+            ha="right", va="top", fontsize=5, color="white")
 
 
 def panel_a(fig, gs):
@@ -119,7 +123,7 @@ def panel_a(fig, gs):
         ax.imshow(z, origin="lower", extent=(-5, 5, -5, 5), cmap=SCALE, vmin=lo, vmax=hi,
                   interpolation="nearest", rasterized=True)
         ax.plot(xo[0], xo[1], marker="*", ms=7, mfc="white", mec="black", mew=0.5)
-        if t == "ill_conditioned_noisy":
+        if t in ("ill_conditioned_noisy", "few_evals_10d"):
             noise_inset(ax, task)
         spec = SPECS[t]
         name = SHORT[t].replace(", low budget", ",\nlow budget") if len(SHORT[t]) > 18 else SHORT[t]
