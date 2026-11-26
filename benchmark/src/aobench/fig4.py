@@ -37,18 +37,14 @@ import matplotlib.pyplot as plt  # noqa: E402
 from .figures import STYLE, WIDTH  # noqa: E402
 
 TOP_PCT = 1.0
-# Three of the six tasks that carry all three arms. The other three are left out, and the
-# reasons differ -- rct_2 cannot be measured this way, the last two were a drawing decision:
-#   rct_2  multiobjective, so there is no single label column to take a percentile of.
-#   sup    27.1x for the gray box, the widest result here, dropped to thin the panel.
-#   btch   the batch protocol, and the one task where the gray box loses to the black box
-#          (1.5x against 2.7x). Dropping it takes the only exception off the chart, so the
-#          ordering reads as unbroken when in the full set it is not. Say so in the caption.
-# benchmark/graybox/pool/ keeps the labels for all five, so any of them can come back.
+# Every task that carries all three arms. rct_2 is the one exclusion: it is multiobjective,
+# so it has no single label column to take a percentile of.
 TASKS = {
     "mix_1": ("Low-viscosity mixtures", "min"),
+    "sup": ("High-temp. superconductors", "max"),
     "mat_5": ("CO$_2$ capture in MOFs", "max"),
     "rct_1": ("High-yield coupling reactions", "max"),
+    "btch": ("Methane coupling catalysts", "max"),
 }
 REFERENCE = ["pool_random", "batch_random"]  # what the acceleration is measured against
 ARMS = {
@@ -111,67 +107,54 @@ def collect(results: Path, pool: Path):
     return data, raw
 
 
-def spread(ys, gap):
-    """Nudge labels apart, keeping their order, so two close tasks stay readable."""
-    order = sorted(range(len(ys)), key=lambda i: ys[i])
-    out = list(ys)
-    for a, b in zip(order, order[1:]):
-        if out[b] - out[a] < gap:
-            out[b] = out[a] + gap
-    shift = max(0.0, max(out) - 0.96)
-    return [v - shift for v in out]
+def geomean(xs):
+    """The right average for a ratio: 2x then 8x averages to 4x, not 5x."""
+    return float(np.exp(np.mean(np.log(list(xs)))))
 
 
 def draw(data, out: Path):
     keys = list(ARMS)
-    x = range(len(keys))
-    fig, ax = plt.subplots(figsize=(WIDTH * 0.56, 2.7))
+    fig, ax = plt.subplots(figsize=(WIDTH * 0.50, 2.75))
 
-    ax.axhline(1.0, color=RULE, lw=0.8, zorder=1)
+    bars = [geomean(row[a] for row in data.values()) for a in keys]
+    ax.bar(range(len(keys)), bars, width=0.56, color=[ARMS[a][1] for a in keys], zorder=2)
+    top = max(row[a] for row in data.values() for a in keys)
 
-    # No error bars: each task's would sit at the same three x positions, and five overlapping
-    # would read as one column per arm -- a bar, the reading this panel exists to avoid.
-    for task, row in data.items():
-        ax.plot(x, [row[a] for a in keys], "-", color=INK, lw=0.9, alpha=0.45, zorder=2,
-                clip_on=False)
+    # One dot per task on each bar, so the whole set is on the page and the spread behind each
+    # average is visible. The dots are one ink: which task is which is not this panel's claim.
+    rng = np.random.default_rng(0)
+    for row in data.values():
         for i, a in enumerate(keys):
-            ax.plot([i], [row[a]], "o", ms=4.2, color=ARMS[a][1], mec="white", mew=0.7, zorder=4,
-                    clip_on=False)
+            ax.plot([i + rng.uniform(-0.13, 0.13)], [row[a]], "o", ms=3.4, mfc="white",
+                    mec="#4A4A4A", mew=0.8, zorder=4, alpha=0.95)
 
-    mean = [statistics.mean(row[a] for row in data.values()) for a in keys]
-    ax.plot(x, mean, "-", color="black", lw=2.0, zorder=5, clip_on=False)
-    ax.annotate("mean", (0, mean[0]), textcoords="offset points", xytext=(1, 7), ha="left",
-                va="bottom", fontsize=6.8, color="black", fontfamily="STIXGeneral",
-                fontweight="bold")
+    ax.axhline(1.0, color="#8A8A8A", lw=0.7, ls=(0, (3, 2)), zorder=3)
+    # Each column's number goes above everything in that column, clear of its own dots.
+    for i, v in enumerate(bars):
+        high = max(row[keys[i]] for row in data.values())
+        ax.text(i, high + top * 0.035, f"{v:.1f}$\\times$", ha="center", va="bottom",
+                fontsize=9, color=ARMS[keys[i]][1], fontfamily="STIXGeneral", fontweight="bold")
 
-    ax.set_yscale("log")
-    ax.autoscale_view()
-    tasks = list(data)
-    to_ax = lambda v: ax.transAxes.inverted().transform(ax.transData.transform((0, v)))[1]  # noqa: E731
-    right = ax.transAxes.inverted().transform(ax.transData.transform((len(keys) - 1, 1)))[0]
-    for task, y in zip(tasks, spread([to_ax(data[t][keys[-1]]) for t in tasks], 0.085)):
-        ax.text(right + 0.03, y, TASKS[task][0], ha="left", va="center", fontsize=6.6, color=INK,
-                transform=ax.transAxes)
-    ax.text(right + 0.03, to_ax(1.0), "no faster than\nrandom search", ha="left", va="center",
-            fontsize=6, color="#9A9A9A", linespacing=1.3, transform=ax.transAxes)
-
-    ax.set_ylabel(f"Experiments saved vs random search,\nto a top-{TOP_PCT:g}% candidate  "
+    ax.set_ylabel(f"Experiments to a top-{TOP_PCT:g}% candidate,\nversus random search  "
                   r"$\uparrow$", fontsize=7.5, linespacing=1.5)
-    ax.set_yticks([1, 2, 5, 10, 20])
-    ax.set_yticklabels(["1$\\times$", "2$\\times$", "5$\\times$", "10$\\times$", "20$\\times$"])
-    ax.minorticks_off()
-    ax.set_xticks(list(x))
+    ax.set_ylim(0, top * 1.14)
+    ax.set_yticks([1, 5, 10, 15, 20, 25])  # no 0: the spine is the zero, and it crowds the 1x
+    ax.set_yticklabels([f"{v}$\\times$" for v in (1, 5, 10, 15, 20, 25)])
+    ax.set_xticks(range(len(keys)))
     ax.set_xticklabels([ARMS[a][0] for a in keys], fontsize=7.5, linespacing=1.15)
-    for i, a in enumerate(keys):  # the tick label wears the arm's colour, so the dots need no key
+    for i, a in enumerate(keys):
         ax.get_xticklabels()[i].set_color(INK if a == "baseline" else ARMS[a][1])
-    ax.set_xlim(-0.36, len(keys) - 1 + 0.06)
-    ax.tick_params(axis="x", length=0, pad=6)
+    ax.set_xlim(-0.55, len(keys) - 0.45)
+    ax.tick_params(axis="x", length=0, pad=5)
+    ax.text(-0.55, -0.225, f"Bars: geometric mean over {len(data)} tasks.  Dots: one task each."
+            "\nDashed line: no faster than random search.", transform=ax.get_xaxis_transform(),
+            ha="left", va="top", fontsize=6, color="#7A7A7A", linespacing=1.6)
     ax.grid(axis="y", color=RULE, lw=0.5, zorder=0)
     ax.set_axisbelow(True)
-    for s in ("top", "right", "bottom"):
-        ax.spines[s].set_visible(False)
+    for sp in ("top", "right"):
+        ax.spines[sp].set_visible(False)
 
-    fig.subplots_adjust(left=0.165, right=0.575, top=0.96, bottom=0.17)
+    fig.subplots_adjust(left=0.20, right=0.98, top=0.97, bottom=0.26)
     out.parent.mkdir(parents=True, exist_ok=True)
     for ext in ("png", "pdf"):
         fig.savefig(f"{out}.{ext}", dpi=400)
