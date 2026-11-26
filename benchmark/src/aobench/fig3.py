@@ -148,22 +148,23 @@ def run(fig, ax, x, y, parts, size, gap=3.0):
         t.set_x(t.get_position()[0] + x - (cx - g))
 
 
-def panel_a(fig, ax, name, decisions, wrap=58):
-    """Typeset in points from the top of the panel, so spacing stays even at any figure size.
+def cards(fig, ax, task_text, decisions, wrap=58):
+    """One card per decision. Figure 4 draws its panels with this too, so they match by sharing it.
 
+    Typeset in points from the top of the panel, so spacing stays even at any figure size.
     Each decision is one turn of the agent's loop, read down a stem with a stop at each step:
     what it observed (roman), what it inferred (italic), the optimizer it designed (bold). The three
-    steps are named once, above the first card, instead of labelling all six lines.
+    steps are named once, above the first card, instead of labelling all six lines. Every decision
+    needs `observe`, `reason`, `design`, `colour`, and the two footers `foot` and `bought`.
     """
     ax.set_axis_off()
-    cfg = CAMPAIGNS[name]
     h_pt = ax.get_position().height * fig.get_figheight() * 72
     y_of = lambda pt: 1 - pt / h_pt  # noqa: E731  distance from the top, in points, to axes units
     tr = ax.transAxes
     x_stem, x_text = 0.022, 0.085
     wrapped = lambda s, w: textwrap.wrap(s, w + len(s) - rendered_len(s))  # noqa: E731
 
-    ax.text(0.0, y_of(1), cfg["task"], ha="left", va="top", fontsize=7.6, color=INK, transform=tr)
+    ax.text(0.0, y_of(1), task_text, ha="left", va="top", fontsize=7.6, color=INK, transform=tr)
     ax.plot([0, 1], [y_of(15)] * 2, color=RULE, lw=0.6, transform=tr, clip_on=False)
     arrow = (r"$\rightarrow$", {})  # STIX Two Text has no arrow glyph of its own
     run(fig, ax, 1.0, y_of(19.5), [("Observe", {}), arrow, ("Reason", {"style": "italic"}), arrow,
@@ -184,9 +185,9 @@ def panel_a(fig, ax, name, decisions, wrap=58):
                 t += lead
             t += 2.6
         foot = t + 1.5
-        ax.text(x_text, y_of(foot), f"eval {d['after']}", ha="left", va="top", fontsize=6.4, color=FAINT,
+        ax.text(x_text, y_of(foot), d["foot"], ha="left", va="top", fontsize=6.4, color=FAINT,
                 transform=tr)
-        ax.text(1.0, y_of(foot - 0.6), verdict(d["gain"]), ha="right", va="top", fontsize=7.5,
+        ax.text(1.0, y_of(foot - 0.6), d["bought"], ha="right", va="top", fontsize=7.5,
                 color="black", transform=tr)
         badge(ax, x_stem, y_of(stops[0] + 2.6), i + 1, d["colour"], size=9.5, transform=tr)
         ax.plot([x_stem] * 2, [y_of(stops[0] + 9), y_of(foot + 6)], color=d["colour"], lw=1.1,
@@ -240,7 +241,8 @@ def main(argv=None):
     fig = plt.figure(figsize=(WIDTH, 2.72))
     ax_a = fig.add_axes([0.035, 0.05, 0.44, 0.83])
     ax_b = fig.add_axes([0.585, 0.17, 0.405, 0.68])
-    panel_a(fig, ax_a, a.campaign, decisions)
+    cards(fig, ax_a, CAMPAIGNS[a.campaign]["task"],
+          [{**d, "foot": f"eval {d['after']}", "bought": verdict(d["gain"])} for d in decisions])
     panel_b(ax_b, a.campaign, task, agent, base, decisions)
     for ax, letter, title in ((ax_a, "a", "Agent's Key Decisions and Reasoning"),
                               (ax_b, "b", "Benefits of Each Key Decision")):
