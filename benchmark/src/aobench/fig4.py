@@ -6,9 +6,10 @@ than random search to turn up a top-1% candidate. It reads without a definition 
 random search needed 24 times as many experiments -- and the top-k% target is what keeps it
 finite, since random search almost never finds the single best row of a pool this size.
 
-rct_2 is multiobjective, so there is no single column to take a percentile of. Its target is a
-Pareto-optimal candidate instead: nine rows out of 1,728, the pool's best 0.5%, so it asks for
-about the same thing the other five ask for. Say so in the caption.
+The target has to be a demanding one. At top 5% random search already arrives in 11 to 34
+experiments on most of these pools, so every method's first evaluations -- which are a Sobol
+or random design -- get there by luck and the factors collapse toward 1x. Top 1% leaves room
+to be fast in.
 
 One group per task, three bars in it, so the ordering (baselines, then the agent without the
 variable descriptions, then the agent with them) is read six times over rather than once in an
@@ -41,10 +42,11 @@ TOP_PCT = 1.0
 # all three arms and could be added, but mat_5 is already the MOF question and they are it
 # again over other pools and budgets.
 TASKS = {
+    # rct_2 is the sixth task of the campaign and is left out here: it is multiobjective, so
+    # there is no single column to take a percentile of.
     "mix_1": ("Low-viscosity\nmixtures", "min"),
     "sup": ("High-temp.\nsuperconductors", "max"),
     "mat_5": ("CO$_2$ capture\nin MOFs", "max"),
-    "rct_2": ("Yield–cost\ntrade-offs", "pareto"),
     "rct_1": ("High-yield\ncoupling", "max"),
     "btch": ("Methane\ncoupling", "max"),
 }
@@ -65,18 +67,16 @@ RULE = "#D9D9D9"
 
 
 def target(pool: Path, task: str):
-    """`reached(value)` for the task: in the pool's best 1%, or on its Pareto front."""
+    """`reached(value)`: is this measurement in the pool's best TOP_PCT percent?"""
     sense = TASKS[task][1]
-    if sense == "pareto":
-        return lambda v: v > 0  # pareto_recovery: any fraction of the front found
     ys = np.loadtxt(pool / f"{task}.csv", skiprows=1)
     thr = float(np.percentile(ys, TOP_PCT if sense == "min" else 100 - TOP_PCT))
     return (lambda v: v <= thr) if sense == "min" else (lambda v: v >= thr)
 
 
 def runs(results: Path, task: str, methods: list[str]) -> dict[str, list[list[tuple[float, float]]]]:
-    """method -> one (evaluation, score) curve per seed, the score being what target() reads."""
-    col = "pareto_recovery" if TASKS[task][1] == "pareto" else "raw_value"
+    """method -> one (evaluation, measured value) curve per seed."""
+    col = "raw_value"
     out: dict[str, list[list[tuple[float, float]]]] = {}
     for m in methods:
         d = results / "tasks" / task / m
@@ -127,7 +127,7 @@ def geomean(xs):
 def draw(data, out: Path):
     keys = list(ARMS)
     tasks = list(data)
-    fig, ax = plt.subplots(figsize=(WIDTH * 0.78, 2.95))
+    fig, ax = plt.subplots(figsize=(WIDTH * 0.78, 2.75))
 
     w = 0.26  # three of these span 0.78 of the 1.0 slot: a clear gap between groups
     lo = min(v for row in data.values() for v in row.values())
@@ -147,33 +147,34 @@ def draw(data, out: Path):
     ax.set_yticks(ticks)
     ax.set_yticklabels([f"{v}$\\times$" for v in ticks])
     ax.minorticks_off()
-    ax.set_ylabel(f"Experiments to a top-{TOP_PCT:g}% candidate,\nversus random search  "
-                  r"$\uparrow$", fontsize=7.5, linespacing=1.5)
+    ax.set_ylabel(f"Acceleration factor to a top-{TOP_PCT:g}% candidate  " r"$\uparrow$",
+                  fontsize=8)
 
     ax.set_xticks(range(len(tasks)))
     ax.set_xticklabels([TASKS[t][0] for t in tasks], fontsize=6.6, linespacing=1.3, color=INK)
     ax.set_xlim(-0.6, len(tasks) - 0.4)
     ax.tick_params(axis="x", length=0, pad=4)
 
+    # Each arm's average as a rule across the whole panel: the three levels are then a thing
+    # you see at once, and every bar is read against its own arm's line as well as its
+    # neighbours'. Dashed, so no rule is mistaken for a bar's edge.
     means = {a: geomean(row[a] for row in data.values()) for a in keys}
-    short = {"baseline": "baselines", "blackbox": "black box", "graybox": "gray box"}
+    for a in keys:
+        ax.axhline(means[a], color=ARMS[a][1], lw=1.0, ls=(0, (4, 2.5)), zorder=5, alpha=0.9)
+        ax.text(len(tasks) - 0.40, means[a], f" {means[a]:.1f}$\\times$", ha="left", va="center",
+                fontsize=7, color=ARMS[a][1], fontfamily="STIXGeneral", fontweight="bold",
+                clip_on=False)
+
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.16), ncol=3, frameon=False,
               fontsize=7.5, handlelength=1.0, handleheight=0.9, columnspacing=1.6,
               handletextpad=0.5)
-    ax.text(-0.6, -0.235, f"Geometric mean over the {len(tasks)} tasks:  "
-            + ",   ".join(f"{short[a]} {means[a]:.1f}$\\times$" for a in keys)
-            + ".  At the line, no faster than random search.\nOn the trade-off task, which has "
-            "no single objective to rank, the target is a Pareto-optimal candidate: "
-            "the pool's best 0.5%.",
-            transform=ax.get_xaxis_transform(), ha="left", va="top", fontsize=6,
-            color="#7A7A7A", linespacing=1.6)
 
     ax.grid(axis="y", color=RULE, lw=0.5, zorder=0)
     ax.set_axisbelow(True)
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
 
-    fig.subplots_adjust(left=0.135, right=0.985, top=0.88, bottom=0.27)
+    fig.subplots_adjust(left=0.105, right=0.935, top=0.88, bottom=0.17)
     out.parent.mkdir(parents=True, exist_ok=True)
     for ext in ("png", "pdf"):
         fig.savefig(f"{out}.{ext}", dpi=400)
@@ -186,7 +187,9 @@ def main(argv=None):
     p.add_argument("--pool", type=Path, default=Path("benchmark/graybox/pool"),
                    help="one label column per task, for the top-1%% cut")
     p.add_argument("--out", type=Path, default=Path("benchmark/figures/fig4/fig4a"))
+    p.add_argument("--top", type=float, default=TOP_PCT, help="percentile that counts as a hit")
     a = p.parse_args(argv)
+    globals()["TOP_PCT"] = a.top
     data, raw = collect(a.results, a.pool)
     if not data:
         raise SystemExit(f"no task in {a.results} has all three arms and a reference")
