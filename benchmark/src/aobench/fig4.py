@@ -6,6 +6,10 @@ than random search to turn up a top-1% candidate. It reads without a definition 
 random search needed 24 times as many experiments -- and the top-k% target is what keeps it
 finite, since random search almost never finds the single best row of a pool this size.
 
+rct_2 is multiobjective, so there is no single column to take a percentile of. Its target is a
+Pareto-optimal candidate instead: nine rows out of 1,728, the pool's best 0.5%, so it asks for
+about the same thing the other five ask for. Say so in the caption.
+
 One group per task, three bars in it, so the ordering (baselines, then the agent without the
 variable descriptions, then the agent with them) is read six times over rather than once in an
 average, and the tasks that break it are visible as themselves. The bars grow from the 1x line
@@ -33,16 +37,15 @@ import matplotlib.pyplot as plt  # noqa: E402
 from .figures import STYLE, WIDTH  # noqa: E402
 
 TOP_PCT = 1.0
-# Six questions, each asked once. Three tasks that carry all three arms are left out and the
-# reasons differ: rct_2 is multiobjective, so there is no single label column to take a
-# percentile of, and mat_5 / mat_6 are mat_1 / mat_2 over again at a smaller budget -- keeping
-# them would count the same two MOF questions twice and make the set half one chemistry.
+# The six tasks of the gray-box campaign, in its own order. mat_1 / mat_2 / mat_6 also carry
+# all three arms and could be added, but mat_5 is already the MOF question and they are it
+# again over other pools and budgets.
 TASKS = {
-    "mix_1": ("Mixture\nviscosity", "min"),
-    "sup": ("Super-\nconductors", "max"),
-    "mat_1": ("MOF CO$_2$\n0.15 bar", "max"),
-    "mat_2": ("MOF CO$_2$\n16 bar", "max"),
-    "rct_1": ("Reaction\nyield", "max"),
+    "mix_1": ("Low-viscosity\nmixtures", "min"),
+    "sup": ("High-temp.\nsuperconductors", "max"),
+    "mat_5": ("CO$_2$ capture\nin MOFs", "max"),
+    "rct_2": ("Yield–cost\ntrade-offs", "pareto"),
+    "rct_1": ("High-yield\ncoupling", "max"),
     "btch": ("Methane\ncoupling", "max"),
 }
 REFERENCE = ["pool_random", "batch_random"]  # what the acceleration is measured against
@@ -50,8 +53,10 @@ ARMS = {
     # The baseline bar is the best of whatever classical optimizers the task carries, so the
     # agent is never credited for beating a method nobody would have chosen. It flatters the
     # baselines: the best one per task is picked after the fact, which is an oracle a
-    # practitioner does not have.
-    "baseline": ("Best baseline", "#9AA3AD", ["gp_bo", "sobol_gp_bo", "turbo", "batch_gp_qlogei"]),
+    # practitioner does not have. gp_qlogehvi is the multiobjective one, batch_gp_qlogei the
+    # batch one; each is the only classical method its protocol admits.
+    "baseline": ("Best baseline", "#9AA3AD",
+                 ["gp_bo", "sobol_gp_bo", "turbo", "batch_gp_qlogei", "gp_qlogehvi"]),
     "blackbox": ("Agent, black box", "#D55E00", ["cheapest_lunch_opus_5_5_high"]),
     "graybox": ("Agent, gray box", "#7B2D8E", ["cheapest_lunch_opus_5_5_high_domain_context"]),
 }
@@ -59,14 +64,19 @@ INK = "#3C3C3C"
 RULE = "#D9D9D9"
 
 
-def threshold(pool: Path, task: str) -> float:
-    """The value a candidate must beat to be in the task's best 1% of the pool."""
+def target(pool: Path, task: str):
+    """`reached(value)` for the task: in the pool's best 1%, or on its Pareto front."""
+    sense = TASKS[task][1]
+    if sense == "pareto":
+        return lambda v: v > 0  # pareto_recovery: any fraction of the front found
     ys = np.loadtxt(pool / f"{task}.csv", skiprows=1)
-    return float(np.percentile(ys, TOP_PCT if TASKS[task][1] == "min" else 100 - TOP_PCT))
+    thr = float(np.percentile(ys, TOP_PCT if sense == "min" else 100 - TOP_PCT))
+    return (lambda v: v <= thr) if sense == "min" else (lambda v: v >= thr)
 
 
 def runs(results: Path, task: str, methods: list[str]) -> dict[str, list[list[tuple[float, float]]]]:
-    """method -> one (evaluation, measured value) curve per seed."""
+    """method -> one (evaluation, score) curve per seed, the score being what target() reads."""
+    col = "pareto_recovery" if TASKS[task][1] == "pareto" else "raw_value"
     out: dict[str, list[list[tuple[float, float]]]] = {}
     for m in methods:
         d = results / "tasks" / task / m
@@ -75,10 +85,10 @@ def runs(results: Path, task: str, methods: list[str]) -> dict[str, list[list[tu
             if not f.exists():
                 continue
             rows = list(csv.DictReader(open(f)))
-            if not rows or "raw_value" not in rows[0]:
+            if not rows or col not in rows[0]:
                 continue
             ev = "eval_idx" if "eval_idx" in rows[0] else "batch_completed_evaluations"
-            c = [(float(r[ev]), float(r["raw_value"])) for r in rows if r.get("raw_value")]
+            c = [(float(r[ev]), float(r[col])) for r in rows if r.get(col)]
             if c:
                 out.setdefault(m, []).append(c)
     return out
@@ -87,9 +97,8 @@ def runs(results: Path, task: str, methods: list[str]) -> dict[str, list[list[tu
 def collect(results: Path, pool: Path):
     """task -> arm -> acceleration factor over random search, and the raw evaluation counts."""
     data, raw = {}, {}
-    for task, (_, sense) in TASKS.items():
-        thr = threshold(pool, task)
-        reached = (lambda v: v <= thr) if sense == "min" else (lambda v: v >= thr)
+    for task in TASKS:
+        reached = target(pool, task)
         groups = {a: runs(results, task, ms) for a, (_, _, ms) in ARMS.items()}
         groups["random"] = runs(results, task, REFERENCE)
         if not all(groups.values()):
@@ -118,7 +127,7 @@ def geomean(xs):
 def draw(data, out: Path):
     keys = list(ARMS)
     tasks = list(data)
-    fig, ax = plt.subplots(figsize=(WIDTH * 0.72, 2.9))
+    fig, ax = plt.subplots(figsize=(WIDTH * 0.78, 2.95))
 
     w = 0.26  # three of these span 0.78 of the 1.0 slot: a clear gap between groups
     lo = min(v for row in data.values() for v in row.values())
@@ -142,18 +151,20 @@ def draw(data, out: Path):
                   r"$\uparrow$", fontsize=7.5, linespacing=1.5)
 
     ax.set_xticks(range(len(tasks)))
-    ax.set_xticklabels([TASKS[t][0] for t in tasks], fontsize=7, linespacing=1.3, color=INK)
+    ax.set_xticklabels([TASKS[t][0] for t in tasks], fontsize=6.6, linespacing=1.3, color=INK)
     ax.set_xlim(-0.6, len(tasks) - 0.4)
     ax.tick_params(axis="x", length=0, pad=4)
 
     means = {a: geomean(row[a] for row in data.values()) for a in keys}
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.17), ncol=3, frameon=False,
+    short = {"baseline": "baselines", "blackbox": "black box", "graybox": "gray box"}
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.16), ncol=3, frameon=False,
               fontsize=7.5, handlelength=1.0, handleheight=0.9, columnspacing=1.6,
               handletextpad=0.5)
-    short = {"baseline": "baselines", "blackbox": "black box", "graybox": "gray box"}
-    ax.text(-0.6, -0.20, f"Geometric mean over the {len(tasks)} tasks:  "
+    ax.text(-0.6, -0.235, f"Geometric mean over the {len(tasks)} tasks:  "
             + ",   ".join(f"{short[a]} {means[a]:.1f}$\\times$" for a in keys)
-            + ".\nAt the line, no faster than random search.",
+            + ".  At the line, no faster than random search.\nOn the trade-off task, which has "
+            "no single objective to rank, the target is a Pareto-optimal candidate: "
+            "the pool's best 0.5%.",
             transform=ax.get_xaxis_transform(), ha="left", va="top", fontsize=6,
             color="#7A7A7A", linespacing=1.6)
 
@@ -162,7 +173,7 @@ def draw(data, out: Path):
     for sp in ("top", "right"):
         ax.spines[sp].set_visible(False)
 
-    fig.subplots_adjust(left=0.145, right=0.985, top=0.87, bottom=0.26)
+    fig.subplots_adjust(left=0.135, right=0.985, top=0.88, bottom=0.27)
     out.parent.mkdir(parents=True, exist_ok=True)
     for ext in ("png", "pdf"):
         fig.savefig(f"{out}.{ext}", dpi=400)
