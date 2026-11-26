@@ -37,18 +37,27 @@ import matplotlib.pyplot as plt  # noqa: E402
 from .figures import STYLE, WIDTH  # noqa: E402
 
 TOP_PCT = 1.0
-# Every task that carries all three arms. rct_2 is the one exclusion: it is multiobjective,
-# so it has no single label column to take a percentile of.
+# Every task carrying all three arms and a random-search reference. rct_2 is the one
+# exclusion: it is multiobjective, so it has no single label column to take a percentile of.
+# mat_1 / mat_5 and mat_2 / mat_6 are the same two MOF questions over different pools and
+# budgets, so eight tasks here are not eight independent problems.
 TASKS = {
     "mix_1": ("Low-viscosity mixtures", "min"),
     "sup": ("High-temp. superconductors", "max"),
-    "mat_5": ("CO$_2$ capture in MOFs", "max"),
+    "mat_1": ("CO$_2$ capture in MOFs, 0.15 bar", "max"),
+    "mat_2": ("CO$_2$ capture in MOFs, 16 bar", "max"),
+    "mat_5": ("CO$_2$ capture in MOFs, 0.15 bar, low budget", "max"),
+    "mat_6": ("CO$_2$ capture in MOFs, 16 bar, low budget", "max"),
     "rct_1": ("High-yield coupling reactions", "max"),
     "btch": ("Methane coupling catalysts", "max"),
 }
 REFERENCE = ["pool_random", "batch_random"]  # what the acceleration is measured against
 ARMS = {
-    "baseline": ("Baselines", "#9AA3AD", ["gp_bo", "sobol_gp_bo", "turbo", "batch_gp_qlogei"]),
+    # One named baseline on every task, not the best of whatever each task happens to carry:
+    # the per-task winner is picked after seeing the results, which is an oracle no practitioner
+    # has, and the menu differs by task (TuRBO on four, SoBO on two). btch is the batch
+    # protocol, where batch GP with qLogEI is GP-BO's counterpart.
+    "baseline": ("GP-BO", "#9AA3AD", ["gp_bo", "batch_gp_qlogei"]),
     "blackbox": ("Agent\nblack box", "#D55E00", ["cheapest_lunch_opus_5_5_high"]),
     "graybox": ("Agent\ngray box", "#7B2D8E", ["cheapest_lunch_opus_5_5_high_domain_context"]),
 }
@@ -98,9 +107,6 @@ def collect(results: Path, pool: Path):
 
         row = {}
         for arm, by_method in groups.items():
-            if arm == "baseline":  # the best single baseline, not an average over a mixed bag
-                by_method = dict([min(by_method.items(),
-                                      key=lambda kv: statistics.mean(evals(c) for c in kv[1]))])
             row[arm] = statistics.mean(evals(c) for cs in by_method.values() for c in cs)
         raw[task] = row
         data[task] = {a: row["random"] / row[a] for a in ARMS}
