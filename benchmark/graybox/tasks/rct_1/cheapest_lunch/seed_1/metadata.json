@@ -1,0 +1,33 @@
+{
+  "task": "rct_1",
+  "method": "cheapest_lunch",
+  "seed": 1,
+  "kind": "agent",
+  "protocol": "scalar",
+  "budget": 250,
+  "n_candidates": 3696,
+  "complete": true,
+  "evaluations_used": 250,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "agent": "claude",
+  "model": "claude-sonnet-5-5",
+  "effort": "medium",
+  "information_mode": "anonymous",
+  "calls": 8,
+  "audit_passed": true,
+  "audit_status_note": "Original controller status. Export checks observed labels, counts, uniqueness and protocol feedback against source data; it does not rerun model execution or isolation.",
+  "objective_direction": "max",
+  "objective_sign": -1,
+  "trace_schema": "scalar_minimization_v1",
+  "best_objective": -100.0,
+  "best_raw_value": 100.0,
+  "final_simple_regret": 0,
+  "best_possible_objective": -100.0,
+  "source_files": {
+    "runs/tasks/rct_1/cheapest_lunch/seed_1/campaigns/run-a925ee2a06b2/private/summary.json": "42e53a8582a21fd6c8ff79a26f83b2c056471e42b4979b92bd7f85302b50b9ac",
+    "data/rct_1/main.csv": "b674f071ba87fa4453eedec742f71e222863588245c1357d1ee1be7a114ff144",
+    "runs/tasks/rct_1/cheapest_lunch/seed_1/campaigns/run-a925ee2a06b2/private/config.json": "bb855d8c7d66ff9a3e54f85ddf7e484b7b060667f45f61f11aedf5e93a77bd47",
+    "runs/tasks/rct_1/cheapest_lunch/seed_1/campaigns/run-a925ee2a06b2/private/launcher.json": "f5896c45b5221a306a90641808d04bb831cd7a3d4fd5a186914e6f539acf063e",
+    "runs/tasks/rct_1/cheapest_lunch/seed_1/campaigns/run-a925ee2a06b2/private/ledger.sqlite": "725748ad4b110572919af46d833ed420d45b195b05643fd5c7f539352694b884"
+  }
+}

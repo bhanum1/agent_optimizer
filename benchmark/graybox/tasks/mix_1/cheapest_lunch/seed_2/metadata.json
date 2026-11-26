@@ -1,0 +1,30 @@
+{
+  "task": "mix_1",
+  "method": "cheapest_lunch",
+  "seed": 2,
+  "budget": 250,
+  "objective_direction": "min",
+  "objective_sign": 1,
+  "n_candidates": 5595,
+  "best_possible_objective": 0.4344,
+  "kind": "agent",
+  "agent": "claude",
+  "model": "claude-sonnet-5-5",
+  "effort": "medium",
+  "information_mode": "anonymous",
+  "calls": 7,
+  "audit_passed": true,
+  "audit_status_note": "Recorded by the original controller; this export independently validates trace values and counts against source data, not the full isolated execution.",
+  "evaluations_used": 250,
+  "complete": true,
+  "best_objective": 0.4344,
+  "best_raw_value": 0.4344,
+  "final_simple_regret": 0,
+  "source_files": {
+    "runs/tasks/mix_1/cheapest_lunch/seed_2/campaigns/run-25a3cd5a59df/private/summary.json": "2c8e634a0ec6e2ddcfa32ac210a36db15af4f6642570c1414aeec52fcbfcb2e9",
+    "runs/tasks/mix_1/cheapest_lunch/seed_2/campaigns/run-25a3cd5a59df/private/config.json": "af2ded14ffbb150c3f38d64353b8f610984b004881990644c2c37a490dbe9509",
+    "runs/tasks/mix_1/cheapest_lunch/seed_2/campaigns/run-25a3cd5a59df/private/launcher.json": "663588efa0a70257ea9222c26158f39c466ac5990fffe35cc35c7aa89861bfb5",
+    "runs/tasks/mix_1/cheapest_lunch/seed_2/campaigns/run-25a3cd5a59df/private/ledger.sqlite": "3edc996587bbb97de5baa5f4b2232b2e0d971eef41b62c4c5aed090b1615f966",
+    "data/mix_1/main.csv": "d79758fdba842bfa6a335abd966dd57ba880adf6fc7fe18f686ef48bd5475077"
+  }
+}

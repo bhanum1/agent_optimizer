@@ -1,0 +1,26 @@
+{
+  "task": "mix_1",
+  "method": "pool_random",
+  "seed": 0,
+  "budget": 250,
+  "objective_direction": "min",
+  "objective_sign": 1,
+  "n_candidates": 5595,
+  "best_possible_objective": 0.4344,
+  "kind": "baseline",
+  "optimizer": "pool_random",
+  "information_mode": "anonymous",
+  "total_wall_seconds": 0.048587041994323954,
+  "numpy_version": "2.4.6",
+  "scipy_version": "1.17.1",
+  "evaluations_used": 250,
+  "complete": true,
+  "best_objective": 0.5704,
+  "best_raw_value": 0.5704,
+  "final_simple_regret": 0.136,
+  "source_files": {
+    "runs/tasks/mix_1/pool_random/seed_0/meta.json": "41fed2a62eab8db236bc2a0a21b1a4e0fe710cd72246e0d5b8786caa81f8eebb",
+    "runs/tasks/mix_1/pool_random/seed_0/trace.csv": "73388ce7060be4ccbe30be996c828afdc1f5b6e09502cd0d06fc5cd6889f72ee",
+    "data/mix_1/main.csv": "d79758fdba842bfa6a335abd966dd57ba880adf6fc7fe18f686ef48bd5475077"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "task": "mat_6",
+  "method": "cheapest_lunch_opus_5_5_high",
+  "seed": 2,
+  "kind": "agent",
+  "protocol": "scalar",
+  "budget": 100,
+  "n_candidates": 8540,
+  "complete": true,
+  "evaluations_used": 100,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "agent": "claude",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "information_mode": "anonymous",
+  "calls": 8,
+  "audit_passed": true,
+  "audit_status_note": "Original controller status. Export checks observed labels, counts, uniqueness and protocol feedback against source data; it does not rerun model execution or isolation.",
+  "objective_direction": "max",
+  "objective_sign": -1,
+  "trace_schema": "scalar_minimization_v1",
+  "best_objective": -33.76675577,
+  "best_raw_value": 33.76675577,
+  "final_simple_regret": 0,
+  "best_possible_objective": -33.76675577,
+  "source_files": {
+    "runs/tasks/mat_6/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-193c7d3e5edf/private/summary.json": "4a6cc089cd5ba6f1b15cc1c3371172bf59b33e7bf976c40b8750c6ab2aceb810",
+    "data/mat_6/main.csv": "3ed25e15368ebdc07f49a8ac9197534f70a647eeafd8e4e9772428cd3b82b510",
+    "runs/tasks/mat_6/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-193c7d3e5edf/private/config.json": "4cdf047d8118de40a63a167a7480145175f56013abcd75db0a1ab3aae3bdd2dd",
+    "runs/tasks/mat_6/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-193c7d3e5edf/private/launcher.json": "567bdae97d17887576cd29e5663838f7f913e2b19c821eb6713817ebddc50529",
+    "runs/tasks/mat_6/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-193c7d3e5edf/private/ledger.sqlite": "5672fb1559812c1848f172a907a8ac5fb3566c1da67a4a677fdad5156cb02985"
+  }
+}

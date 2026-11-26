@@ -58,3 +58,22 @@ optimizer on to the end of the budget (`aobench.counterfactual`). The branches l
 ```bash
 .venv/bin/python -m aobench.fig3 --out benchmark/figures/fig3
 ```
+
+`fig4/` is Figure 4 of the paper: the same agent on real discovery pools, with and without
+the variable descriptions (black box and gray box). (a) The acceleration factor over
+random search to a top-1% candidate, on the five scalar tasks of the gray-box campaign,
+with each arm's geometric mean as a dashed rule across the panel. The baseline bar is the
+best classical optimizer the task carries, picked after the fact, so it is a generous
+comparator. `rct_2` is left out: it is multiobjective, so there is no single column to
+take a percentile of. The target has to be a demanding one — at top 5% random search
+already arrives in 11 to 34 experiments on most of these pools, and every method's initial
+design finds it by luck (`--top` shows this). (b, c) Two of those campaigns in the form of
+Figure 3, sharing its card panel (`aobench.fig3.cards`): mixture discovery (`mix_1` seed 1)
+and MOF discovery (`mat_5` seed 1), the agent's key decisions quoted from each run's
+`decisions.md`, against what they bought. The results they read live in
+`benchmark/graybox/`, and the pool label columns used for the top-1% cut are in
+`benchmark/graybox/pool/` (offline scoring only; no agent sees them). To redraw:
+
+```bash
+.venv/bin/python -m aobench.fig4 --out benchmark/figures/fig4
+```

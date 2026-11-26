@@ -1,0 +1,27 @@
+{
+  "task": "mol_2",
+  "method": "turbo",
+  "seed": 2,
+  "kind": "baseline",
+  "protocol": "scalar",
+  "budget": 250,
+  "n_candidates": 3439,
+  "complete": true,
+  "evaluations_used": 250,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "optimizer": "turbo",
+  "information_mode": "anonymous",
+  "total_wall_seconds": 2509.057143161015,
+  "objective_direction": "max",
+  "objective_sign": -1,
+  "trace_schema": "scalar_minimization_v1",
+  "best_objective": -359.0,
+  "best_raw_value": 359.0,
+  "final_simple_regret": 0,
+  "best_possible_objective": -359.0,
+  "source_files": {
+    "runs/tasks/mol_2/turbo/seed_2/meta.json": "da286fa2e65d52469636634b824631c9a354a222e804107ffd63c01ad51647bc",
+    "data/mol_2/main.csv": "241599f0e3be7e4bf83a2585f217ea09f33da98e4c57e07b7e26be885d78c3f2",
+    "runs/tasks/mol_2/turbo/seed_2/trace.csv": "ef0d7a763b26ebaf5ef6f31a311f2c9fd5ea911c2cc69982878544b73e98f4d2"
+  }
+}

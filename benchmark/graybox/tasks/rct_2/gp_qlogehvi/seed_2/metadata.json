@@ -1,0 +1,32 @@
+{
+  "task": "rct_2",
+  "method": "gp_qlogehvi",
+  "seed": 2,
+  "kind": "baseline",
+  "protocol": "multiobjective",
+  "budget": 250,
+  "n_candidates": 1728,
+  "complete": true,
+  "evaluations_used": 250,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "optimizer": "gp_qlogehvi",
+  "information_mode": "anonymous",
+  "total_wall_seconds": null,
+  "objectives": [
+    "yield",
+    "cost"
+  ],
+  "objective_directions": [
+    "max",
+    "min"
+  ],
+  "trace_schema": "paired_candidate_queries_v1",
+  "hypervolume": 1.201471188129715,
+  "hypervolume_regret": 0.0,
+  "pareto_recovery": 1.0,
+  "source_files": {
+    "runs/tasks/rct_2/gp_qlogehvi/seed_2/meta.json": "7f9f55c0ce774f403922ffc5e92531c79062563c7ae5f9d67040cd74ac017497",
+    "data/rct_2/main.csv": "93321678d3f3daee15c001aafcb56f08567ced58f52a8e0132f45a966e19e066",
+    "runs/tasks/rct_2/gp_qlogehvi/seed_2/trace.csv": "b90312852e200cb3cc1e80f8641093e52cae55cad6232c176aab9eed15c271df"
+  }
+}

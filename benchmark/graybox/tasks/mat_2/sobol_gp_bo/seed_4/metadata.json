@@ -1,0 +1,27 @@
+{
+  "task": "mat_2",
+  "method": "sobol_gp_bo",
+  "seed": 4,
+  "kind": "baseline",
+  "protocol": "scalar",
+  "budget": 250,
+  "n_candidates": 7525,
+  "complete": true,
+  "evaluations_used": 250,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "optimizer": "sobol_gp_bo",
+  "information_mode": "anonymous",
+  "total_wall_seconds": 6164.567987847957,
+  "objective_direction": "max",
+  "objective_sign": -1,
+  "trace_schema": "scalar_minimization_v1",
+  "best_objective": -33.76675577,
+  "best_raw_value": 33.76675577,
+  "final_simple_regret": 0,
+  "best_possible_objective": -33.76675577,
+  "source_files": {
+    "runs/tasks/mat_2/sobol_gp_bo/seed_4/meta.json": "66cc525b015d90500adf07b308cdf43f28f9e32b19cc1b291f0f717bdec73df9",
+    "data/mat_2/main.csv": "1b26ad2912a7b25b668db63a5a03dc2858d85000a1ed8549c79bc1e09e098c35",
+    "runs/tasks/mat_2/sobol_gp_bo/seed_4/trace.csv": "c7d353c45b42639b5e1ce52ac3c56d504243560597a8069642449778d9de47dc"
+  }
+}

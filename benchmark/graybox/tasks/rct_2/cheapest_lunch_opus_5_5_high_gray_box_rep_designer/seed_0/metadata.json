@@ -1,0 +1,38 @@
+{
+  "task": "rct_2",
+  "method": "cheapest_lunch_opus_5_5_high_gray_box_rep_designer",
+  "seed": 0,
+  "kind": "agent",
+  "protocol": "multiobjective",
+  "budget": 250,
+  "n_candidates": 1728,
+  "complete": true,
+  "evaluations_used": 250,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "agent": "claude",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "information_mode": "gray_box_rep_designer",
+  "calls": 7,
+  "audit_passed": true,
+  "audit_status_note": "Original controller status. Export checks observed labels, counts, uniqueness and protocol feedback against source data; it does not rerun model execution or isolation.",
+  "objectives": [
+    "yield",
+    "cost"
+  ],
+  "objective_directions": [
+    "max",
+    "min"
+  ],
+  "trace_schema": "paired_candidate_queries_v1",
+  "hypervolume": 1.201471188129715,
+  "hypervolume_regret": 0.0,
+  "pareto_recovery": 1.0,
+  "source_files": {
+    "runs/tasks/rct_2/cheapest_lunch_opus_5_5_high_gray_box_rep_designer/seed_0/campaigns/run-7be47a6242da/private/summary.json": "68716085ed7afe7dc933f35e2e05b26e1eac37cd6a140b80d555a9c318dff9c9",
+    "data/rct_2/main.csv": "93321678d3f3daee15c001aafcb56f08567ced58f52a8e0132f45a966e19e066",
+    "runs/tasks/rct_2/cheapest_lunch_opus_5_5_high_gray_box_rep_designer/seed_0/campaigns/run-7be47a6242da/private/config.json": "01e59ab94aa6e3951d4ddbebe63084b7d0e5f57b202936c99f62af452b5381aa",
+    "runs/tasks/rct_2/cheapest_lunch_opus_5_5_high_gray_box_rep_designer/seed_0/campaigns/run-7be47a6242da/private/launcher.json": "6e86bae649411ce52f6510c2d400cfdab47c152dde4a447d7443fa0532ab593e",
+    "runs/tasks/rct_2/cheapest_lunch_opus_5_5_high_gray_box_rep_designer/seed_0/campaigns/run-7be47a6242da/private/ledger.sqlite": "cc00b1bd56a40cca8d14ed8c23c5f28ba2911a8b86c84cc7de08419e1a249a37"
+  }
+}

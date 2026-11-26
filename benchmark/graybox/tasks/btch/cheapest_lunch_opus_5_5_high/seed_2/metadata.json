@@ -1,0 +1,39 @@
+{
+  "task": "btch",
+  "method": "cheapest_lunch_opus_5_5_high",
+  "seed": 2,
+  "kind": "agent",
+  "protocol": "batch",
+  "budget": 1000,
+  "n_candidates": 12708,
+  "complete": true,
+  "evaluations_used": 1000,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "agent": "claude",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "information_mode": "anonymous",
+  "calls": 7,
+  "audit_passed": true,
+  "audit_status_note": "Original controller status. Export checks observed labels, counts, uniqueness and protocol feedback against source data; it does not rerun model execution or isolation.",
+  "objective_direction": "max",
+  "trace_schema": "synchronous_batch_feedback_v1",
+  "batches_completed": 50,
+  "best_raw_value": 21.03,
+  "final_simple_regret": 0,
+  "best_possible_raw": 21.03,
+  "condition_columns": [
+    "x51",
+    "x52",
+    "x53",
+    "x54"
+  ],
+  "max_batch_size": 20,
+  "source_files": {
+    "runs/tasks/btch/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-c878f218a094/private/summary.json": "27be85f80e0ec71f5db34f01d15890f5b5248ce19b60bd9d738385a0e10f8ffa",
+    "data/btch/main.csv": "0db4310f1a93085b7d0546332f03b5b52eb09764e4d5a34b02a81c605725b27a",
+    "runs/tasks/btch/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-c878f218a094/private/config.json": "f6d8ba4cbdeb38aa2e0041d8a4442d6c8a737847e5dff4fb4fab68e789dadd8f",
+    "runs/tasks/btch/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-c878f218a094/private/launcher.json": "a3459dfe7c34b1d2dc5eb91a25f496e549ef7870c8caa370c2e7e7122e31d8dc",
+    "runs/tasks/btch/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-c878f218a094/private/ledger.sqlite": "521da76a1ca65bbb40824f507e43bc160ca99a1910d98b49107ebe8a92285908"
+  }
+}

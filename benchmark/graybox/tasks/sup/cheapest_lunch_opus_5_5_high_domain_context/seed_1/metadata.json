@@ -1,0 +1,30 @@
+{
+  "task": "sup",
+  "method": "cheapest_lunch_opus_5_5_high_domain_context",
+  "seed": 1,
+  "budget": 250,
+  "objective_direction": "max",
+  "objective_sign": -1,
+  "n_candidates": 21263,
+  "best_possible_objective": -185.0,
+  "kind": "agent",
+  "agent": "claude",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "information_mode": "domain-context",
+  "calls": 9,
+  "audit_passed": true,
+  "audit_status_note": "Recorded by the original controller; this export independently validates trace values and counts against source data, not the full isolated execution.",
+  "evaluations_used": 250,
+  "complete": true,
+  "best_objective": -185.0,
+  "best_raw_value": 185.0,
+  "final_simple_regret": 0,
+  "source_files": {
+    "runs/tasks/sup/cheapest_lunch_opus_5_5_high_domain_context/seed_1/campaigns/run-21bea5aadae8/private/summary.json": "e36a8e05188ed11400afdcb0d3daa8c2b5eba9dd60a20ef354246411070c03a7",
+    "runs/tasks/sup/cheapest_lunch_opus_5_5_high_domain_context/seed_1/campaigns/run-21bea5aadae8/private/config.json": "38a4c8afc9b15f2b9fac2348e0b0ab7e091b6c78f632ea66b8399760b241b356",
+    "runs/tasks/sup/cheapest_lunch_opus_5_5_high_domain_context/seed_1/campaigns/run-21bea5aadae8/private/launcher.json": "1103292f84f37f1292a27b667224cdd4f380540eea358d947ae2bb1c1804ce3f",
+    "runs/tasks/sup/cheapest_lunch_opus_5_5_high_domain_context/seed_1/campaigns/run-21bea5aadae8/private/ledger.sqlite": "2edae5301507f5b85e1733261591951b8f27fbeadcb5a1a7c09c889914b67b35",
+    "data/sup/main.csv": "f066ef0c619400a1687aa6e39cfa95b1975a023416863b7e59571c360802e443"
+  }
+}

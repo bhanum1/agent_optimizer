@@ -1,0 +1,33 @@
+{
+  "task": "btch",
+  "method": "batch_random",
+  "seed": 3,
+  "kind": "baseline",
+  "protocol": "batch",
+  "budget": 1000,
+  "n_candidates": 12708,
+  "complete": true,
+  "evaluations_used": 1000,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "optimizer": "batch_random",
+  "information_mode": "anonymous",
+  "total_wall_seconds": 1.30296897199878,
+  "objective_direction": "max",
+  "trace_schema": "synchronous_batch_feedback_v1",
+  "batches_completed": 50,
+  "best_raw_value": 19.43,
+  "final_simple_regret": 1.6000000000000014,
+  "best_possible_raw": 21.03,
+  "condition_columns": [
+    "x51",
+    "x52",
+    "x53",
+    "x54"
+  ],
+  "max_batch_size": 20,
+  "source_files": {
+    "runs/tasks/btch/batch_random/seed_3/attempt_2/meta.json": "2bd718e4773fe9b34da2ddee75651671662acae7650ad619b8d84ba3e6a5af03",
+    "data/btch/main.csv": "0db4310f1a93085b7d0546332f03b5b52eb09764e4d5a34b02a81c605725b27a",
+    "runs/tasks/btch/batch_random/seed_3/attempt_2/trace.csv": "0337a8168eca7f1ee22123337b6de5087e72c34b5696ac5959e3825f1f18e335"
+  }
+}

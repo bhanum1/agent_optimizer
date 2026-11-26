@@ -1,0 +1,26 @@
+{
+  "task": "mat_5",
+  "method": "pool_random",
+  "seed": 0,
+  "budget": 100,
+  "objective_direction": "max",
+  "objective_sign": -1,
+  "n_candidates": 8540,
+  "best_possible_objective": -9.318190936,
+  "kind": "baseline",
+  "optimizer": "pool_random",
+  "information_mode": "anonymous",
+  "total_wall_seconds": 0.043026905972510576,
+  "numpy_version": "2.4.6",
+  "scipy_version": "1.17.1",
+  "evaluations_used": 100,
+  "complete": true,
+  "best_objective": -7.411380286,
+  "best_raw_value": 7.411380286,
+  "final_simple_regret": 1.9068106500000006,
+  "source_files": {
+    "runs/tasks/mat_5/pool_random/seed_0/meta.json": "efade780b58fec2d0b3183e7ab8867685c330c544e42dc52d5fb90df791f4d14",
+    "runs/tasks/mat_5/pool_random/seed_0/trace.csv": "8fdd3e2da5194836e17bd23a02955b7f408682524ec71689cc7cfb43ddf3c47c",
+    "data/mat_5/main.csv": "252f1241fe5755345d8947e2301044d6e07f0d8229c852831511d96e35af8f21"
+  }
+}

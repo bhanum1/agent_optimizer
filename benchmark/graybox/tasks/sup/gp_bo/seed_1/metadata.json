@@ -1,0 +1,26 @@
+{
+  "task": "sup",
+  "method": "gp_bo",
+  "seed": 1,
+  "budget": 250,
+  "objective_direction": "max",
+  "objective_sign": -1,
+  "n_candidates": 21263,
+  "best_possible_objective": -185.0,
+  "kind": "baseline",
+  "optimizer": "gp_bo",
+  "information_mode": "anonymous",
+  "total_wall_seconds": 1144.5043133299987,
+  "numpy_version": "2.4.6",
+  "scipy_version": "1.17.1",
+  "evaluations_used": 250,
+  "complete": true,
+  "best_objective": -135.0,
+  "best_raw_value": 135.0,
+  "final_simple_regret": 50.0,
+  "source_files": {
+    "runs/tasks/sup/gp_bo/seed_1/meta.json": "f9c42c16656e22a0bb0f80adaef4aa34c6bd74ed0485f64ab8f8bcacff1bd021",
+    "runs/tasks/sup/gp_bo/seed_1/trace.csv": "cd89b193b7249d165bf7593af28f593b03de8de6f8325fed899e32e3b5904823",
+    "data/sup/main.csv": "f066ef0c619400a1687aa6e39cfa95b1975a023416863b7e59571c360802e443"
+  }
+}
