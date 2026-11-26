@@ -34,6 +34,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
+from matplotlib.patches import FancyBboxPatch  # noqa: E402
+
 from .counterfactual import workspace  # noqa: E402
 from .figures import METHODS, STYLE, WIDTH  # noqa: E402
 from .tasks import make_task  # noqa: E402
@@ -148,15 +150,23 @@ def run(fig, ax, x, y, parts, size, gap=3.0):
         t.set_x(t.get_position()[0] + x - (cx - g))
 
 
-def cards(fig, ax, task_text, decisions, wrap=58, steps=("Observe", "Reason", "Design")):
+HIGHLIGHT = "#FCF4D4"  # the shading behind a step Figure 4 wants read as the point of the card
+HIGHLIGHT_INK = "#9A7B1A"
+
+
+def cards(fig, ax, task_text, decisions, wrap=58, steps=("Observe", "Reason", "Design"),
+          highlight=None, highlight_label=None):
     """One card per decision. Figure 4 draws its panels with this too, so they match by sharing it.
 
     Typeset in points from the top of the panel, so spacing stays even at any figure size.
     Each decision is one turn of the agent's loop, read down a stem with a stop at each step:
     what it observed (roman), what it inferred (italic), the optimizer it designed (bold). The three
     steps are named once, above the first card, instead of labelling all six lines; `steps`
-    renames them, which is how Figure 4 says what its middle step reasons from. Every decision
-    needs `observe`, `reason`, `design`, `colour`, and the two footers `foot` and `bought`.
+    renames them, which is how Figure 4 says what its middle step reasons from. `highlight`
+    names a step to shade in every card, and `highlight_label` names the shading once, over
+    the first band: Figure 4 uses the two to say that the middle step is the domain knowledge
+    and that the domain knowledge is the point. Every decision needs `observe`, `reason`,
+    `design`, `colour`, and the two footers `foot` and `bought`.
     """
     ax.set_axis_off()
     h_pt = ax.get_position().height * fig.get_figheight() * 72
@@ -175,15 +185,24 @@ def cards(fig, ax, task_text, decisions, wrap=58, steps=("Observe", "Reason", "D
     STEPS = (("observe", 6.9, 9.6, {}), ("reason", 6.9, 9.6, {"style": "italic"}),
              ("design", 7.5, 10.6, BOLD))
     t, gap = 36, 18
+    bands, tag = [], []
     for i, d in enumerate(decisions):
         stops = []
         for key, size, lead, font in STEPS:
             lines = wrapped(d[key], round(wrap * 6.9 / size))
             stops.append(t + 1)
+            top = t - 2.2
+            if key == highlight and highlight_label:
+                # The tag gets a line of the band to itself: the step's own text is as long
+                # as the card is wide, so there is no room for it beside the words.
+                tag.append((top, t + 1.6))
+                t += 10.5
             for line in lines:
                 ax.text(x_text, y_of(t), line, ha="left", va="top", fontsize=size, color=INK,
                         transform=tr, **font)
                 t += lead
+            if key == highlight:
+                bands.append((top, t - lead + size + 1.4))
             t += 2.6
         foot = t + 1.5
         ax.text(x_text, y_of(foot), d["foot"], ha="left", va="top", fontsize=6.4, color=FAINT,
@@ -197,6 +216,17 @@ def cards(fig, ax, task_text, decisions, wrap=58, steps=("Observe", "Reason", "D
             ax.plot([x_stem], [y_of(y + 2.6)], "o", ms=2.6, color=d["colour"], transform=tr,
                     clip_on=False, zorder=6)
         t = foot + 6 + gap
+
+    # The shaded step, under the text it belongs to, tagged at the right of every band.
+    for top, bot in bands:
+        y, h = y_of(bot), y_of(top) - y_of(bot)
+        ax.add_patch(FancyBboxPatch((x_text - 0.018, y), 1.018 - x_text, h, transform=tr,
+                                    boxstyle="round,pad=0,rounding_size=0.012", mutation_aspect=4,
+                                    facecolor=HIGHLIGHT, edgecolor="none", zorder=0,
+                                    clip_on=False))
+    for _, at in tag:  # at the top right of its band, on a line of its own
+        ax.text(0.985, y_of(at), highlight_label.upper(), ha="right", va="top", fontsize=5.2,
+                color=HIGHLIGHT_INK, transform=tr, clip_on=False, **BOLD)
 
 
 def panel_b(ax, name, task, agent, base, decisions):

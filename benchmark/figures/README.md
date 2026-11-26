@@ -77,8 +77,19 @@ most of these pools, and every method's initial design finds it by luck (`--top`
 this). (b) One of those campaigns in the form of Figure 3, sharing
 its card panel (`aobench.fig3.cards`): MOF discovery (`mat_5` seed 1), the agent's key
 decisions quoted from the run's `decisions.md`, against what they bought. The middle step of
-the loop is named "Reason from chemistry" there: the observations are scores, but the
-inference drawn from them is domain knowledge, and that is what picks the next design. The
+the loop is named "Reason from Chemistry" there and its two lines are shaded as the domain
+knowledge they are: the observations are scores, but the inference drawn from them is
+chemistry, and that is what picks the next design. The curves are the two agent arms, each
+decision forking into a dashed counterfactual as in Figure 3: the optimizer the agent was
+running, carried on to the end of the budget instead of the one it switched to. Those are
+measured by `aobench.graybox_branches` against the collaborators' repository, which holds the
+pool features and the agent's own block scripts (this one does not), and committed as
+`benchmark/graybox/branches/mat_5_seed1.csv`, which the figure reads; the module validates
+itself by replaying the block that did run, which reproduces the campaign's picks exactly.
+On this campaign both decisions are faster convergence: the first reaches 0.16 mol/kg 7
+evaluations sooner (eval 76, not 83), though the optimizer it replaced finds the optimum at
+eval 86 as well, by a different route; the second reaches the optimum 14 evaluations sooner
+(eval 86, not 100). The
 results they read live in `benchmark/graybox/`, and the pool labels used for the cut are in
 `benchmark/graybox/pool/` (offline scoring only; no agent sees them). To redraw:
 

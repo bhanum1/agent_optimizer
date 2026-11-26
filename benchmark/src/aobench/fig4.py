@@ -28,13 +28,14 @@ from . import fig4a, fig4bc  # noqa: E402
 from .fig3 import BOLD, INK  # noqa: E402
 from .figures import STYLE, WIDTH  # noqa: E402
 
-TITLE_A = "Domain context across the benchmark"
+TITLE_A = "Black-box vs. Grey Box"
 
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--results", type=Path, default=Path("benchmark/graybox"))
     p.add_argument("--pool", type=Path, default=Path("benchmark/graybox/pool"))
+    p.add_argument("--branches", type=Path, default=Path("benchmark/graybox/branches"))
     p.add_argument("--out", type=Path, default=Path("benchmark/figures/fig4"))
     a = p.parse_args(argv)
 
@@ -52,8 +53,6 @@ def main(argv=None):
     plt.rcParams.update(STYLE)
     fig = plt.figure(figsize=(WIDTH, height))
 
-    # Panel a keeps the proportions it was laid out with: its margins are fractions of its own
-    # standalone figure, converted here into fractions of this taller, wider one.
     m, (w_a, _) = fig4a.MARGINS, fig4a.SIZE
     y0 = 1 - (h_a + HEAD) / height
     ax_a = fig.add_axes([m["left"] * w_a / WIDTH,
@@ -61,13 +60,23 @@ def main(argv=None):
                          (m["right"] - m["left"]) * w_a / WIDTH,
                          (m["top"] - m["bottom"]) * h_a / height])
     fig4a.bars(ax_a, data)
+    # Flush with the row below: panel a's ink -- its axis label and tick labels included --
+    # starts where panel b's cards start and ends where panel b's plot ends.
+    fig.canvas.draw()
+    r, inv = fig.canvas.get_renderer(), fig.transFigure.inverted()
+    ink = [ax_a.yaxis.label, *ax_a.get_yticklabels()]
+    left_ink = min(inv.transform(a.get_window_extent(r).get_points())[0, 0] for a in ink)
+    p_a = ax_a.get_position()
+    pad = p_a.x0 - left_ink
+    ax_a.set_position([fig4bc.LEFT + pad, p_a.y0, fig4bc.RIGHT - fig4bc.LEFT - pad, p_a.height])
     fig.text(0.0, 1.0, "a", fontsize=11, va="top", ha="left", **BOLD)
     fig.text(0.025, 1 - 0.007 * h_a / height, TITLE_A, fontsize=8, va="top", ha="left", color=INK)
 
     for i, letter in enumerate(rows):
         cfg = fig4bc.PANELS[letter]
         fig4bc.row(fig, letter, cfg, fig4bc.curves(a.results, cfg),
-                   y0 * (len(rows) - 1 - i) / len(rows), y0 / len(rows))
+                   y0 * (len(rows) - 1 - i) / len(rows), y0 / len(rows),
+                   fig4bc.branches(a.branches, cfg))
 
     a.out.mkdir(parents=True, exist_ok=True)
     for ext in ("pdf", "png"):
