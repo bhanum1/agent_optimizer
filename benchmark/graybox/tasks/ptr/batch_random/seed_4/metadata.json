@@ -1,0 +1,28 @@
+{
+  "task": "ptr",
+  "method": "batch_random",
+  "seed": 4,
+  "kind": "baseline",
+  "protocol": "batch",
+  "budget": 1000,
+  "n_candidates": 149361,
+  "complete": true,
+  "evaluations_used": 1000,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "optimizer": "batch_random",
+  "information_mode": "anonymous",
+  "total_wall_seconds": 2.4712969950051047,
+  "objective_direction": "max",
+  "trace_schema": "synchronous_batch_feedback_v1",
+  "batches_completed": 20,
+  "best_raw_value": 5.1440925588,
+  "final_simple_regret": 3.6178730969100004,
+  "best_possible_raw": 8.76196565571,
+  "condition_columns": [],
+  "max_batch_size": 50,
+  "source_files": {
+    "runs/tasks/ptr/batch_random/seed_4/meta.json": "cb30ae337eaae029e0d1502ee6a6c726cf55ed877730fdf2c523ffe6771bb32d",
+    "data/ptr/main.csv": "478644fdd65fae3b661a2dfdff682222dd833537d12071451f75e52a9dfae9da",
+    "runs/tasks/ptr/batch_random/seed_4/trace.csv": "fd824b6d0955a799e7ed5b41632dcfea8ef36e2c98a721e3c55510da9c4904f8"
+  }
+}

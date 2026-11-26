@@ -1,0 +1,26 @@
+{
+  "task": "mat_5",
+  "method": "gp_bo",
+  "seed": 2,
+  "budget": 100,
+  "objective_direction": "max",
+  "objective_sign": -1,
+  "n_candidates": 8540,
+  "best_possible_objective": -9.318190936,
+  "kind": "baseline",
+  "optimizer": "gp_bo",
+  "information_mode": "anonymous",
+  "total_wall_seconds": 554.0070905960165,
+  "numpy_version": "2.4.6",
+  "scipy_version": "1.17.1",
+  "evaluations_used": 100,
+  "complete": true,
+  "best_objective": -8.395558455,
+  "best_raw_value": 8.395558455,
+  "final_simple_regret": 0.9226324810000008,
+  "source_files": {
+    "runs/tasks/mat_5/gp_bo/seed_2/meta.json": "c35149665248ef3b43201b85fbc6a8bee080901b6a4ee9e84b783c4a1ef499f4",
+    "runs/tasks/mat_5/gp_bo/seed_2/trace.csv": "72dc47eca019917fc67d9541e113065ca3d4e427177dd0c21c5b615e02fc115d",
+    "data/mat_5/main.csv": "252f1241fe5755345d8947e2301044d6e07f0d8229c852831511d96e35af8f21"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "task": "mol_1",
+  "method": "gp_bo",
+  "seed": 1,
+  "kind": "baseline",
+  "protocol": "scalar",
+  "budget": 100,
+  "n_candidates": 848,
+  "complete": true,
+  "evaluations_used": 100,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "optimizer": "gp_bo",
+  "information_mode": "anonymous",
+  "total_wall_seconds": 106.55870863699965,
+  "objective_direction": "max",
+  "objective_sign": -1,
+  "trace_schema": "scalar_minimization_v1",
+  "best_objective": -707.88,
+  "best_raw_value": 707.88,
+  "final_simple_regret": 0,
+  "best_possible_objective": -707.88,
+  "source_files": {
+    "runs/tasks/mol_1/gp_bo/seed_1/meta.json": "ac8a8ec6f80730ff03523a8a921c78debb78defb8939f8fb1e651fda3ce8f996",
+    "data/mol_1/main.csv": "dc541c711ec1b898554271d18bc03d0e37f2a48182be9a0089ffafa3caad01bd",
+    "runs/tasks/mol_1/gp_bo/seed_1/trace.csv": "b64c00d6f087909b1559b2eb7ddc1c332072774e34cbb65a8ee6ecee27f4d5a2"
+  }
+}

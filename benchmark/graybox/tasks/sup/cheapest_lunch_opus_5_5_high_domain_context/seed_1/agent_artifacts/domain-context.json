@@ -1,0 +1,330 @@
+{
+  "description": "The goal is to discover materials with high superconducting critical temperature among the available mol_ids. The critical temperature is the temperature below which a material becomes superconducting and can conduct electricity without electrical resistance. It matters when identifying materials that can operate as superconductors at higher temperatures.\n\nThe target is experimentally measured critical temperature in kelvin (K). Higher values mean superconductivity occurs at a higher temperature.\n\nThe candidates are materials described by their chemical compositions.",
+  "objective_convention": "y = -critical temperature in K; minimize y to maximize critical temperature.",
+  "descriptors": [
+    {
+      "variable": "x0",
+      "descriptor": "number_of_elements"
+    },
+    {
+      "variable": "x1",
+      "descriptor": "mean_atomic_mass"
+    },
+    {
+      "variable": "x2",
+      "descriptor": "wtd_mean_atomic_mass"
+    },
+    {
+      "variable": "x3",
+      "descriptor": "gmean_atomic_mass"
+    },
+    {
+      "variable": "x4",
+      "descriptor": "wtd_gmean_atomic_mass"
+    },
+    {
+      "variable": "x5",
+      "descriptor": "entropy_atomic_mass"
+    },
+    {
+      "variable": "x6",
+      "descriptor": "wtd_entropy_atomic_mass"
+    },
+    {
+      "variable": "x7",
+      "descriptor": "range_atomic_mass"
+    },
+    {
+      "variable": "x8",
+      "descriptor": "wtd_range_atomic_mass"
+    },
+    {
+      "variable": "x9",
+      "descriptor": "std_atomic_mass"
+    },
+    {
+      "variable": "x10",
+      "descriptor": "wtd_std_atomic_mass"
+    },
+    {
+      "variable": "x11",
+      "descriptor": "mean_fie"
+    },
+    {
+      "variable": "x12",
+      "descriptor": "wtd_mean_fie"
+    },
+    {
+      "variable": "x13",
+      "descriptor": "gmean_fie"
+    },
+    {
+      "variable": "x14",
+      "descriptor": "wtd_gmean_fie"
+    },
+    {
+      "variable": "x15",
+      "descriptor": "entropy_fie"
+    },
+    {
+      "variable": "x16",
+      "descriptor": "wtd_entropy_fie"
+    },
+    {
+      "variable": "x17",
+      "descriptor": "range_fie"
+    },
+    {
+      "variable": "x18",
+      "descriptor": "wtd_range_fie"
+    },
+    {
+      "variable": "x19",
+      "descriptor": "std_fie"
+    },
+    {
+      "variable": "x20",
+      "descriptor": "wtd_std_fie"
+    },
+    {
+      "variable": "x21",
+      "descriptor": "mean_atomic_radius"
+    },
+    {
+      "variable": "x22",
+      "descriptor": "wtd_mean_atomic_radius"
+    },
+    {
+      "variable": "x23",
+      "descriptor": "gmean_atomic_radius"
+    },
+    {
+      "variable": "x24",
+      "descriptor": "wtd_gmean_atomic_radius"
+    },
+    {
+      "variable": "x25",
+      "descriptor": "entropy_atomic_radius"
+    },
+    {
+      "variable": "x26",
+      "descriptor": "wtd_entropy_atomic_radius"
+    },
+    {
+      "variable": "x27",
+      "descriptor": "range_atomic_radius"
+    },
+    {
+      "variable": "x28",
+      "descriptor": "wtd_range_atomic_radius"
+    },
+    {
+      "variable": "x29",
+      "descriptor": "std_atomic_radius"
+    },
+    {
+      "variable": "x30",
+      "descriptor": "wtd_std_atomic_radius"
+    },
+    {
+      "variable": "x31",
+      "descriptor": "mean_Density"
+    },
+    {
+      "variable": "x32",
+      "descriptor": "wtd_mean_Density"
+    },
+    {
+      "variable": "x33",
+      "descriptor": "gmean_Density"
+    },
+    {
+      "variable": "x34",
+      "descriptor": "wtd_gmean_Density"
+    },
+    {
+      "variable": "x35",
+      "descriptor": "entropy_Density"
+    },
+    {
+      "variable": "x36",
+      "descriptor": "wtd_entropy_Density"
+    },
+    {
+      "variable": "x37",
+      "descriptor": "range_Density"
+    },
+    {
+      "variable": "x38",
+      "descriptor": "wtd_range_Density"
+    },
+    {
+      "variable": "x39",
+      "descriptor": "std_Density"
+    },
+    {
+      "variable": "x40",
+      "descriptor": "wtd_std_Density"
+    },
+    {
+      "variable": "x41",
+      "descriptor": "mean_ElectronAffinity"
+    },
+    {
+      "variable": "x42",
+      "descriptor": "wtd_mean_ElectronAffinity"
+    },
+    {
+      "variable": "x43",
+      "descriptor": "gmean_ElectronAffinity"
+    },
+    {
+      "variable": "x44",
+      "descriptor": "wtd_gmean_ElectronAffinity"
+    },
+    {
+      "variable": "x45",
+      "descriptor": "entropy_ElectronAffinity"
+    },
+    {
+      "variable": "x46",
+      "descriptor": "wtd_entropy_ElectronAffinity"
+    },
+    {
+      "variable": "x47",
+      "descriptor": "range_ElectronAffinity"
+    },
+    {
+      "variable": "x48",
+      "descriptor": "wtd_range_ElectronAffinity"
+    },
+    {
+      "variable": "x49",
+      "descriptor": "std_ElectronAffinity"
+    },
+    {
+      "variable": "x50",
+      "descriptor": "wtd_std_ElectronAffinity"
+    },
+    {
+      "variable": "x51",
+      "descriptor": "mean_FusionHeat"
+    },
+    {
+      "variable": "x52",
+      "descriptor": "wtd_mean_FusionHeat"
+    },
+    {
+      "variable": "x53",
+      "descriptor": "gmean_FusionHeat"
+    },
+    {
+      "variable": "x54",
+      "descriptor": "wtd_gmean_FusionHeat"
+    },
+    {
+      "variable": "x55",
+      "descriptor": "entropy_FusionHeat"
+    },
+    {
+      "variable": "x56",
+      "descriptor": "wtd_entropy_FusionHeat"
+    },
+    {
+      "variable": "x57",
+      "descriptor": "range_FusionHeat"
+    },
+    {
+      "variable": "x58",
+      "descriptor": "wtd_range_FusionHeat"
+    },
+    {
+      "variable": "x59",
+      "descriptor": "std_FusionHeat"
+    },
+    {
+      "variable": "x60",
+      "descriptor": "wtd_std_FusionHeat"
+    },
+    {
+      "variable": "x61",
+      "descriptor": "mean_ThermalConductivity"
+    },
+    {
+      "variable": "x62",
+      "descriptor": "wtd_mean_ThermalConductivity"
+    },
+    {
+      "variable": "x63",
+      "descriptor": "gmean_ThermalConductivity"
+    },
+    {
+      "variable": "x64",
+      "descriptor": "wtd_gmean_ThermalConductivity"
+    },
+    {
+      "variable": "x65",
+      "descriptor": "entropy_ThermalConductivity"
+    },
+    {
+      "variable": "x66",
+      "descriptor": "wtd_entropy_ThermalConductivity"
+    },
+    {
+      "variable": "x67",
+      "descriptor": "range_ThermalConductivity"
+    },
+    {
+      "variable": "x68",
+      "descriptor": "wtd_range_ThermalConductivity"
+    },
+    {
+      "variable": "x69",
+      "descriptor": "std_ThermalConductivity"
+    },
+    {
+      "variable": "x70",
+      "descriptor": "wtd_std_ThermalConductivity"
+    },
+    {
+      "variable": "x71",
+      "descriptor": "mean_Valence"
+    },
+    {
+      "variable": "x72",
+      "descriptor": "wtd_mean_Valence"
+    },
+    {
+      "variable": "x73",
+      "descriptor": "gmean_Valence"
+    },
+    {
+      "variable": "x74",
+      "descriptor": "wtd_gmean_Valence"
+    },
+    {
+      "variable": "x75",
+      "descriptor": "entropy_Valence"
+    },
+    {
+      "variable": "x76",
+      "descriptor": "wtd_entropy_Valence"
+    },
+    {
+      "variable": "x77",
+      "descriptor": "range_Valence"
+    },
+    {
+      "variable": "x78",
+      "descriptor": "wtd_range_Valence"
+    },
+    {
+      "variable": "x79",
+      "descriptor": "std_Valence"
+    },
+    {
+      "variable": "x80",
+      "descriptor": "wtd_std_Valence"
+    }
+  ]
+}

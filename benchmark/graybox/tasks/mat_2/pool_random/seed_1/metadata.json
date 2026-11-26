@@ -1,0 +1,27 @@
+{
+  "task": "mat_2",
+  "method": "pool_random",
+  "seed": 1,
+  "kind": "baseline",
+  "protocol": "scalar",
+  "budget": 250,
+  "n_candidates": 7525,
+  "complete": true,
+  "evaluations_used": 250,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "optimizer": "pool_random",
+  "information_mode": "anonymous",
+  "total_wall_seconds": 0.07272545299929334,
+  "objective_direction": "max",
+  "objective_sign": -1,
+  "trace_schema": "scalar_minimization_v1",
+  "best_objective": -31.32656576,
+  "best_raw_value": 31.32656576,
+  "final_simple_regret": 2.440190010000002,
+  "best_possible_objective": -33.76675577,
+  "source_files": {
+    "runs/tasks/mat_2/pool_random/seed_1/meta.json": "34678dd7dd51a5093839409d36d3a0e138df05db75dfe0c94c01731c71e08940",
+    "data/mat_2/main.csv": "1b26ad2912a7b25b668db63a5a03dc2858d85000a1ed8549c79bc1e09e098c35",
+    "runs/tasks/mat_2/pool_random/seed_1/trace.csv": "690edb24455c0c3be8fb1c80a589200420d3f50bb0d673ca86e100a47a4559f1"
+  }
+}

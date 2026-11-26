@@ -1,0 +1,19 @@
+{
+  "task": "mix_1",
+  "method": "opus_5_5_high_prior_anonymous",
+  "seed": 1,
+  "budget": 250,
+  "objective_direction": "min",
+  "objective_sign": 1,
+  "n_candidates": 5595,
+  "best_possible_objective": 0.4344,
+  "kind": "offline_prior",
+  "information_mode": "anonymous",
+  "prediction_evaluations": 0,
+  "offline_selection_budget": 250,
+  "final_regret": 0.0,
+  "source_files": {
+    "runs/tasks/mix_1/opus_5_5_high_prior_anonymous/seed_1/run-e978fb50c620/private/evaluation.json": "65ca7296615862181025962caa629fffebe72dca3817542ee8a400ca0299223f",
+    "data/mix_1/main.csv": "d79758fdba842bfa6a335abd966dd57ba880adf6fc7fe18f686ef48bd5475077"
+  }
+}

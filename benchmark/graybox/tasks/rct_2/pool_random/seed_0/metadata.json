@@ -1,0 +1,32 @@
+{
+  "task": "rct_2",
+  "method": "pool_random",
+  "seed": 0,
+  "kind": "baseline",
+  "protocol": "multiobjective",
+  "budget": 250,
+  "n_candidates": 1728,
+  "complete": true,
+  "evaluations_used": 250,
+  "selection": "Latest-mtime successful full-budget summary within this method/seed; raw reasoning preserves all stored attempts.",
+  "optimizer": "pool_random",
+  "information_mode": "anonymous",
+  "total_wall_seconds": null,
+  "objectives": [
+    "yield",
+    "cost"
+  ],
+  "objective_directions": [
+    "max",
+    "min"
+  ],
+  "trace_schema": "paired_candidate_queries_v1",
+  "hypervolume": 1.1797264039602884,
+  "hypervolume_regret": 0.021744784169426712,
+  "pareto_recovery": 0.1111111111111111,
+  "source_files": {
+    "runs/tasks/rct_2/pool_random/seed_0/meta.json": "730266fddbd190ef77535c076e5424ade40b8033aaadaef3a1d50354a1413784",
+    "data/rct_2/main.csv": "93321678d3f3daee15c001aafcb56f08567ced58f52a8e0132f45a966e19e066",
+    "runs/tasks/rct_2/pool_random/seed_0/trace.csv": "b0ed742828c6f590486552e937bd1e1c5f8b301574d7babb1d6ecdc05132d1d9"
+  }
+}

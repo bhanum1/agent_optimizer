@@ -1,0 +1,1314 @@
+{
+  "description": "The goal is to discover materials with high carbon dioxide (CO2) uptake among the available mol_ids. CO2 uptake describes how much carbon dioxide a material adsorbs under specified conditions. It matters when identifying materials for carbon capture and gas storage.\n\nThe target is simulated CO2 uptake, expressed in mol/kg (moles of CO2 per kilogram of MOF), at 298 K and 0.15 bar. Higher values mean greater CO2 uptake under these conditions.\n\nThe candidate materials are metal-organic frameworks (MOFs).",
+  "objective_convention": "y = -CO2 uptake at 298 K and 0.15 bar; minimize y to maximize uptake.",
+  "descriptors": [
+    {
+      "variable": "x0",
+      "descriptor": "algebraic_connectivity"
+    },
+    {
+      "variable": "x1",
+      "descriptor": "atom_bond_connectivity_index"
+    },
+    {
+      "variable": "x2",
+      "descriptor": "augmented_zagreb_index"
+    },
+    {
+      "variable": "x3",
+      "descriptor": "average_shortest_path_length"
+    },
+    {
+      "variable": "x4",
+      "descriptor": "barycenter_size"
+    },
+    {
+      "variable": "x5",
+      "descriptor": "betweenness_centrality_max"
+    },
+    {
+      "variable": "x6",
+      "descriptor": "betweenness_centrality_mean"
+    },
+    {
+      "variable": "x7",
+      "descriptor": "betweenness_centrality_min"
+    },
+    {
+      "variable": "x8",
+      "descriptor": "betweenness_centrality_std"
+    },
+    {
+      "variable": "x9",
+      "descriptor": "bond_length_max"
+    },
+    {
+      "variable": "x10",
+      "descriptor": "bond_length_mean"
+    },
+    {
+      "variable": "x11",
+      "descriptor": "bond_length_min"
+    },
+    {
+      "variable": "x12",
+      "descriptor": "bond_length_std"
+    },
+    {
+      "variable": "x13",
+      "descriptor": "constraints_max"
+    },
+    {
+      "variable": "x14",
+      "descriptor": "constraints_mean"
+    },
+    {
+      "variable": "x15",
+      "descriptor": "constraints_min"
+    },
+    {
+      "variable": "x16",
+      "descriptor": "constraints_std"
+    },
+    {
+      "variable": "x17",
+      "descriptor": "degree_centrality_max"
+    },
+    {
+      "variable": "x18",
+      "descriptor": "degree_centrality_mean"
+    },
+    {
+      "variable": "x19",
+      "descriptor": "degree_centrality_min"
+    },
+    {
+      "variable": "x20",
+      "descriptor": "degree_centrality_std"
+    },
+    {
+      "variable": "x26",
+      "descriptor": "eigenvector_centrality_mean"
+    },
+    {
+      "variable": "x27",
+      "descriptor": "eigenvector_centrality_std"
+    },
+    {
+      "variable": "x28",
+      "descriptor": "first_zagreb_index"
+    },
+    {
+      "variable": "x29",
+      "descriptor": "forgotten_index"
+    },
+    {
+      "variable": "x30",
+      "descriptor": "geometric_arithmetic_index"
+    },
+    {
+      "variable": "x31",
+      "descriptor": "global_efficiency"
+    },
+    {
+      "variable": "x32",
+      "descriptor": "graph_energy"
+    },
+    {
+      "variable": "x33",
+      "descriptor": "harmonic_index"
+    },
+    {
+      "variable": "x34",
+      "descriptor": "hyper_zagreb_index"
+    },
+    {
+      "variable": "x35",
+      "descriptor": "inverse_sum_indeg_index"
+    },
+    {
+      "variable": "x40",
+      "descriptor": "len_dominating_set"
+    },
+    {
+      "variable": "x41",
+      "descriptor": "local_efficiency"
+    },
+    {
+      "variable": "x42",
+      "descriptor": "louvain_communities_num"
+    },
+    {
+      "variable": "x43",
+      "descriptor": "louvain_communities_sizes_max"
+    },
+    {
+      "variable": "x44",
+      "descriptor": "louvain_communities_sizes_mean"
+    },
+    {
+      "variable": "x45",
+      "descriptor": "louvain_communities_sizes_min"
+    },
+    {
+      "variable": "x46",
+      "descriptor": "louvain_communities_sizes_std"
+    },
+    {
+      "variable": "x47",
+      "descriptor": "maximum_eccentricity"
+    },
+    {
+      "variable": "x54",
+      "descriptor": "num_edge"
+    },
+    {
+      "variable": "x55",
+      "descriptor": "num_node"
+    },
+    {
+      "variable": "x56",
+      "descriptor": "randic_index"
+    },
+    {
+      "variable": "x57",
+      "descriptor": "reciprocal_randic_index"
+    },
+    {
+      "variable": "x58",
+      "descriptor": "second_zagreb_index"
+    },
+    {
+      "variable": "x59",
+      "descriptor": "sombor_index"
+    },
+    {
+      "variable": "x60",
+      "descriptor": "spectral_radius"
+    },
+    {
+      "variable": "x61",
+      "descriptor": "square_clustering_max"
+    },
+    {
+      "variable": "x62",
+      "descriptor": "square_clustering_mean"
+    },
+    {
+      "variable": "x63",
+      "descriptor": "square_clustering_min"
+    },
+    {
+      "variable": "x64",
+      "descriptor": "square_clustering_std"
+    },
+    {
+      "variable": "x65",
+      "descriptor": "sum_connectivity_index"
+    },
+    {
+      "variable": "x66",
+      "descriptor": "symmetric_degree_division_index"
+    },
+    {
+      "variable": "x67",
+      "descriptor": "third_zagreb_index"
+    },
+    {
+      "variable": "x68",
+      "descriptor": "wiener_index"
+    },
+    {
+      "variable": "x69",
+      "descriptor": "ASA [m^2/cm^3]"
+    },
+    {
+      "variable": "x70",
+      "descriptor": "CellV [A^3]"
+    },
+    {
+      "variable": "x71",
+      "descriptor": "Df"
+    },
+    {
+      "variable": "x72",
+      "descriptor": "Di"
+    },
+    {
+      "variable": "x73",
+      "descriptor": "Dif"
+    },
+    {
+      "variable": "x74",
+      "descriptor": "NASA [m^2/cm^3]"
+    },
+    {
+      "variable": "x75",
+      "descriptor": "POAV [cm^3/g]"
+    },
+    {
+      "variable": "x76",
+      "descriptor": "POAVF"
+    },
+    {
+      "variable": "x77",
+      "descriptor": "PONAV [cm^3/g]"
+    },
+    {
+      "variable": "x78",
+      "descriptor": "PONAVF"
+    },
+    {
+      "variable": "x79",
+      "descriptor": "density [g/cm^3]"
+    },
+    {
+      "variable": "x80",
+      "descriptor": "total_SA_volumetric"
+    },
+    {
+      "variable": "x81",
+      "descriptor": "total_SA_gravimetric"
+    },
+    {
+      "variable": "x82",
+      "descriptor": "total_POV_volumetric"
+    },
+    {
+      "variable": "x83",
+      "descriptor": "total_POV_gravimetric"
+    },
+    {
+      "variable": "x84",
+      "descriptor": "mc_CRY-chi-0-all"
+    },
+    {
+      "variable": "x85",
+      "descriptor": "mc_CRY-chi-1-all"
+    },
+    {
+      "variable": "x86",
+      "descriptor": "mc_CRY-chi-2-all"
+    },
+    {
+      "variable": "x87",
+      "descriptor": "mc_CRY-chi-3-all"
+    },
+    {
+      "variable": "x88",
+      "descriptor": "mc_CRY-Z-0-all"
+    },
+    {
+      "variable": "x89",
+      "descriptor": "mc_CRY-Z-1-all"
+    },
+    {
+      "variable": "x90",
+      "descriptor": "mc_CRY-Z-2-all"
+    },
+    {
+      "variable": "x91",
+      "descriptor": "mc_CRY-Z-3-all"
+    },
+    {
+      "variable": "x93",
+      "descriptor": "mc_CRY-I-1-all"
+    },
+    {
+      "variable": "x94",
+      "descriptor": "mc_CRY-I-2-all"
+    },
+    {
+      "variable": "x95",
+      "descriptor": "mc_CRY-I-3-all"
+    },
+    {
+      "variable": "x96",
+      "descriptor": "mc_CRY-T-0-all"
+    },
+    {
+      "variable": "x97",
+      "descriptor": "mc_CRY-T-1-all"
+    },
+    {
+      "variable": "x98",
+      "descriptor": "mc_CRY-T-2-all"
+    },
+    {
+      "variable": "x99",
+      "descriptor": "mc_CRY-T-3-all"
+    },
+    {
+      "variable": "x100",
+      "descriptor": "mc_CRY-S-0-all"
+    },
+    {
+      "variable": "x101",
+      "descriptor": "mc_CRY-S-1-all"
+    },
+    {
+      "variable": "x102",
+      "descriptor": "mc_CRY-S-2-all"
+    },
+    {
+      "variable": "x103",
+      "descriptor": "mc_CRY-S-3-all"
+    },
+    {
+      "variable": "x105",
+      "descriptor": "D_mc_CRY-chi-1-all"
+    },
+    {
+      "variable": "x106",
+      "descriptor": "D_mc_CRY-chi-2-all"
+    },
+    {
+      "variable": "x107",
+      "descriptor": "D_mc_CRY-chi-3-all"
+    },
+    {
+      "variable": "x109",
+      "descriptor": "D_mc_CRY-Z-1-all"
+    },
+    {
+      "variable": "x110",
+      "descriptor": "D_mc_CRY-Z-2-all"
+    },
+    {
+      "variable": "x111",
+      "descriptor": "D_mc_CRY-Z-3-all"
+    },
+    {
+      "variable": "x117",
+      "descriptor": "D_mc_CRY-T-1-all"
+    },
+    {
+      "variable": "x118",
+      "descriptor": "D_mc_CRY-T-2-all"
+    },
+    {
+      "variable": "x119",
+      "descriptor": "D_mc_CRY-T-3-all"
+    },
+    {
+      "variable": "x121",
+      "descriptor": "D_mc_CRY-S-1-all"
+    },
+    {
+      "variable": "x122",
+      "descriptor": "D_mc_CRY-S-2-all"
+    },
+    {
+      "variable": "x123",
+      "descriptor": "D_mc_CRY-S-3-all"
+    },
+    {
+      "variable": "x124",
+      "descriptor": "sum-mc_CRY-chi-0-all"
+    },
+    {
+      "variable": "x125",
+      "descriptor": "sum-mc_CRY-chi-1-all"
+    },
+    {
+      "variable": "x126",
+      "descriptor": "sum-mc_CRY-chi-2-all"
+    },
+    {
+      "variable": "x127",
+      "descriptor": "sum-mc_CRY-chi-3-all"
+    },
+    {
+      "variable": "x128",
+      "descriptor": "sum-mc_CRY-Z-0-all"
+    },
+    {
+      "variable": "x129",
+      "descriptor": "sum-mc_CRY-Z-1-all"
+    },
+    {
+      "variable": "x130",
+      "descriptor": "sum-mc_CRY-Z-2-all"
+    },
+    {
+      "variable": "x131",
+      "descriptor": "sum-mc_CRY-Z-3-all"
+    },
+    {
+      "variable": "x132",
+      "descriptor": "sum-mc_CRY-I-0-all"
+    },
+    {
+      "variable": "x133",
+      "descriptor": "sum-mc_CRY-I-1-all"
+    },
+    {
+      "variable": "x134",
+      "descriptor": "sum-mc_CRY-I-2-all"
+    },
+    {
+      "variable": "x135",
+      "descriptor": "sum-mc_CRY-I-3-all"
+    },
+    {
+      "variable": "x136",
+      "descriptor": "sum-mc_CRY-T-0-all"
+    },
+    {
+      "variable": "x137",
+      "descriptor": "sum-mc_CRY-T-1-all"
+    },
+    {
+      "variable": "x138",
+      "descriptor": "sum-mc_CRY-T-2-all"
+    },
+    {
+      "variable": "x139",
+      "descriptor": "sum-mc_CRY-T-3-all"
+    },
+    {
+      "variable": "x140",
+      "descriptor": "sum-mc_CRY-S-0-all"
+    },
+    {
+      "variable": "x141",
+      "descriptor": "sum-mc_CRY-S-1-all"
+    },
+    {
+      "variable": "x142",
+      "descriptor": "sum-mc_CRY-S-2-all"
+    },
+    {
+      "variable": "x143",
+      "descriptor": "sum-mc_CRY-S-3-all"
+    },
+    {
+      "variable": "x145",
+      "descriptor": "sum-D_mc_CRY-chi-1-all"
+    },
+    {
+      "variable": "x146",
+      "descriptor": "sum-D_mc_CRY-chi-2-all"
+    },
+    {
+      "variable": "x147",
+      "descriptor": "sum-D_mc_CRY-chi-3-all"
+    },
+    {
+      "variable": "x149",
+      "descriptor": "sum-D_mc_CRY-Z-1-all"
+    },
+    {
+      "variable": "x150",
+      "descriptor": "sum-D_mc_CRY-Z-2-all"
+    },
+    {
+      "variable": "x151",
+      "descriptor": "sum-D_mc_CRY-Z-3-all"
+    },
+    {
+      "variable": "x157",
+      "descriptor": "sum-D_mc_CRY-T-1-all"
+    },
+    {
+      "variable": "x158",
+      "descriptor": "sum-D_mc_CRY-T-2-all"
+    },
+    {
+      "variable": "x159",
+      "descriptor": "sum-D_mc_CRY-T-3-all"
+    },
+    {
+      "variable": "x161",
+      "descriptor": "sum-D_mc_CRY-S-1-all"
+    },
+    {
+      "variable": "x162",
+      "descriptor": "sum-D_mc_CRY-S-2-all"
+    },
+    {
+      "variable": "x163",
+      "descriptor": "sum-D_mc_CRY-S-3-all"
+    },
+    {
+      "variable": "x164",
+      "descriptor": "lc-chi-0-all"
+    },
+    {
+      "variable": "x165",
+      "descriptor": "lc-chi-1-all"
+    },
+    {
+      "variable": "x166",
+      "descriptor": "lc-chi-2-all"
+    },
+    {
+      "variable": "x167",
+      "descriptor": "lc-chi-3-all"
+    },
+    {
+      "variable": "x168",
+      "descriptor": "lc-Z-0-all"
+    },
+    {
+      "variable": "x169",
+      "descriptor": "lc-Z-1-all"
+    },
+    {
+      "variable": "x170",
+      "descriptor": "lc-Z-2-all"
+    },
+    {
+      "variable": "x171",
+      "descriptor": "lc-Z-3-all"
+    },
+    {
+      "variable": "x173",
+      "descriptor": "lc-I-1-all"
+    },
+    {
+      "variable": "x174",
+      "descriptor": "lc-I-2-all"
+    },
+    {
+      "variable": "x175",
+      "descriptor": "lc-I-3-all"
+    },
+    {
+      "variable": "x176",
+      "descriptor": "lc-T-0-all"
+    },
+    {
+      "variable": "x177",
+      "descriptor": "lc-T-1-all"
+    },
+    {
+      "variable": "x178",
+      "descriptor": "lc-T-2-all"
+    },
+    {
+      "variable": "x179",
+      "descriptor": "lc-T-3-all"
+    },
+    {
+      "variable": "x180",
+      "descriptor": "lc-S-0-all"
+    },
+    {
+      "variable": "x181",
+      "descriptor": "lc-S-1-all"
+    },
+    {
+      "variable": "x182",
+      "descriptor": "lc-S-2-all"
+    },
+    {
+      "variable": "x183",
+      "descriptor": "lc-S-3-all"
+    },
+    {
+      "variable": "x184",
+      "descriptor": "lc-alpha-0-all"
+    },
+    {
+      "variable": "x185",
+      "descriptor": "lc-alpha-1-all"
+    },
+    {
+      "variable": "x186",
+      "descriptor": "lc-alpha-2-all"
+    },
+    {
+      "variable": "x187",
+      "descriptor": "lc-alpha-3-all"
+    },
+    {
+      "variable": "x189",
+      "descriptor": "D_lc-chi-1-all"
+    },
+    {
+      "variable": "x190",
+      "descriptor": "D_lc-chi-2-all"
+    },
+    {
+      "variable": "x191",
+      "descriptor": "D_lc-chi-3-all"
+    },
+    {
+      "variable": "x193",
+      "descriptor": "D_lc-Z-1-all"
+    },
+    {
+      "variable": "x194",
+      "descriptor": "D_lc-Z-2-all"
+    },
+    {
+      "variable": "x195",
+      "descriptor": "D_lc-Z-3-all"
+    },
+    {
+      "variable": "x201",
+      "descriptor": "D_lc-T-1-all"
+    },
+    {
+      "variable": "x202",
+      "descriptor": "D_lc-T-2-all"
+    },
+    {
+      "variable": "x203",
+      "descriptor": "D_lc-T-3-all"
+    },
+    {
+      "variable": "x205",
+      "descriptor": "D_lc-S-1-all"
+    },
+    {
+      "variable": "x206",
+      "descriptor": "D_lc-S-2-all"
+    },
+    {
+      "variable": "x207",
+      "descriptor": "D_lc-S-3-all"
+    },
+    {
+      "variable": "x209",
+      "descriptor": "D_lc-alpha-1-all"
+    },
+    {
+      "variable": "x210",
+      "descriptor": "D_lc-alpha-2-all"
+    },
+    {
+      "variable": "x211",
+      "descriptor": "D_lc-alpha-3-all"
+    },
+    {
+      "variable": "x212",
+      "descriptor": "func-chi-0-all"
+    },
+    {
+      "variable": "x213",
+      "descriptor": "func-chi-1-all"
+    },
+    {
+      "variable": "x214",
+      "descriptor": "func-chi-2-all"
+    },
+    {
+      "variable": "x215",
+      "descriptor": "func-chi-3-all"
+    },
+    {
+      "variable": "x216",
+      "descriptor": "func-Z-0-all"
+    },
+    {
+      "variable": "x217",
+      "descriptor": "func-Z-1-all"
+    },
+    {
+      "variable": "x218",
+      "descriptor": "func-Z-2-all"
+    },
+    {
+      "variable": "x219",
+      "descriptor": "func-Z-3-all"
+    },
+    {
+      "variable": "x220",
+      "descriptor": "func-I-0-all"
+    },
+    {
+      "variable": "x221",
+      "descriptor": "func-I-1-all"
+    },
+    {
+      "variable": "x222",
+      "descriptor": "func-I-2-all"
+    },
+    {
+      "variable": "x223",
+      "descriptor": "func-I-3-all"
+    },
+    {
+      "variable": "x224",
+      "descriptor": "func-T-0-all"
+    },
+    {
+      "variable": "x225",
+      "descriptor": "func-T-1-all"
+    },
+    {
+      "variable": "x226",
+      "descriptor": "func-T-2-all"
+    },
+    {
+      "variable": "x227",
+      "descriptor": "func-T-3-all"
+    },
+    {
+      "variable": "x228",
+      "descriptor": "func-S-0-all"
+    },
+    {
+      "variable": "x229",
+      "descriptor": "func-S-1-all"
+    },
+    {
+      "variable": "x230",
+      "descriptor": "func-S-2-all"
+    },
+    {
+      "variable": "x231",
+      "descriptor": "func-S-3-all"
+    },
+    {
+      "variable": "x232",
+      "descriptor": "func-alpha-0-all"
+    },
+    {
+      "variable": "x233",
+      "descriptor": "func-alpha-1-all"
+    },
+    {
+      "variable": "x234",
+      "descriptor": "func-alpha-2-all"
+    },
+    {
+      "variable": "x235",
+      "descriptor": "func-alpha-3-all"
+    },
+    {
+      "variable": "x237",
+      "descriptor": "D_func-chi-1-all"
+    },
+    {
+      "variable": "x238",
+      "descriptor": "D_func-chi-2-all"
+    },
+    {
+      "variable": "x239",
+      "descriptor": "D_func-chi-3-all"
+    },
+    {
+      "variable": "x241",
+      "descriptor": "D_func-Z-1-all"
+    },
+    {
+      "variable": "x242",
+      "descriptor": "D_func-Z-2-all"
+    },
+    {
+      "variable": "x243",
+      "descriptor": "D_func-Z-3-all"
+    },
+    {
+      "variable": "x249",
+      "descriptor": "D_func-T-1-all"
+    },
+    {
+      "variable": "x250",
+      "descriptor": "D_func-T-2-all"
+    },
+    {
+      "variable": "x251",
+      "descriptor": "D_func-T-3-all"
+    },
+    {
+      "variable": "x253",
+      "descriptor": "D_func-S-1-all"
+    },
+    {
+      "variable": "x254",
+      "descriptor": "D_func-S-2-all"
+    },
+    {
+      "variable": "x255",
+      "descriptor": "D_func-S-3-all"
+    },
+    {
+      "variable": "x257",
+      "descriptor": "D_func-alpha-1-all"
+    },
+    {
+      "variable": "x258",
+      "descriptor": "D_func-alpha-2-all"
+    },
+    {
+      "variable": "x259",
+      "descriptor": "D_func-alpha-3-all"
+    },
+    {
+      "variable": "x260",
+      "descriptor": "f-lig-chi-0"
+    },
+    {
+      "variable": "x261",
+      "descriptor": "f-lig-chi-1"
+    },
+    {
+      "variable": "x262",
+      "descriptor": "f-lig-chi-2"
+    },
+    {
+      "variable": "x263",
+      "descriptor": "f-lig-chi-3"
+    },
+    {
+      "variable": "x264",
+      "descriptor": "f-lig-Z-0"
+    },
+    {
+      "variable": "x265",
+      "descriptor": "f-lig-Z-1"
+    },
+    {
+      "variable": "x266",
+      "descriptor": "f-lig-Z-2"
+    },
+    {
+      "variable": "x267",
+      "descriptor": "f-lig-Z-3"
+    },
+    {
+      "variable": "x268",
+      "descriptor": "f-lig-I-0"
+    },
+    {
+      "variable": "x269",
+      "descriptor": "f-lig-I-1"
+    },
+    {
+      "variable": "x270",
+      "descriptor": "f-lig-I-2"
+    },
+    {
+      "variable": "x271",
+      "descriptor": "f-lig-I-3"
+    },
+    {
+      "variable": "x272",
+      "descriptor": "f-lig-T-0"
+    },
+    {
+      "variable": "x273",
+      "descriptor": "f-lig-T-1"
+    },
+    {
+      "variable": "x274",
+      "descriptor": "f-lig-T-2"
+    },
+    {
+      "variable": "x275",
+      "descriptor": "f-lig-T-3"
+    },
+    {
+      "variable": "x276",
+      "descriptor": "f-lig-S-0"
+    },
+    {
+      "variable": "x277",
+      "descriptor": "f-lig-S-1"
+    },
+    {
+      "variable": "x278",
+      "descriptor": "f-lig-S-2"
+    },
+    {
+      "variable": "x279",
+      "descriptor": "f-lig-S-3"
+    },
+    {
+      "variable": "x280",
+      "descriptor": "sum-lc-chi-0-all"
+    },
+    {
+      "variable": "x281",
+      "descriptor": "sum-lc-chi-1-all"
+    },
+    {
+      "variable": "x282",
+      "descriptor": "sum-lc-chi-2-all"
+    },
+    {
+      "variable": "x283",
+      "descriptor": "sum-lc-chi-3-all"
+    },
+    {
+      "variable": "x284",
+      "descriptor": "sum-lc-Z-0-all"
+    },
+    {
+      "variable": "x285",
+      "descriptor": "sum-lc-Z-1-all"
+    },
+    {
+      "variable": "x286",
+      "descriptor": "sum-lc-Z-2-all"
+    },
+    {
+      "variable": "x287",
+      "descriptor": "sum-lc-Z-3-all"
+    },
+    {
+      "variable": "x288",
+      "descriptor": "sum-lc-I-0-all"
+    },
+    {
+      "variable": "x289",
+      "descriptor": "sum-lc-I-1-all"
+    },
+    {
+      "variable": "x290",
+      "descriptor": "sum-lc-I-2-all"
+    },
+    {
+      "variable": "x291",
+      "descriptor": "sum-lc-I-3-all"
+    },
+    {
+      "variable": "x292",
+      "descriptor": "sum-lc-T-0-all"
+    },
+    {
+      "variable": "x293",
+      "descriptor": "sum-lc-T-1-all"
+    },
+    {
+      "variable": "x294",
+      "descriptor": "sum-lc-T-2-all"
+    },
+    {
+      "variable": "x295",
+      "descriptor": "sum-lc-T-3-all"
+    },
+    {
+      "variable": "x296",
+      "descriptor": "sum-lc-S-0-all"
+    },
+    {
+      "variable": "x297",
+      "descriptor": "sum-lc-S-1-all"
+    },
+    {
+      "variable": "x298",
+      "descriptor": "sum-lc-S-2-all"
+    },
+    {
+      "variable": "x299",
+      "descriptor": "sum-lc-S-3-all"
+    },
+    {
+      "variable": "x300",
+      "descriptor": "sum-lc-alpha-0-all"
+    },
+    {
+      "variable": "x301",
+      "descriptor": "sum-lc-alpha-1-all"
+    },
+    {
+      "variable": "x302",
+      "descriptor": "sum-lc-alpha-2-all"
+    },
+    {
+      "variable": "x303",
+      "descriptor": "sum-lc-alpha-3-all"
+    },
+    {
+      "variable": "x305",
+      "descriptor": "sum-D_lc-chi-1-all"
+    },
+    {
+      "variable": "x306",
+      "descriptor": "sum-D_lc-chi-2-all"
+    },
+    {
+      "variable": "x307",
+      "descriptor": "sum-D_lc-chi-3-all"
+    },
+    {
+      "variable": "x309",
+      "descriptor": "sum-D_lc-Z-1-all"
+    },
+    {
+      "variable": "x310",
+      "descriptor": "sum-D_lc-Z-2-all"
+    },
+    {
+      "variable": "x311",
+      "descriptor": "sum-D_lc-Z-3-all"
+    },
+    {
+      "variable": "x317",
+      "descriptor": "sum-D_lc-T-1-all"
+    },
+    {
+      "variable": "x318",
+      "descriptor": "sum-D_lc-T-2-all"
+    },
+    {
+      "variable": "x319",
+      "descriptor": "sum-D_lc-T-3-all"
+    },
+    {
+      "variable": "x321",
+      "descriptor": "sum-D_lc-S-1-all"
+    },
+    {
+      "variable": "x322",
+      "descriptor": "sum-D_lc-S-2-all"
+    },
+    {
+      "variable": "x323",
+      "descriptor": "sum-D_lc-S-3-all"
+    },
+    {
+      "variable": "x325",
+      "descriptor": "sum-D_lc-alpha-1-all"
+    },
+    {
+      "variable": "x326",
+      "descriptor": "sum-D_lc-alpha-2-all"
+    },
+    {
+      "variable": "x327",
+      "descriptor": "sum-D_lc-alpha-3-all"
+    },
+    {
+      "variable": "x328",
+      "descriptor": "sum-func-chi-0-all"
+    },
+    {
+      "variable": "x329",
+      "descriptor": "sum-func-chi-1-all"
+    },
+    {
+      "variable": "x330",
+      "descriptor": "sum-func-chi-2-all"
+    },
+    {
+      "variable": "x331",
+      "descriptor": "sum-func-chi-3-all"
+    },
+    {
+      "variable": "x332",
+      "descriptor": "sum-func-Z-0-all"
+    },
+    {
+      "variable": "x333",
+      "descriptor": "sum-func-Z-1-all"
+    },
+    {
+      "variable": "x334",
+      "descriptor": "sum-func-Z-2-all"
+    },
+    {
+      "variable": "x335",
+      "descriptor": "sum-func-Z-3-all"
+    },
+    {
+      "variable": "x336",
+      "descriptor": "sum-func-I-0-all"
+    },
+    {
+      "variable": "x337",
+      "descriptor": "sum-func-I-1-all"
+    },
+    {
+      "variable": "x338",
+      "descriptor": "sum-func-I-2-all"
+    },
+    {
+      "variable": "x339",
+      "descriptor": "sum-func-I-3-all"
+    },
+    {
+      "variable": "x340",
+      "descriptor": "sum-func-T-0-all"
+    },
+    {
+      "variable": "x341",
+      "descriptor": "sum-func-T-1-all"
+    },
+    {
+      "variable": "x342",
+      "descriptor": "sum-func-T-2-all"
+    },
+    {
+      "variable": "x343",
+      "descriptor": "sum-func-T-3-all"
+    },
+    {
+      "variable": "x344",
+      "descriptor": "sum-func-S-0-all"
+    },
+    {
+      "variable": "x345",
+      "descriptor": "sum-func-S-1-all"
+    },
+    {
+      "variable": "x346",
+      "descriptor": "sum-func-S-2-all"
+    },
+    {
+      "variable": "x347",
+      "descriptor": "sum-func-S-3-all"
+    },
+    {
+      "variable": "x348",
+      "descriptor": "sum-func-alpha-0-all"
+    },
+    {
+      "variable": "x349",
+      "descriptor": "sum-func-alpha-1-all"
+    },
+    {
+      "variable": "x350",
+      "descriptor": "sum-func-alpha-2-all"
+    },
+    {
+      "variable": "x351",
+      "descriptor": "sum-func-alpha-3-all"
+    },
+    {
+      "variable": "x353",
+      "descriptor": "sum-D_func-chi-1-all"
+    },
+    {
+      "variable": "x354",
+      "descriptor": "sum-D_func-chi-2-all"
+    },
+    {
+      "variable": "x355",
+      "descriptor": "sum-D_func-chi-3-all"
+    },
+    {
+      "variable": "x357",
+      "descriptor": "sum-D_func-Z-1-all"
+    },
+    {
+      "variable": "x358",
+      "descriptor": "sum-D_func-Z-2-all"
+    },
+    {
+      "variable": "x359",
+      "descriptor": "sum-D_func-Z-3-all"
+    },
+    {
+      "variable": "x365",
+      "descriptor": "sum-D_func-T-1-all"
+    },
+    {
+      "variable": "x366",
+      "descriptor": "sum-D_func-T-2-all"
+    },
+    {
+      "variable": "x367",
+      "descriptor": "sum-D_func-T-3-all"
+    },
+    {
+      "variable": "x369",
+      "descriptor": "sum-D_func-S-1-all"
+    },
+    {
+      "variable": "x370",
+      "descriptor": "sum-D_func-S-2-all"
+    },
+    {
+      "variable": "x371",
+      "descriptor": "sum-D_func-S-3-all"
+    },
+    {
+      "variable": "x373",
+      "descriptor": "sum-D_func-alpha-1-all"
+    },
+    {
+      "variable": "x374",
+      "descriptor": "sum-D_func-alpha-2-all"
+    },
+    {
+      "variable": "x375",
+      "descriptor": "sum-D_func-alpha-3-all"
+    },
+    {
+      "variable": "x376",
+      "descriptor": "sum-f-lig-chi-0"
+    },
+    {
+      "variable": "x377",
+      "descriptor": "sum-f-lig-chi-1"
+    },
+    {
+      "variable": "x378",
+      "descriptor": "sum-f-lig-chi-2"
+    },
+    {
+      "variable": "x379",
+      "descriptor": "sum-f-lig-chi-3"
+    },
+    {
+      "variable": "x380",
+      "descriptor": "sum-f-lig-Z-0"
+    },
+    {
+      "variable": "x381",
+      "descriptor": "sum-f-lig-Z-1"
+    },
+    {
+      "variable": "x382",
+      "descriptor": "sum-f-lig-Z-2"
+    },
+    {
+      "variable": "x383",
+      "descriptor": "sum-f-lig-Z-3"
+    },
+    {
+      "variable": "x384",
+      "descriptor": "sum-f-lig-I-0"
+    },
+    {
+      "variable": "x385",
+      "descriptor": "sum-f-lig-I-1"
+    },
+    {
+      "variable": "x386",
+      "descriptor": "sum-f-lig-I-2"
+    },
+    {
+      "variable": "x387",
+      "descriptor": "sum-f-lig-I-3"
+    },
+    {
+      "variable": "x388",
+      "descriptor": "sum-f-lig-T-0"
+    },
+    {
+      "variable": "x389",
+      "descriptor": "sum-f-lig-T-1"
+    },
+    {
+      "variable": "x390",
+      "descriptor": "sum-f-lig-T-2"
+    },
+    {
+      "variable": "x391",
+      "descriptor": "sum-f-lig-T-3"
+    },
+    {
+      "variable": "x392",
+      "descriptor": "sum-f-lig-S-0"
+    },
+    {
+      "variable": "x393",
+      "descriptor": "sum-f-lig-S-1"
+    },
+    {
+      "variable": "x394",
+      "descriptor": "sum-f-lig-S-2"
+    },
+    {
+      "variable": "x395",
+      "descriptor": "sum-f-lig-S-3"
+    }
+  ]
+}

@@ -1,0 +1,1406 @@
+{
+  "description": "The goal is to discover mixtures with low dynamic viscosity among the available mol_ids. Dynamic viscosity describes a fluid's resistance to flow. It matters when selecting mixtures for fluid handling, lubrication, or formulation.\n\nThe target is measured dynamic viscosity in centipoise (cP) at room temperature. The objective is to minimize dynamic viscosity. Lower values mean less resistance to flow.\n\nThe candidates are binary mixtures defined by two components and their mole fractions. The mole fractions specify the proportion of each component by amount of substance and sum to one. Both components have nonzero mole fractions.",
+  "objective_convention": "y = dynamic viscosity in cP; minimize y.",
+  "descriptors": [
+    {
+      "variable": "x0",
+      "descriptor": "component_1_MaxAbsEStateIndex"
+    },
+    {
+      "variable": "x1",
+      "descriptor": "component_1_MaxEStateIndex"
+    },
+    {
+      "variable": "x2",
+      "descriptor": "component_1_MinAbsEStateIndex"
+    },
+    {
+      "variable": "x3",
+      "descriptor": "component_1_MinEStateIndex"
+    },
+    {
+      "variable": "x4",
+      "descriptor": "component_1_qed"
+    },
+    {
+      "variable": "x5",
+      "descriptor": "component_1_SPS"
+    },
+    {
+      "variable": "x6",
+      "descriptor": "component_1_MolWt"
+    },
+    {
+      "variable": "x7",
+      "descriptor": "component_1_HeavyAtomMolWt"
+    },
+    {
+      "variable": "x8",
+      "descriptor": "component_1_ExactMolWt"
+    },
+    {
+      "variable": "x9",
+      "descriptor": "component_1_NumValenceElectrons"
+    },
+    {
+      "variable": "x11",
+      "descriptor": "component_1_MaxPartialCharge"
+    },
+    {
+      "variable": "x12",
+      "descriptor": "component_1_MinPartialCharge"
+    },
+    {
+      "variable": "x13",
+      "descriptor": "component_1_MaxAbsPartialCharge"
+    },
+    {
+      "variable": "x14",
+      "descriptor": "component_1_MinAbsPartialCharge"
+    },
+    {
+      "variable": "x15",
+      "descriptor": "component_1_FpDensityMorgan1"
+    },
+    {
+      "variable": "x16",
+      "descriptor": "component_1_FpDensityMorgan2"
+    },
+    {
+      "variable": "x17",
+      "descriptor": "component_1_FpDensityMorgan3"
+    },
+    {
+      "variable": "x18",
+      "descriptor": "component_1_BCUT2D_MWHI"
+    },
+    {
+      "variable": "x19",
+      "descriptor": "component_1_BCUT2D_MWLOW"
+    },
+    {
+      "variable": "x20",
+      "descriptor": "component_1_BCUT2D_CHGHI"
+    },
+    {
+      "variable": "x21",
+      "descriptor": "component_1_BCUT2D_CHGLO"
+    },
+    {
+      "variable": "x22",
+      "descriptor": "component_1_BCUT2D_LOGPHI"
+    },
+    {
+      "variable": "x23",
+      "descriptor": "component_1_BCUT2D_LOGPLOW"
+    },
+    {
+      "variable": "x24",
+      "descriptor": "component_1_BCUT2D_MRHI"
+    },
+    {
+      "variable": "x25",
+      "descriptor": "component_1_BCUT2D_MRLOW"
+    },
+    {
+      "variable": "x26",
+      "descriptor": "component_1_AvgIpc"
+    },
+    {
+      "variable": "x27",
+      "descriptor": "component_1_BalabanJ"
+    },
+    {
+      "variable": "x28",
+      "descriptor": "component_1_BertzCT"
+    },
+    {
+      "variable": "x29",
+      "descriptor": "component_1_Chi0"
+    },
+    {
+      "variable": "x30",
+      "descriptor": "component_1_Chi0n"
+    },
+    {
+      "variable": "x31",
+      "descriptor": "component_1_Chi0v"
+    },
+    {
+      "variable": "x32",
+      "descriptor": "component_1_Chi1"
+    },
+    {
+      "variable": "x33",
+      "descriptor": "component_1_Chi1n"
+    },
+    {
+      "variable": "x34",
+      "descriptor": "component_1_Chi1v"
+    },
+    {
+      "variable": "x35",
+      "descriptor": "component_1_Chi2n"
+    },
+    {
+      "variable": "x36",
+      "descriptor": "component_1_Chi2v"
+    },
+    {
+      "variable": "x37",
+      "descriptor": "component_1_Chi3n"
+    },
+    {
+      "variable": "x38",
+      "descriptor": "component_1_Chi3v"
+    },
+    {
+      "variable": "x39",
+      "descriptor": "component_1_Chi4n"
+    },
+    {
+      "variable": "x40",
+      "descriptor": "component_1_Chi4v"
+    },
+    {
+      "variable": "x41",
+      "descriptor": "component_1_HallKierAlpha"
+    },
+    {
+      "variable": "x42",
+      "descriptor": "component_1_Ipc"
+    },
+    {
+      "variable": "x43",
+      "descriptor": "component_1_Kappa1"
+    },
+    {
+      "variable": "x44",
+      "descriptor": "component_1_Kappa2"
+    },
+    {
+      "variable": "x45",
+      "descriptor": "component_1_Kappa3"
+    },
+    {
+      "variable": "x46",
+      "descriptor": "component_1_LabuteASA"
+    },
+    {
+      "variable": "x47",
+      "descriptor": "component_1_PEOE_VSA1"
+    },
+    {
+      "variable": "x48",
+      "descriptor": "component_1_PEOE_VSA10"
+    },
+    {
+      "variable": "x49",
+      "descriptor": "component_1_PEOE_VSA11"
+    },
+    {
+      "variable": "x50",
+      "descriptor": "component_1_PEOE_VSA12"
+    },
+    {
+      "variable": "x51",
+      "descriptor": "component_1_PEOE_VSA13"
+    },
+    {
+      "variable": "x52",
+      "descriptor": "component_1_PEOE_VSA14"
+    },
+    {
+      "variable": "x53",
+      "descriptor": "component_1_PEOE_VSA2"
+    },
+    {
+      "variable": "x54",
+      "descriptor": "component_1_PEOE_VSA3"
+    },
+    {
+      "variable": "x55",
+      "descriptor": "component_1_PEOE_VSA4"
+    },
+    {
+      "variable": "x56",
+      "descriptor": "component_1_PEOE_VSA5"
+    },
+    {
+      "variable": "x57",
+      "descriptor": "component_1_PEOE_VSA6"
+    },
+    {
+      "variable": "x58",
+      "descriptor": "component_1_PEOE_VSA7"
+    },
+    {
+      "variable": "x59",
+      "descriptor": "component_1_PEOE_VSA8"
+    },
+    {
+      "variable": "x60",
+      "descriptor": "component_1_PEOE_VSA9"
+    },
+    {
+      "variable": "x61",
+      "descriptor": "component_1_SMR_VSA1"
+    },
+    {
+      "variable": "x62",
+      "descriptor": "component_1_SMR_VSA10"
+    },
+    {
+      "variable": "x63",
+      "descriptor": "component_1_SMR_VSA2"
+    },
+    {
+      "variable": "x64",
+      "descriptor": "component_1_SMR_VSA3"
+    },
+    {
+      "variable": "x65",
+      "descriptor": "component_1_SMR_VSA4"
+    },
+    {
+      "variable": "x66",
+      "descriptor": "component_1_SMR_VSA5"
+    },
+    {
+      "variable": "x67",
+      "descriptor": "component_1_SMR_VSA6"
+    },
+    {
+      "variable": "x68",
+      "descriptor": "component_1_SMR_VSA7"
+    },
+    {
+      "variable": "x70",
+      "descriptor": "component_1_SMR_VSA9"
+    },
+    {
+      "variable": "x71",
+      "descriptor": "component_1_SlogP_VSA1"
+    },
+    {
+      "variable": "x72",
+      "descriptor": "component_1_SlogP_VSA10"
+    },
+    {
+      "variable": "x73",
+      "descriptor": "component_1_SlogP_VSA11"
+    },
+    {
+      "variable": "x74",
+      "descriptor": "component_1_SlogP_VSA12"
+    },
+    {
+      "variable": "x75",
+      "descriptor": "component_1_SlogP_VSA2"
+    },
+    {
+      "variable": "x76",
+      "descriptor": "component_1_SlogP_VSA3"
+    },
+    {
+      "variable": "x77",
+      "descriptor": "component_1_SlogP_VSA4"
+    },
+    {
+      "variable": "x78",
+      "descriptor": "component_1_SlogP_VSA5"
+    },
+    {
+      "variable": "x79",
+      "descriptor": "component_1_SlogP_VSA6"
+    },
+    {
+      "variable": "x80",
+      "descriptor": "component_1_SlogP_VSA7"
+    },
+    {
+      "variable": "x81",
+      "descriptor": "component_1_SlogP_VSA8"
+    },
+    {
+      "variable": "x83",
+      "descriptor": "component_1_TPSA"
+    },
+    {
+      "variable": "x84",
+      "descriptor": "component_1_EState_VSA1"
+    },
+    {
+      "variable": "x85",
+      "descriptor": "component_1_EState_VSA10"
+    },
+    {
+      "variable": "x87",
+      "descriptor": "component_1_EState_VSA2"
+    },
+    {
+      "variable": "x88",
+      "descriptor": "component_1_EState_VSA3"
+    },
+    {
+      "variable": "x89",
+      "descriptor": "component_1_EState_VSA4"
+    },
+    {
+      "variable": "x90",
+      "descriptor": "component_1_EState_VSA5"
+    },
+    {
+      "variable": "x91",
+      "descriptor": "component_1_EState_VSA6"
+    },
+    {
+      "variable": "x92",
+      "descriptor": "component_1_EState_VSA7"
+    },
+    {
+      "variable": "x93",
+      "descriptor": "component_1_EState_VSA8"
+    },
+    {
+      "variable": "x94",
+      "descriptor": "component_1_EState_VSA9"
+    },
+    {
+      "variable": "x95",
+      "descriptor": "component_1_VSA_EState1"
+    },
+    {
+      "variable": "x96",
+      "descriptor": "component_1_VSA_EState10"
+    },
+    {
+      "variable": "x97",
+      "descriptor": "component_1_VSA_EState2"
+    },
+    {
+      "variable": "x98",
+      "descriptor": "component_1_VSA_EState3"
+    },
+    {
+      "variable": "x99",
+      "descriptor": "component_1_VSA_EState4"
+    },
+    {
+      "variable": "x100",
+      "descriptor": "component_1_VSA_EState5"
+    },
+    {
+      "variable": "x101",
+      "descriptor": "component_1_VSA_EState6"
+    },
+    {
+      "variable": "x102",
+      "descriptor": "component_1_VSA_EState7"
+    },
+    {
+      "variable": "x103",
+      "descriptor": "component_1_VSA_EState8"
+    },
+    {
+      "variable": "x104",
+      "descriptor": "component_1_VSA_EState9"
+    },
+    {
+      "variable": "x105",
+      "descriptor": "component_1_FractionCSP3"
+    },
+    {
+      "variable": "x106",
+      "descriptor": "component_1_HeavyAtomCount"
+    },
+    {
+      "variable": "x107",
+      "descriptor": "component_1_NHOHCount"
+    },
+    {
+      "variable": "x108",
+      "descriptor": "component_1_NOCount"
+    },
+    {
+      "variable": "x109",
+      "descriptor": "component_1_NumAliphaticCarbocycles"
+    },
+    {
+      "variable": "x110",
+      "descriptor": "component_1_NumAliphaticHeterocycles"
+    },
+    {
+      "variable": "x111",
+      "descriptor": "component_1_NumAliphaticRings"
+    },
+    {
+      "variable": "x112",
+      "descriptor": "component_1_NumAmideBonds"
+    },
+    {
+      "variable": "x113",
+      "descriptor": "component_1_NumAromaticCarbocycles"
+    },
+    {
+      "variable": "x114",
+      "descriptor": "component_1_NumAromaticHeterocycles"
+    },
+    {
+      "variable": "x115",
+      "descriptor": "component_1_NumAromaticRings"
+    },
+    {
+      "variable": "x116",
+      "descriptor": "component_1_NumAtomStereoCenters"
+    },
+    {
+      "variable": "x117",
+      "descriptor": "component_1_NumBridgeheadAtoms"
+    },
+    {
+      "variable": "x118",
+      "descriptor": "component_1_NumHAcceptors"
+    },
+    {
+      "variable": "x119",
+      "descriptor": "component_1_NumHDonors"
+    },
+    {
+      "variable": "x120",
+      "descriptor": "component_1_NumHeteroatoms"
+    },
+    {
+      "variable": "x121",
+      "descriptor": "component_1_NumHeterocycles"
+    },
+    {
+      "variable": "x122",
+      "descriptor": "component_1_NumRotatableBonds"
+    },
+    {
+      "variable": "x123",
+      "descriptor": "component_1_NumSaturatedCarbocycles"
+    },
+    {
+      "variable": "x124",
+      "descriptor": "component_1_NumSaturatedHeterocycles"
+    },
+    {
+      "variable": "x125",
+      "descriptor": "component_1_NumSaturatedRings"
+    },
+    {
+      "variable": "x127",
+      "descriptor": "component_1_NumUnspecifiedAtomStereoCenters"
+    },
+    {
+      "variable": "x128",
+      "descriptor": "component_1_Phi"
+    },
+    {
+      "variable": "x129",
+      "descriptor": "component_1_RingCount"
+    },
+    {
+      "variable": "x130",
+      "descriptor": "component_1_MolLogP"
+    },
+    {
+      "variable": "x131",
+      "descriptor": "component_1_MolMR"
+    },
+    {
+      "variable": "x132",
+      "descriptor": "component_1_fr_Al_COO"
+    },
+    {
+      "variable": "x133",
+      "descriptor": "component_1_fr_Al_OH"
+    },
+    {
+      "variable": "x134",
+      "descriptor": "component_1_fr_Al_OH_noTert"
+    },
+    {
+      "variable": "x135",
+      "descriptor": "component_1_fr_ArN"
+    },
+    {
+      "variable": "x137",
+      "descriptor": "component_1_fr_Ar_N"
+    },
+    {
+      "variable": "x139",
+      "descriptor": "component_1_fr_Ar_OH"
+    },
+    {
+      "variable": "x140",
+      "descriptor": "component_1_fr_COO"
+    },
+    {
+      "variable": "x141",
+      "descriptor": "component_1_fr_COO2"
+    },
+    {
+      "variable": "x142",
+      "descriptor": "component_1_fr_C_O"
+    },
+    {
+      "variable": "x143",
+      "descriptor": "component_1_fr_C_O_noCOO"
+    },
+    {
+      "variable": "x147",
+      "descriptor": "component_1_fr_NH0"
+    },
+    {
+      "variable": "x148",
+      "descriptor": "component_1_fr_NH1"
+    },
+    {
+      "variable": "x149",
+      "descriptor": "component_1_fr_NH2"
+    },
+    {
+      "variable": "x152",
+      "descriptor": "component_1_fr_Ndealkylation2"
+    },
+    {
+      "variable": "x155",
+      "descriptor": "component_1_fr_aldehyde"
+    },
+    {
+      "variable": "x157",
+      "descriptor": "component_1_fr_alkyl_halide"
+    },
+    {
+      "variable": "x158",
+      "descriptor": "component_1_fr_allylic_oxid"
+    },
+    {
+      "variable": "x159",
+      "descriptor": "component_1_fr_amide"
+    },
+    {
+      "variable": "x161",
+      "descriptor": "component_1_fr_aniline"
+    },
+    {
+      "variable": "x162",
+      "descriptor": "component_1_fr_aryl_methyl"
+    },
+    {
+      "variable": "x166",
+      "descriptor": "component_1_fr_benzene"
+    },
+    {
+      "variable": "x168",
+      "descriptor": "component_1_fr_bicyclic"
+    },
+    {
+      "variable": "x172",
+      "descriptor": "component_1_fr_ester"
+    },
+    {
+      "variable": "x173",
+      "descriptor": "component_1_fr_ether"
+    },
+    {
+      "variable": "x176",
+      "descriptor": "component_1_fr_halogen"
+    },
+    {
+      "variable": "x179",
+      "descriptor": "component_1_fr_imidazole"
+    },
+    {
+      "variable": "x183",
+      "descriptor": "component_1_fr_ketone"
+    },
+    {
+      "variable": "x184",
+      "descriptor": "component_1_fr_ketone_Topliss"
+    },
+    {
+      "variable": "x186",
+      "descriptor": "component_1_fr_lactone"
+    },
+    {
+      "variable": "x187",
+      "descriptor": "component_1_fr_methoxy"
+    },
+    {
+      "variable": "x189",
+      "descriptor": "component_1_fr_nitrile"
+    },
+    {
+      "variable": "x190",
+      "descriptor": "component_1_fr_nitro"
+    },
+    {
+      "variable": "x191",
+      "descriptor": "component_1_fr_nitro_arom"
+    },
+    {
+      "variable": "x192",
+      "descriptor": "component_1_fr_nitro_arom_nonortho"
+    },
+    {
+      "variable": "x196",
+      "descriptor": "component_1_fr_para_hydroxylation"
+    },
+    {
+      "variable": "x197",
+      "descriptor": "component_1_fr_phenol"
+    },
+    {
+      "variable": "x198",
+      "descriptor": "component_1_fr_phenol_noOrthoHbond"
+    },
+    {
+      "variable": "x203",
+      "descriptor": "component_1_fr_priamide"
+    },
+    {
+      "variable": "x208",
+      "descriptor": "component_1_fr_sulfonamd"
+    },
+    {
+      "variable": "x209",
+      "descriptor": "component_1_fr_sulfone"
+    },
+    {
+      "variable": "x215",
+      "descriptor": "component_1_fr_unbrch_alkane"
+    },
+    {
+      "variable": "x217",
+      "descriptor": "component_2_MaxAbsEStateIndex"
+    },
+    {
+      "variable": "x218",
+      "descriptor": "component_2_MaxEStateIndex"
+    },
+    {
+      "variable": "x219",
+      "descriptor": "component_2_MinAbsEStateIndex"
+    },
+    {
+      "variable": "x220",
+      "descriptor": "component_2_MinEStateIndex"
+    },
+    {
+      "variable": "x221",
+      "descriptor": "component_2_qed"
+    },
+    {
+      "variable": "x222",
+      "descriptor": "component_2_SPS"
+    },
+    {
+      "variable": "x223",
+      "descriptor": "component_2_MolWt"
+    },
+    {
+      "variable": "x224",
+      "descriptor": "component_2_HeavyAtomMolWt"
+    },
+    {
+      "variable": "x225",
+      "descriptor": "component_2_ExactMolWt"
+    },
+    {
+      "variable": "x226",
+      "descriptor": "component_2_NumValenceElectrons"
+    },
+    {
+      "variable": "x228",
+      "descriptor": "component_2_MaxPartialCharge"
+    },
+    {
+      "variable": "x229",
+      "descriptor": "component_2_MinPartialCharge"
+    },
+    {
+      "variable": "x230",
+      "descriptor": "component_2_MaxAbsPartialCharge"
+    },
+    {
+      "variable": "x231",
+      "descriptor": "component_2_MinAbsPartialCharge"
+    },
+    {
+      "variable": "x232",
+      "descriptor": "component_2_FpDensityMorgan1"
+    },
+    {
+      "variable": "x233",
+      "descriptor": "component_2_FpDensityMorgan2"
+    },
+    {
+      "variable": "x234",
+      "descriptor": "component_2_FpDensityMorgan3"
+    },
+    {
+      "variable": "x235",
+      "descriptor": "component_2_BCUT2D_MWHI"
+    },
+    {
+      "variable": "x236",
+      "descriptor": "component_2_BCUT2D_MWLOW"
+    },
+    {
+      "variable": "x237",
+      "descriptor": "component_2_BCUT2D_CHGHI"
+    },
+    {
+      "variable": "x238",
+      "descriptor": "component_2_BCUT2D_CHGLO"
+    },
+    {
+      "variable": "x239",
+      "descriptor": "component_2_BCUT2D_LOGPHI"
+    },
+    {
+      "variable": "x240",
+      "descriptor": "component_2_BCUT2D_LOGPLOW"
+    },
+    {
+      "variable": "x241",
+      "descriptor": "component_2_BCUT2D_MRHI"
+    },
+    {
+      "variable": "x242",
+      "descriptor": "component_2_BCUT2D_MRLOW"
+    },
+    {
+      "variable": "x243",
+      "descriptor": "component_2_AvgIpc"
+    },
+    {
+      "variable": "x244",
+      "descriptor": "component_2_BalabanJ"
+    },
+    {
+      "variable": "x245",
+      "descriptor": "component_2_BertzCT"
+    },
+    {
+      "variable": "x246",
+      "descriptor": "component_2_Chi0"
+    },
+    {
+      "variable": "x247",
+      "descriptor": "component_2_Chi0n"
+    },
+    {
+      "variable": "x248",
+      "descriptor": "component_2_Chi0v"
+    },
+    {
+      "variable": "x249",
+      "descriptor": "component_2_Chi1"
+    },
+    {
+      "variable": "x250",
+      "descriptor": "component_2_Chi1n"
+    },
+    {
+      "variable": "x251",
+      "descriptor": "component_2_Chi1v"
+    },
+    {
+      "variable": "x252",
+      "descriptor": "component_2_Chi2n"
+    },
+    {
+      "variable": "x253",
+      "descriptor": "component_2_Chi2v"
+    },
+    {
+      "variable": "x254",
+      "descriptor": "component_2_Chi3n"
+    },
+    {
+      "variable": "x255",
+      "descriptor": "component_2_Chi3v"
+    },
+    {
+      "variable": "x256",
+      "descriptor": "component_2_Chi4n"
+    },
+    {
+      "variable": "x257",
+      "descriptor": "component_2_Chi4v"
+    },
+    {
+      "variable": "x258",
+      "descriptor": "component_2_HallKierAlpha"
+    },
+    {
+      "variable": "x259",
+      "descriptor": "component_2_Ipc"
+    },
+    {
+      "variable": "x260",
+      "descriptor": "component_2_Kappa1"
+    },
+    {
+      "variable": "x261",
+      "descriptor": "component_2_Kappa2"
+    },
+    {
+      "variable": "x262",
+      "descriptor": "component_2_Kappa3"
+    },
+    {
+      "variable": "x263",
+      "descriptor": "component_2_LabuteASA"
+    },
+    {
+      "variable": "x264",
+      "descriptor": "component_2_PEOE_VSA1"
+    },
+    {
+      "variable": "x265",
+      "descriptor": "component_2_PEOE_VSA10"
+    },
+    {
+      "variable": "x266",
+      "descriptor": "component_2_PEOE_VSA11"
+    },
+    {
+      "variable": "x267",
+      "descriptor": "component_2_PEOE_VSA12"
+    },
+    {
+      "variable": "x268",
+      "descriptor": "component_2_PEOE_VSA13"
+    },
+    {
+      "variable": "x269",
+      "descriptor": "component_2_PEOE_VSA14"
+    },
+    {
+      "variable": "x270",
+      "descriptor": "component_2_PEOE_VSA2"
+    },
+    {
+      "variable": "x271",
+      "descriptor": "component_2_PEOE_VSA3"
+    },
+    {
+      "variable": "x272",
+      "descriptor": "component_2_PEOE_VSA4"
+    },
+    {
+      "variable": "x273",
+      "descriptor": "component_2_PEOE_VSA5"
+    },
+    {
+      "variable": "x274",
+      "descriptor": "component_2_PEOE_VSA6"
+    },
+    {
+      "variable": "x275",
+      "descriptor": "component_2_PEOE_VSA7"
+    },
+    {
+      "variable": "x276",
+      "descriptor": "component_2_PEOE_VSA8"
+    },
+    {
+      "variable": "x277",
+      "descriptor": "component_2_PEOE_VSA9"
+    },
+    {
+      "variable": "x278",
+      "descriptor": "component_2_SMR_VSA1"
+    },
+    {
+      "variable": "x279",
+      "descriptor": "component_2_SMR_VSA10"
+    },
+    {
+      "variable": "x280",
+      "descriptor": "component_2_SMR_VSA2"
+    },
+    {
+      "variable": "x281",
+      "descriptor": "component_2_SMR_VSA3"
+    },
+    {
+      "variable": "x282",
+      "descriptor": "component_2_SMR_VSA4"
+    },
+    {
+      "variable": "x283",
+      "descriptor": "component_2_SMR_VSA5"
+    },
+    {
+      "variable": "x284",
+      "descriptor": "component_2_SMR_VSA6"
+    },
+    {
+      "variable": "x285",
+      "descriptor": "component_2_SMR_VSA7"
+    },
+    {
+      "variable": "x287",
+      "descriptor": "component_2_SMR_VSA9"
+    },
+    {
+      "variable": "x288",
+      "descriptor": "component_2_SlogP_VSA1"
+    },
+    {
+      "variable": "x289",
+      "descriptor": "component_2_SlogP_VSA10"
+    },
+    {
+      "variable": "x290",
+      "descriptor": "component_2_SlogP_VSA11"
+    },
+    {
+      "variable": "x291",
+      "descriptor": "component_2_SlogP_VSA12"
+    },
+    {
+      "variable": "x292",
+      "descriptor": "component_2_SlogP_VSA2"
+    },
+    {
+      "variable": "x293",
+      "descriptor": "component_2_SlogP_VSA3"
+    },
+    {
+      "variable": "x294",
+      "descriptor": "component_2_SlogP_VSA4"
+    },
+    {
+      "variable": "x295",
+      "descriptor": "component_2_SlogP_VSA5"
+    },
+    {
+      "variable": "x296",
+      "descriptor": "component_2_SlogP_VSA6"
+    },
+    {
+      "variable": "x297",
+      "descriptor": "component_2_SlogP_VSA7"
+    },
+    {
+      "variable": "x298",
+      "descriptor": "component_2_SlogP_VSA8"
+    },
+    {
+      "variable": "x300",
+      "descriptor": "component_2_TPSA"
+    },
+    {
+      "variable": "x301",
+      "descriptor": "component_2_EState_VSA1"
+    },
+    {
+      "variable": "x302",
+      "descriptor": "component_2_EState_VSA10"
+    },
+    {
+      "variable": "x304",
+      "descriptor": "component_2_EState_VSA2"
+    },
+    {
+      "variable": "x305",
+      "descriptor": "component_2_EState_VSA3"
+    },
+    {
+      "variable": "x306",
+      "descriptor": "component_2_EState_VSA4"
+    },
+    {
+      "variable": "x307",
+      "descriptor": "component_2_EState_VSA5"
+    },
+    {
+      "variable": "x308",
+      "descriptor": "component_2_EState_VSA6"
+    },
+    {
+      "variable": "x309",
+      "descriptor": "component_2_EState_VSA7"
+    },
+    {
+      "variable": "x310",
+      "descriptor": "component_2_EState_VSA8"
+    },
+    {
+      "variable": "x311",
+      "descriptor": "component_2_EState_VSA9"
+    },
+    {
+      "variable": "x312",
+      "descriptor": "component_2_VSA_EState1"
+    },
+    {
+      "variable": "x313",
+      "descriptor": "component_2_VSA_EState10"
+    },
+    {
+      "variable": "x314",
+      "descriptor": "component_2_VSA_EState2"
+    },
+    {
+      "variable": "x315",
+      "descriptor": "component_2_VSA_EState3"
+    },
+    {
+      "variable": "x316",
+      "descriptor": "component_2_VSA_EState4"
+    },
+    {
+      "variable": "x317",
+      "descriptor": "component_2_VSA_EState5"
+    },
+    {
+      "variable": "x318",
+      "descriptor": "component_2_VSA_EState6"
+    },
+    {
+      "variable": "x319",
+      "descriptor": "component_2_VSA_EState7"
+    },
+    {
+      "variable": "x320",
+      "descriptor": "component_2_VSA_EState8"
+    },
+    {
+      "variable": "x321",
+      "descriptor": "component_2_VSA_EState9"
+    },
+    {
+      "variable": "x322",
+      "descriptor": "component_2_FractionCSP3"
+    },
+    {
+      "variable": "x323",
+      "descriptor": "component_2_HeavyAtomCount"
+    },
+    {
+      "variable": "x324",
+      "descriptor": "component_2_NHOHCount"
+    },
+    {
+      "variable": "x325",
+      "descriptor": "component_2_NOCount"
+    },
+    {
+      "variable": "x326",
+      "descriptor": "component_2_NumAliphaticCarbocycles"
+    },
+    {
+      "variable": "x327",
+      "descriptor": "component_2_NumAliphaticHeterocycles"
+    },
+    {
+      "variable": "x328",
+      "descriptor": "component_2_NumAliphaticRings"
+    },
+    {
+      "variable": "x329",
+      "descriptor": "component_2_NumAmideBonds"
+    },
+    {
+      "variable": "x330",
+      "descriptor": "component_2_NumAromaticCarbocycles"
+    },
+    {
+      "variable": "x331",
+      "descriptor": "component_2_NumAromaticHeterocycles"
+    },
+    {
+      "variable": "x332",
+      "descriptor": "component_2_NumAromaticRings"
+    },
+    {
+      "variable": "x333",
+      "descriptor": "component_2_NumAtomStereoCenters"
+    },
+    {
+      "variable": "x334",
+      "descriptor": "component_2_NumBridgeheadAtoms"
+    },
+    {
+      "variable": "x335",
+      "descriptor": "component_2_NumHAcceptors"
+    },
+    {
+      "variable": "x336",
+      "descriptor": "component_2_NumHDonors"
+    },
+    {
+      "variable": "x337",
+      "descriptor": "component_2_NumHeteroatoms"
+    },
+    {
+      "variable": "x338",
+      "descriptor": "component_2_NumHeterocycles"
+    },
+    {
+      "variable": "x339",
+      "descriptor": "component_2_NumRotatableBonds"
+    },
+    {
+      "variable": "x340",
+      "descriptor": "component_2_NumSaturatedCarbocycles"
+    },
+    {
+      "variable": "x341",
+      "descriptor": "component_2_NumSaturatedHeterocycles"
+    },
+    {
+      "variable": "x342",
+      "descriptor": "component_2_NumSaturatedRings"
+    },
+    {
+      "variable": "x344",
+      "descriptor": "component_2_NumUnspecifiedAtomStereoCenters"
+    },
+    {
+      "variable": "x345",
+      "descriptor": "component_2_Phi"
+    },
+    {
+      "variable": "x346",
+      "descriptor": "component_2_RingCount"
+    },
+    {
+      "variable": "x347",
+      "descriptor": "component_2_MolLogP"
+    },
+    {
+      "variable": "x348",
+      "descriptor": "component_2_MolMR"
+    },
+    {
+      "variable": "x349",
+      "descriptor": "component_2_fr_Al_COO"
+    },
+    {
+      "variable": "x350",
+      "descriptor": "component_2_fr_Al_OH"
+    },
+    {
+      "variable": "x351",
+      "descriptor": "component_2_fr_Al_OH_noTert"
+    },
+    {
+      "variable": "x354",
+      "descriptor": "component_2_fr_Ar_N"
+    },
+    {
+      "variable": "x356",
+      "descriptor": "component_2_fr_Ar_OH"
+    },
+    {
+      "variable": "x357",
+      "descriptor": "component_2_fr_COO"
+    },
+    {
+      "variable": "x358",
+      "descriptor": "component_2_fr_COO2"
+    },
+    {
+      "variable": "x359",
+      "descriptor": "component_2_fr_C_O"
+    },
+    {
+      "variable": "x360",
+      "descriptor": "component_2_fr_C_O_noCOO"
+    },
+    {
+      "variable": "x363",
+      "descriptor": "component_2_fr_Imine"
+    },
+    {
+      "variable": "x364",
+      "descriptor": "component_2_fr_NH0"
+    },
+    {
+      "variable": "x365",
+      "descriptor": "component_2_fr_NH1"
+    },
+    {
+      "variable": "x366",
+      "descriptor": "component_2_fr_NH2"
+    },
+    {
+      "variable": "x368",
+      "descriptor": "component_2_fr_Ndealkylation1"
+    },
+    {
+      "variable": "x369",
+      "descriptor": "component_2_fr_Ndealkylation2"
+    },
+    {
+      "variable": "x372",
+      "descriptor": "component_2_fr_aldehyde"
+    },
+    {
+      "variable": "x374",
+      "descriptor": "component_2_fr_alkyl_halide"
+    },
+    {
+      "variable": "x375",
+      "descriptor": "component_2_fr_allylic_oxid"
+    },
+    {
+      "variable": "x376",
+      "descriptor": "component_2_fr_amide"
+    },
+    {
+      "variable": "x377",
+      "descriptor": "component_2_fr_amidine"
+    },
+    {
+      "variable": "x378",
+      "descriptor": "component_2_fr_aniline"
+    },
+    {
+      "variable": "x379",
+      "descriptor": "component_2_fr_aryl_methyl"
+    },
+    {
+      "variable": "x383",
+      "descriptor": "component_2_fr_benzene"
+    },
+    {
+      "variable": "x385",
+      "descriptor": "component_2_fr_bicyclic"
+    },
+    {
+      "variable": "x389",
+      "descriptor": "component_2_fr_ester"
+    },
+    {
+      "variable": "x390",
+      "descriptor": "component_2_fr_ether"
+    },
+    {
+      "variable": "x392",
+      "descriptor": "component_2_fr_guanido"
+    },
+    {
+      "variable": "x393",
+      "descriptor": "component_2_fr_halogen"
+    },
+    {
+      "variable": "x396",
+      "descriptor": "component_2_fr_imidazole"
+    },
+    {
+      "variable": "x400",
+      "descriptor": "component_2_fr_ketone"
+    },
+    {
+      "variable": "x401",
+      "descriptor": "component_2_fr_ketone_Topliss"
+    },
+    {
+      "variable": "x403",
+      "descriptor": "component_2_fr_lactone"
+    },
+    {
+      "variable": "x404",
+      "descriptor": "component_2_fr_methoxy"
+    },
+    {
+      "variable": "x405",
+      "descriptor": "component_2_fr_morpholine"
+    },
+    {
+      "variable": "x406",
+      "descriptor": "component_2_fr_nitrile"
+    },
+    {
+      "variable": "x407",
+      "descriptor": "component_2_fr_nitro"
+    },
+    {
+      "variable": "x408",
+      "descriptor": "component_2_fr_nitro_arom"
+    },
+    {
+      "variable": "x409",
+      "descriptor": "component_2_fr_nitro_arom_nonortho"
+    },
+    {
+      "variable": "x412",
+      "descriptor": "component_2_fr_oxime"
+    },
+    {
+      "variable": "x413",
+      "descriptor": "component_2_fr_para_hydroxylation"
+    },
+    {
+      "variable": "x414",
+      "descriptor": "component_2_fr_phenol"
+    },
+    {
+      "variable": "x415",
+      "descriptor": "component_2_fr_phenol_noOrthoHbond"
+    },
+    {
+      "variable": "x416",
+      "descriptor": "component_2_fr_phos_acid"
+    },
+    {
+      "variable": "x417",
+      "descriptor": "component_2_fr_phos_ester"
+    },
+    {
+      "variable": "x419",
+      "descriptor": "component_2_fr_piperzine"
+    },
+    {
+      "variable": "x420",
+      "descriptor": "component_2_fr_priamide"
+    },
+    {
+      "variable": "x422",
+      "descriptor": "component_2_fr_pyridine"
+    },
+    {
+      "variable": "x423",
+      "descriptor": "component_2_fr_quatN"
+    },
+    {
+      "variable": "x425",
+      "descriptor": "component_2_fr_sulfonamd"
+    },
+    {
+      "variable": "x426",
+      "descriptor": "component_2_fr_sulfone"
+    },
+    {
+      "variable": "x430",
+      "descriptor": "component_2_fr_thiocyan"
+    },
+    {
+      "variable": "x432",
+      "descriptor": "component_2_fr_unbrch_alkane"
+    },
+    {
+      "variable": "x433",
+      "descriptor": "component_2_fr_urea"
+    },
+    {
+      "variable": "x434",
+      "descriptor": "mole_fraction_1"
+    },
+    {
+      "variable": "x435",
+      "descriptor": "mole_fraction_2"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "task": "mix_1",
+  "method": "cheapest_lunch_opus_5_5_high",
+  "seed": 2,
+  "budget": 250,
+  "objective_direction": "min",
+  "objective_sign": 1,
+  "n_candidates": 5595,
+  "best_possible_objective": 0.4344,
+  "kind": "agent",
+  "agent": "claude",
+  "model": "claude-opus-5-5",
+  "effort": "high",
+  "information_mode": "anonymous",
+  "calls": 8,
+  "audit_passed": true,
+  "audit_status_note": "Recorded by the original controller; this export independently validates trace values and counts against source data, not the full isolated execution.",
+  "evaluations_used": 250,
+  "complete": true,
+  "best_objective": 0.4344,
+  "best_raw_value": 0.4344,
+  "final_simple_regret": 0,
+  "source_files": {
+    "runs/tasks/mix_1/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-2d429e9ca5b7/private/summary.json": "579279c3ad663c37826f39025514410ed23aa478aaff8350f570f219c2f2f115",
+    "runs/tasks/mix_1/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-2d429e9ca5b7/private/config.json": "9741a5190a37b8a420a1c621efc47b2a2f1d025f9406d2cfd79e552aee2275f7",
+    "runs/tasks/mix_1/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-2d429e9ca5b7/private/launcher.json": "e77490dea56731bedf35cae3cc18eba57cc85cde46179587e0d7d86a28b77ebd",
+    "runs/tasks/mix_1/cheapest_lunch_opus_5_5_high/seed_2/campaigns/run-2d429e9ca5b7/private/ledger.sqlite": "4c4c4d0827b6471237b42f605615e35fbdf009fee36d587a42108ea4e3b4076b",
+    "data/mix_1/main.csv": "d79758fdba842bfa6a335abd966dd57ba880adf6fc7fe18f686ef48bd5475077"
+  }
+}
