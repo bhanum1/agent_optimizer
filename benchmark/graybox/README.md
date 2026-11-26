@@ -67,6 +67,17 @@ optimum exactly, so final regret is 0 and distinguishes nothing. What separates
 the arms is *how fast* they get there — evaluations to reach the optimum, or
 regret against fraction of budget.
 
+## Pool labels
+
+`pool/<task>.csv` holds one column: the task's label for every row of its candidate pool,
+in the pool's own order, for `mix_1`, `sup`, `mat_5`, `rct_1` and `btch`. They exist for one
+purpose, which is offline scoring: `aobench.fig4` takes a percentile of them to find what
+counts as a top-1% candidate. 364 KB in all, and byte-identical to the last column of each
+`data/<task>/main.csv` upstream.
+
+No descriptors and no identities came with them. Those stay with the trusted evaluator, and
+nothing here is anything an optimization agent may see.
+
 ## What was left behind
 
 The source repository also holds 827 MB of agent reasoning
@@ -75,6 +86,6 @@ data including full-pool labels, and 70 MB of saved plots. None of it is here.
 The per-call transcripts under each `agent_artifacts/` are also left out; the
 decision journals that summarize them are kept.
 
-The task data is deliberately excluded for a second reason: it holds the labels
-and identities the trusted evaluator uses, which must never reach an
-optimization agent.
+The task data is deliberately excluded for a second reason: it holds the
+descriptors and identities the trusted evaluator uses, which must never reach an
+optimization agent. Only the label columns above came over, for scoring.
