@@ -43,7 +43,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from .figures import STYLE, WIDTH  # noqa: E402
 
 TOP_PCT = 1.0
-# The tasks of the gray-box campaign, in its own order. mat_1 / mat_2 / mat_6 also carry all
+# The tasks of the grey-box campaign, in its own order. mat_1 / mat_2 / mat_6 also carry all
 # three arms and could be added, but mat_5 is already the MOF question and they are it again
 # over other pools and budgets.
 TASKS = {
@@ -64,7 +64,7 @@ ARMS = {
     "baseline": ("Best baseline", "#9AA3AD",
                  ["gp_bo", "sobol_gp_bo", "turbo", "batch_gp_qlogei", "gp_qlogehvi"]),
     "blackbox": ("Agent, black box", "#4C1D6B", ["cheapest_lunch_opus_5_5_high"]),
-    "graybox": ("Agent, gray box", "#A878D6", ["cheapest_lunch_opus_5_5_high_domain_context"]),
+    "graybox": ("Agent, grey box", "#A878D6", ["cheapest_lunch_opus_5_5_high_domain_context"]),
 }
 INK = "#3C3C3C"
 RULE = "#D9D9D9"
@@ -208,7 +208,7 @@ def main(argv=None):
         raise SystemExit(f"no task in {a.results} has all three arms and a reference")
     with plt.rc_context(STYLE):
         draw(data, a.out)
-    print(f"  {'task':8} {'random':>8} {'base':>8} {'black':>8} {'gray':>8}   acceleration")
+    print(f"  {'task':8} {'random':>8} {'base':>8} {'black':>8} {'grey':>8}   acceleration")
     for t, row in raw.items():
         print(f"  {t:8} " + "".join(f"{row[a]:8.0f}" for a in ("random", *ARMS)) + "   "
               + "  ".join(f"{data[t][a]:.1f}x" for a in ARMS))

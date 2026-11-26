@@ -1,4 +1,4 @@
-"""Counterfactual branches for the gray-box campaigns of Figure 4.
+"""Counterfactual branches for the grey-box campaigns of Figure 4.
 
     .venv/bin/python -m aobench.graybox_branches --upstream ~/path/to/cheapest_lunch
 

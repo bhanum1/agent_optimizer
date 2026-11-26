@@ -65,8 +65,8 @@ optimizer on to the end of the budget (`aobench.counterfactual`). The branches l
 ```
 
 `fig4/` is Figure 4 of the paper: the same agent on real discovery pools, with and without
-the variable descriptions (black box and gray box). (a) The acceleration factor over
-random search to a top-1% candidate, on four tasks of the gray-box campaign. The baseline
+the variable descriptions (black box and grey box). (a) The acceleration factor over
+random search to a top-1% candidate, on four tasks of the grey-box campaign. The baseline
 bar is the best classical optimizer the task carries, picked after the fact, so it is a
 generous comparator, and it floors at 1x: where that optimizer is slower than random
 search, random search is what a practitioner would have run. `rct_2` is left out (it is

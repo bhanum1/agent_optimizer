@@ -2,7 +2,7 @@
 
     .venv/bin/python -m aobench.fig4bc --out benchmark/figures/fig4
 
-The row is a campaign of the agent given the variable descriptions (the gray box), read the
+The row is a campaign of the agent given the variable descriptions (the grey box), read the
 way Figure 3 reads a mathematical one: on the left its key decisions, each a turn of the same
 loop -- what it observed (roman), what it inferred (italic), the optimizer it designed (bold)
 -- and on the right what those decisions bought, as regret against evaluations. The card panel
@@ -53,7 +53,7 @@ BRANCH = "#8C8C8C"  # the counterfactual branches
 # method -> (label, colour, linestyle, linewidth), drawn in this order so the agent is on top.
 CURVES = [
     ("cheapest_lunch_opus_5_5_high", "Agent, black box", BLACKBOX, "-", 1.0),
-    ("cheapest_lunch_opus_5_5_high_domain_context", "Agent, gray box", AGENT, "-", 1.7),
+    ("cheapest_lunch_opus_5_5_high_domain_context", "Agent, grey box", AGENT, "-", 1.7),
 ]
 GRAY = CURVES[-1][0]
 
@@ -82,7 +82,7 @@ PANELS = {
         # the badge at a fork already says which decision it belongs to.
         branch_note=(6, -1.16, "left", "center"),
         labels={"Agent, black box": (78, 0.30, "center", "bottom"),
-                "Agent, gray box": (33, -0.42, "center", "center")}),
+                "Agent, grey box": (33, -0.42, "center", "center")}),
 }
 
 

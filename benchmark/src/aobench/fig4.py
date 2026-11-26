@@ -3,7 +3,7 @@
     .venv/bin/python -m aobench.fig4 --out benchmark/figures/fig4
 
 (a) How much faster each arm is than random search at turning up a top-1% candidate, over
-    the five scalar tasks of the gray-box campaign, with each arm's geometric mean drawn as a
+    the five scalar tasks of the grey-box campaign, with each arm's geometric mean drawn as a
     rule across the panel. aobench.fig4a.
 (b) One of those campaigns in full, in the form of Figure 3: the agent's key decisions on the
     left, and what they bought on the right. Its middle step is named "Reason from chemistry",
@@ -82,7 +82,7 @@ def main(argv=None):
     for ext in ("pdf", "png"):
         fig.savefig(a.out / f"fig4.{ext}", dpi=400)
     print(a.out / "fig4.png")
-    print(f"  {'task':8} {'random':>8} {'base':>8} {'black':>8} {'gray':>8}   acceleration")
+    print(f"  {'task':8} {'random':>8} {'base':>8} {'black':>8} {'grey':>8}   acceleration")
     for t, r in raw.items():
         print(f"  {t:8} " + "".join(f"{r[x]:8.0f}" for x in ("random", *fig4a.ARMS)) + "   "
               + "  ".join(f"{data[t][x]:.1f}x" for x in fig4a.ARMS))
