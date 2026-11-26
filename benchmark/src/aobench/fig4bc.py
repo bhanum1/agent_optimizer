@@ -138,6 +138,27 @@ def panel(ax, cfg, data):
     ax.spines["left"].set_visible(False)
 
 
+ROW = 2.85  # inches per campaign row; fig4.py stacks panel a over these
+
+
+def row(fig, letter, cfg, data, y0, h):
+    """One campaign: its decisions on the left, what they bought on the right.
+
+    `y0` and `h` are the row's bottom and height as fractions of the figure, so the same
+    layout serves this module's two-row figure and the stacked Figure 4.
+    """
+    ax_l = fig.add_axes([0.035, y0 + 0.05 * h, 0.44, 0.80 * h])
+    ax_r = fig.add_axes([0.585, y0 + 0.17 * h, 0.345, 0.66 * h])
+    cards(fig, ax_l, cfg["task"], [{**d, "colour": AGENT} for d in cfg["decisions"]])
+    panel(ax_r, cfg, data)
+    top = y0 + h - 0.012
+    fig.text(0.0, top, letter, fontsize=11, va="top", ha="left", **BOLD)
+    fig.text(0.025, top - 0.007, cfg["title"], fontsize=8, va="top", ha="left", color=INK)
+    fig.text(ax_r.get_position().x0 - 0.065, top - 0.007, "What those decisions bought",
+             fontsize=8, va="top", ha="left", color=INK)
+    return ax_l, ax_r
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument("--results", type=Path, default=Path("benchmark/graybox"))
@@ -146,22 +167,10 @@ def main(argv=None):
 
     plt.rcParams.update(STYLE)
     rows = list(PANELS)
-    fig = plt.figure(figsize=(WIDTH, 2.85 * len(rows)))
+    fig = plt.figure(figsize=(WIDTH, ROW * len(rows)))
     for i, letter in enumerate(rows):
-        cfg = PANELS[letter]
-        y0 = 1 - (i + 1) / len(rows)
-        h = 1 / len(rows)
-        ax_l = fig.add_axes([0.035, y0 + 0.05 * h, 0.44, 0.80 * h])
-        ax_r = fig.add_axes([0.585, y0 + 0.17 * h, 0.345, 0.66 * h])
-        cards(fig, ax_l, cfg["task"], [{**d, "colour": AGENT} for d in cfg["decisions"]])
-        panel(ax_r, cfg, curves(a.results, cfg))
-        for ax, title in ((ax_l, cfg["title"]), (ax_r, "What those decisions bought")):
-            x0 = 0.0 if ax is ax_l else ax.get_position().x0 - 0.065
-            top = y0 + h - 0.012
-            if ax is ax_l:
-                fig.text(x0, top, letter, fontsize=11, va="top", ha="left", **BOLD)
-            fig.text(x0 + (0.025 if ax is ax_l else 0), top - 0.007, title, fontsize=8,
-                     va="top", ha="left", color=INK)
+        row(fig, letter, PANELS[letter], curves(a.results, PANELS[letter]),
+            1 - (i + 1) / len(rows), 1 / len(rows))
 
     a.out.mkdir(parents=True, exist_ok=True)
     for ext in ("pdf", "png"):
