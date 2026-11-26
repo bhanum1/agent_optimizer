@@ -179,7 +179,9 @@ def row(fig, letter, cfg, data, y0, h, branch=None):
     top = y0 + h - 0.012
     fig.text(0.0, top, letter, fontsize=11, va="top", ha="left", **BOLD)
     fig.text(0.025, top - 0.007, cfg["title"], fontsize=8, va="top", ha="left", color=INK)
-    fig.text(ax_r.get_position().x0 - 0.065, top - 0.007, "Benefits of Each Decision",
+    cx = ax_r.get_position().x0 - 0.09
+    fig.text(cx, top, "c", fontsize=11, va="top", ha="left", **BOLD)
+    fig.text(cx + 0.025, top - 0.007, "Benefits of Each Decision",
              fontsize=8, va="top", ha="left", color=INK)
     return ax_l, ax_r
 

@@ -98,6 +98,10 @@ def runs(results: Path, task: str, methods: list[str]) -> dict[str, list[list[tu
     return out
 
 
+ERR: dict = {}  # (task, arm) -> standard error of the acceleration factor
+NSEEDS: dict = {}  # task -> arm -> number of seeds behind each mean
+
+
 def collect(results: Path, pool: Path):
     """task -> arm -> acceleration factor over random search, and the raw evaluation counts."""
     data, raw = {}, {}
@@ -112,18 +116,28 @@ def collect(results: Path, pool: Path):
         def evals(c):  # a run that never gets there is capped at the budget, so the factor
             return next((e for e, v in c if reached(v)), budget)  # understates rather than breaks
 
-        row = {}
+        row, se = {}, {}
         for arm, by_method in groups.items():
-            per_method = {m: statistics.mean(evals(c) for c in cs) for m, cs in by_method.items()}
+            per = {m: [evals(c) for c in cs] for m, cs in by_method.items()}
             # the baseline arm is the best classical optimizer on this task; the others are one
             # method each, so the min is just that method.
-            row[arm] = min(per_method.values())
+            best = min(per.values(), key=statistics.mean)
+            row[arm] = statistics.mean(best)
+            se[arm] = (statistics.stdev(best) / len(best) ** 0.5 if len(best) > 1 else 0.0,
+                       len(best))
         raw[task] = row
         acc = {a: row["random"] / row[a] for a in ARMS}
         # If the best classical optimizer is slower than random search on a pool, nobody would
         # run it -- random search is the baseline there -- so the baseline arm floors at 1x.
         acc["baseline"] = max(acc["baseline"], 1.0)
         data[task] = acc
+        # Standard error of the ratio random/method, by the delta method: the two means come
+        # from independent runs, so their relative errors add in quadrature. A baseline that
+        # was floored to 1x has no error bar, since the floor is a convention, not a measurement.
+        for a in ARMS:
+            rel = ((se["random"][0] / row["random"]) ** 2 + (se[a][0] / row[a]) ** 2) ** 0.5
+            ERR[(task, a)] = 0.0 if (a == "baseline" and acc[a] == 1.0) else acc[a] * rel
+        NSEEDS[task] = {a: se[a][1] for a in (*ARMS, "random")}
     return data, raw
 
 
@@ -139,7 +153,7 @@ def bars(ax, data):
 
     w = 0.26  # three of these span 0.78 of the 1.0 slot: a clear gap between groups
     lo = min(v for row in data.values() for v in row.values())
-    hi = max(v for row in data.values() for v in row.values())
+    hi = max(v + ERR.get((t, a), 0.0) for t, row in data.items() for a, v in row.items())
     for i, a in enumerate(keys):
         xs = [t + (i - 1) * w for t in range(len(tasks))]
         vs = [data[t][a] for t in tasks]
@@ -149,6 +163,10 @@ def bars(ax, data):
                label=ARMS[a][0], zorder=2, linewidth=0)
         # A bar at exactly 1x has no height; a stub keeps its slot from reading as a method
         # that was never run.
+        err = [ERR.get((t, a), 0.0) for t in tasks]
+        ax.errorbar(xs, vs, yerr=[[min(e, v * 0.6) for e, v in zip(err, vs)], err],
+                    fmt="none", ecolor="#2A2A2A", elinewidth=0.7, capsize=1.6, capthick=0.7,
+                    zorder=5)
         flat = [x for x, v in zip(xs, vs) if v <= 1.0]
         ax.hlines([1.0] * len(flat), [x - w * 0.46 for x in flat], [x + w * 0.46 for x in flat],
                   color=ARMS[a][1], lw=1.6, zorder=4)
