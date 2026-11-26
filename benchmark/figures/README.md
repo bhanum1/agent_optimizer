@@ -32,7 +32,12 @@ a method's regret divided by the best method's on the same instance (0 = best). 
 2-D slice of each task's landscape through the optimum of the seed-0 instance, as
 observed, with insets on the two 1%-noise tasks showing that noise at the scale of a
 finite-difference step;
-(b) each optimizer's final ratio per task, coloured by size on panel a's scale, its
+(b) each optimizer's final ratio per task, coloured by size on panel a's scale -- the key in
+standing at row b's right edge reads for both: the bare ramp, worst at the top and best at
+the bottom, named at each end and carrying no numbers, because only panel b's colours are on
+a fixed scale while panel a's landscapes are stretched to each task's own range (row b gives
+up the strip it stands in, so the key's words end where every other row does; `--cbar` moves
+it: `right_b`, `below_b`, `below_a`, `wide`, `right_a`, `corner`) -- its
 worst task labelled and a task it was best on, on every seed, drawn as a stub in the
 optimum's colour and marked "best"; (c) with the agent (Opus high), the final ratio
 averaged over tasks (mean ± s.e. over seeds); (d) the ratio against the fraction of the
@@ -61,17 +66,20 @@ optimizer on to the end of the budget (`aobench.counterfactual`). The branches l
 
 `fig4/` is Figure 4 of the paper: the same agent on real discovery pools, with and without
 the variable descriptions (black box and gray box). (a) The acceleration factor over
-random search to a top-1% candidate, on the five scalar tasks of the gray-box campaign,
-with each arm's geometric mean as a dashed rule across the panel. The baseline bar is the
-best classical optimizer the task carries, picked after the fact, so it is a generous
-comparator. `rct_2` is left out: it is multiobjective, so there is no single column to
-take a percentile of. The target has to be a demanding one — at top 5% random search
-already arrives in 11 to 34 experiments on most of these pools, and every method's initial
-design finds it by luck (`--top` shows this). (b, c) Two of those campaigns in the form of
-Figure 3, sharing its card panel (`aobench.fig3.cards`): mixture discovery (`mix_1` seed 1)
-and MOF discovery (`mat_5` seed 1), the agent's key decisions quoted from each run's
-`decisions.md`, against what they bought. The results they read live in
-`benchmark/graybox/`, and the pool label columns used for the top-1% cut are in
+random search to a top-1% candidate, on four tasks of the gray-box campaign. The baseline
+bar is the best classical optimizer the task carries, picked after the fact, so it is a
+generous comparator, and it floors at 1x: where that optimizer is slower than random
+search, random search is what a practitioner would have run. `rct_2` is left out (it is
+multiobjective, so there is no single column to take a percentile of), and so is `btch`,
+methane coupling, the one task where the variable descriptions do not
+help. The target has to be a demanding one — at top 5% random search already arrives in 11 to 34 experiments on
+most of these pools, and every method's initial design finds it by luck (`--top` shows
+this). (b) One of those campaigns in the form of Figure 3, sharing
+its card panel (`aobench.fig3.cards`): MOF discovery (`mat_5` seed 1), the agent's key
+decisions quoted from the run's `decisions.md`, against what they bought. The middle step of
+the loop is named "Reason from chemistry" there: the observations are scores, but the
+inference drawn from them is domain knowledge, and that is what picks the next design. The
+results they read live in `benchmark/graybox/`, and the pool labels used for the cut are in
 `benchmark/graybox/pool/` (offline scoring only; no agent sees them). To redraw:
 
 ```bash

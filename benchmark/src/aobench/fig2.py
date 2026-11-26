@@ -34,6 +34,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+from matplotlib.cm import ScalarMappable  # noqa: E402
 from matplotlib.colors import LinearSegmentedColormap, Normalize  # noqa: E402
 from matplotlib.gridspec import GridSpec  # noqa: E402
 
@@ -266,6 +267,42 @@ def panel_d(ax, anytime):
     return {m: anytime[m].mean(1) for m in METHODS_C}
 
 
+CBAR_ENDS = ("Worst", "Best")  # the bar carries no numbers: its two ends are named instead
+
+
+FLIP = True  # draw the ramp worst-first, left to right, as its name reads
+
+
+def colorbar(fig, rect, orientation, flip=False):
+    """The key to the one ramp panels a and b share: the bare ramp, its ends named.
+
+    Both panels show the same quantity -- how many orders of magnitude a value is above the
+    best one -- so one bar reads for both. It carries no numbers, because only panel b's
+    colours are on a fixed scale: panel a's landscapes are stretched to each task's own
+    range, so there the ramp gives the ordering, not the number. Worst at the start of the
+    ramp, best at its end, each named where it is: left and right when the bar lies flat,
+    top and bottom when it stands up.
+    """
+    cax = fig.add_axes(rect)
+    cb = fig.colorbar(ScalarMappable(norm=LOSS_NORM, cmap=SCALE), cax=cax,
+                      orientation=orientation, ticks=[])
+    cb.outline.set_visible(False)
+    worst, best = CBAR_ENDS
+    if orientation == "vertical":  # the scale already puts the worst at the top
+        x = rect[0] + rect[2] / 2
+        fig.text(x, rect[1] + rect[3] + 0.006, worst, fontsize=6.5, va="bottom", ha="center",
+                 color="black")
+        fig.text(x, rect[1] - 0.006, best, fontsize=6.5, va="top", ha="center", color="black")
+    else:
+        if flip:  # so the ramp runs the way the words read, worst on the left
+            cb.ax.invert_xaxis()
+        y = rect[1] + rect[3] / 2
+        fig.text(rect[0] - 0.008, y, worst, fontsize=6.5, va="center", ha="right", color="black")
+        fig.text(rect[0] + rect[2] + 0.008, y, best, fontsize=6.5, va="center", ha="left",
+                 color="black")
+    return cb
+
+
 def fit_row(axes, x0, x1, box):
     """Squeeze a row of axes into [x0, x1], keeping their relative widths and gaps."""
     pos = [ax.get_position() for ax in axes]
@@ -275,15 +312,19 @@ def fit_row(axes, x0, x1, box):
         ax.set_position([x0 + (p.x0 - a) * s, p.y0, p.width * s, p.height])
 
 
-def draw(loss, anytime, path: Path, gap: float = 0.055):
+def draw(loss, anytime, path: Path, gap: float = 0.055, cbar: str = "right_b"):
     fig = plt.figure(figsize=(WIDTH, 7.0))
     # Row a's height is set so the square landscapes fill it; b and c/d get the rest.
-    outer = GridSpec(3, 1, figure=fig, height_ratios=[0.90, 2.10, 1.75], hspace=0.40, left=0.02,
+    # A horizontal key needs a wider gap between the first two rows to sit in.
+    outer = GridSpec(3, 1, figure=fig, height_ratios=[0.90, 2.10, 1.75],
+                     hspace=0.40 if cbar in ("right_a", "below_b", "right_b") else 0.52,
+                     left=0.02,
                      right=0.98, top=0.96, bottom=0.06)
     top = outer[0].subgridspec(1, len(TASKS), wspace=0.22)
     grid_b = outer[1].subgridspec(2, 3, wspace=0.11, hspace=0.45)
     bottom = outer[2].subgridspec(1, 2, wspace=0.3)
     axa = panel_a(fig, top)
+    narrow = cbar == "right_a"  # the vertical bar takes its room out of row a
     axb = panel_b(fig, grid_b, loss)
     axc = fig.add_subplot(bottom[0])
     axd = fig.add_subplot(bottom[1])
@@ -295,6 +336,9 @@ def draw(loss, anytime, path: Path, gap: float = 0.055):
     inv = fig.transFigure.inverted()
     box = lambda ax: inv.transform(ax.get_tightbbox(r).get_points())
     left, right = box(axa[0])[0, 0], box(axa[-1])[1, 0]
+    if narrow:
+        fit_row(axa, left, right - 0.075, box)
+        fig.canvas.draw()
     # One y-axis label for panel b's six subplots, at a's left edge; the row makes room for it.
     b0, b3 = axb[0].get_position(), axb[3].get_position()
     ylab = fig.text(left, (b0.y1 + b3.y0) / 2, r"Log$_{10}$ Regret Ratio $\downarrow$", rotation=90,
@@ -302,8 +346,9 @@ def draw(loss, anytime, path: Path, gap: float = 0.055):
     fig.canvas.draw()
     b_left = inv.transform(ylab.get_window_extent(r).get_points())[1, 0] + 0.012
     b_left += axb[0].get_position().x0 - box(axb[0])[0, 0]  # room for the y tick labels too
+    key = 0.046 if cbar == "right_b" else 0.0  # the strip row b gives up to a standing key
     for row in (axb[:3], axb[3:]):
-        fit_row(row, b_left, right, box)
+        fit_row(row, b_left, right - key, box)
     fig.canvas.draw()
     # c and d share the bottom row: tight boxes from a's left edge to its right, one gap between.
     (cl, _), (cr, _) = box(axc)
@@ -320,6 +365,34 @@ def draw(loss, anytime, path: Path, gap: float = 0.055):
     bx0, bx1 = axb[3].get_position().x0, axb[5].get_position().x1
     fig.text((bx0 + bx1) / 2, min(box(ax)[0, 1] for ax in axb[3:]) - 0.010, "Task",
              ha="center", va="top", fontsize=7)
+    fig.canvas.draw()
+    # The shared key to panels a and b, in whichever of the tried places `cbar` names. It goes
+    # under row b by default: the band there is the one empty strip in the figure, and the key
+    # reads after both panels it belongs to rather than between them.
+    pa = axa[0].get_position()
+    # Just under row a and clear of panel b's titles: the ticks hang below the bar, the name
+    # beside it.
+    y = min(box(ax)[0, 1] for ax in axa) - 0.028
+    if cbar == "below_a":      # short, under the left of row a, reading into the gap
+        colorbar(fig, [left, y, 0.19, 0.009], "horizontal", inline=True)
+    elif cbar == "wide":       # the full width of row a, a rule under the landscapes
+        colorbar(fig, [left, y, right - left, 0.009], "horizontal")
+    elif cbar == "right_a":    # vertical, beside the landscapes
+        colorbar(fig, [right - 0.050, pa.y0, 0.010, pa.height], "vertical")
+    elif cbar == "corner":     # short, under the right end of row a
+        w = 0.19
+        colorbar(fig, [right - w, y, w, 0.009], "horizontal")
+    elif cbar == "right_b":    # standing at row b's right edge, as tall as the two rows
+        cx = right - 0.0173  # the wider word ends where panels a, c and d end
+        y0, y1 = axb[3].get_position().y0, axb[0].get_position().y1
+        colorbar(fig, [cx - 0.0055, y0 + 0.014, 0.011, (y1 - 0.014) - (y0 + 0.014)], "vertical")
+    elif cbar == "below_b":    # in the band under row b, above c and d
+        # Centred on the figure, high in the band so it stays clear of the c and d letters.
+        hi = min(box(ax)[0, 1] for ax in axb[3:]) - 0.034  # under row b's own "Task" label
+        w = 0.19
+        colorbar(fig, [(left + right) / 2 - w / 2, hi - 0.009, w, 0.009], "horizontal",
+                 flip=FLIP)
+
     fig.canvas.draw()
     at = box(axa[0])[1, 1]
     bt = max(box(ax)[1, 1] for ax in axb[:3])
@@ -340,6 +413,8 @@ def main(argv=None):
     p.add_argument("--agent", type=Path, default=Path("benchmark/runs/opus_high"), help="agent run folder")
     p.add_argument("--seeds", type=int, default=5, help="use seeds 0..N-1 for every method")
     p.add_argument("--out", type=Path, default=Path("benchmark/figures/fig2"))
+    p.add_argument("--cbar", default="right_b", choices=["right_b", "below_b", "below_a", "wide", "right_a", "corner"],
+                   help="where the shared colour key goes")
     a = p.parse_args(argv)
     a.out.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(STYLE)
@@ -348,7 +423,7 @@ def main(argv=None):
         n = {m: len(data[t][m]) for m in METHODS_C}
         assert len(set(n.values())) == 1, f"{t}: uneven seeds {n}"
     loss = losses(data)
-    mean, se, curve = draw(loss, anytime_losses(data), a.out / "fig2")
+    mean, se, curve = draw(loss, anytime_losses(data), a.out / "fig2", cbar=a.cbar)
     print("log10 regret ratio per task (mean over seeds) | average +/- s.e. | at 10%, 25%, 50% of budget:")
     for m in METHODS_C:
         print(f"  {METHODS[m][0]:9s}" + " ".join(f"{v:5.1f}" for v in loss[m].mean(1))
