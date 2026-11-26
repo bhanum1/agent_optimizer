@@ -148,13 +148,14 @@ def run(fig, ax, x, y, parts, size, gap=3.0):
         t.set_x(t.get_position()[0] + x - (cx - g))
 
 
-def cards(fig, ax, task_text, decisions, wrap=58):
+def cards(fig, ax, task_text, decisions, wrap=58, steps=("Observe", "Reason", "Design")):
     """One card per decision. Figure 4 draws its panels with this too, so they match by sharing it.
 
     Typeset in points from the top of the panel, so spacing stays even at any figure size.
     Each decision is one turn of the agent's loop, read down a stem with a stop at each step:
     what it observed (roman), what it inferred (italic), the optimizer it designed (bold). The three
-    steps are named once, above the first card, instead of labelling all six lines. Every decision
+    steps are named once, above the first card, instead of labelling all six lines; `steps`
+    renames them, which is how Figure 4 says what its middle step reasons from. Every decision
     needs `observe`, `reason`, `design`, `colour`, and the two footers `foot` and `bought`.
     """
     ax.set_axis_off()
@@ -167,8 +168,8 @@ def cards(fig, ax, task_text, decisions, wrap=58):
     ax.text(0.0, y_of(1), task_text, ha="left", va="top", fontsize=7.6, color=INK, transform=tr)
     ax.plot([0, 1], [y_of(15)] * 2, color=RULE, lw=0.6, transform=tr, clip_on=False)
     arrow = (r"$\rightarrow$", {})  # STIX Two Text has no arrow glyph of its own
-    run(fig, ax, 1.0, y_of(19.5), [("Observe", {}), arrow, ("Reason", {"style": "italic"}), arrow,
-                                   ("Design", BOLD)], 6.2)
+    run(fig, ax, 1.0, y_of(19.5), [(steps[0], {}), arrow, (steps[1], {"style": "italic"}), arrow,
+                                   (steps[2], BOLD)], 6.2)
 
     # (key, size, line height, extra font kwargs) -- one block per step of the loop.
     STEPS = (("observe", 6.9, 9.6, {}), ("reason", 6.9, 9.6, {"style": "italic"}),

@@ -1,12 +1,17 @@
-"""Figure 4, panels b and c: one real campaign each, in the form of Figure 3.
+"""Figure 4, panel b: one real campaign, in the form of Figure 3.
 
     .venv/bin/python -m aobench.fig4bc --out benchmark/figures/fig4
 
-Each row is a campaign of the agent given the variable descriptions (the gray box), read the
+The row is a campaign of the agent given the variable descriptions (the gray box), read the
 way Figure 3 reads a mathematical one: on the left its key decisions, each a turn of the same
 loop -- what it observed (roman), what it inferred (italic), the optimizer it designed (bold)
 -- and on the right what those decisions bought, as regret against evaluations. The card panel
 is Figure 3's own `cards`, imported rather than copied, so the two figures cannot drift apart.
+
+The point of the row is the middle step, so it is named for where it comes from: the agent
+observes scores, but what it infers from them is chemistry -- alkaline-earth nodes bind CO2,
+the pore window has a sweet spot -- and that is what picks the next design. Hence the header
+reads "Reason from chemistry", and the panel title says so too.
 
 What differs from Figure 3, and why. There the dashed curves are counterfactuals, one per
 decision, so each decision owns a colour that ties its card to its curve. Here the other
@@ -15,9 +20,9 @@ nothing: the stems take the agent's own colour and the numbered badges tell the 
 apart. The curve colours are Figure 4a's arm colours instead, so a reader coming from the bar
 chart finds the same three things in the same three colours.
 
-The decisions are quoted from each campaign's own decisions.md; the block boundaries printed
-at the foot of each card are the real ones (mix_1: blocks after 0 and 24 of 250; mat_5: after
-70 and 85 of 100), and `--check` prints the numbers quoted in the footers against the trace.
+The decisions are quoted from the campaign's own decisions.md; the block boundaries printed at
+the foot of each card are the real ones (mat_5: blocks after 70 and 85 of 100), and the run
+prints the budget and the evaluation at which the pool optimum is reached, against the trace.
 """
 from __future__ import annotations
 
@@ -34,8 +39,8 @@ import numpy as np  # noqa: E402
 from .fig3 import BOLD, INK, badge, cards  # noqa: E402
 from .figures import STYLE, WIDTH  # noqa: E402
 
-AGENT = "#7B2D8E"  # the three arm colours of Figure 4a, so the two panels agree
-BLACKBOX = "#D55E00"
+AGENT = "#A878D6"  # the three arm colours of Figure 4a, so the two panels agree
+BLACKBOX = "#4C1D6B"
 BASELINE = "#7E8A96"
 RANDOM = "#C6C6C6"
 
@@ -50,26 +55,12 @@ GRAY = CURVES[-1][0]
 
 PANELS = {
     "b": dict(
-        title="Mixture discovery", task_key="mix_1", seed=1, unit="cP",
-        task="Binary-liquid mixtures: minimize viscosity at room temperature.",
-        decisions=[
-            dict(after=1, foot="eval 1\u201324",
-                 observe="No labels; mixtures share components across mole fractions.",
-                 reason="Small, low-donor components should thin a mixture.",
-                 design="Test 14 chemistry-prior picks beside 10 random ones.",
-                 bought="0.69 cP median, against 4.09 cP random"),
-            dict(after=24, foot="eval 24",
-                 observe="The prior ranks the first 24 points well (Spearman 0.73).",
-                 reason="So the guessed pure viscosities are priors, not labels.",
-                 design="Fit a latent-component model; pick by expected improvement.",
-                 bought="pool optimum at eval 44"),
-        ],
-        labels={"Random": (240, -0.94, "right", "bottom"),
-                "GP-BO": (150, -2.14, "right", "bottom"),
-                "Agent, black box": (148, -1.32, "right", "top"),
-                "Agent, gray box": (104, -2.70, "center", "center")}),
-    "c": dict(
-        title="MOF discovery", task_key="mat_5", seed=1, unit="mol/kg",
+        title="Where the reasoning comes from: MOF chemistry", task_key="mat_5", seed=1,
+        unit="mol/kg",
+        # The middle step of the loop is named for its source. What the agent infers here is
+        # not read off the data -- the data say which picks scored well; the chemistry says
+        # why, and so says where to look next.
+        steps=("Observe", "Reason from chemistry", "Design"),
         task="Metal-organic frameworks: maximize CO$_2$ uptake at 298 K and 0.15 bar.",
         decisions=[
             dict(after=70, foot="eval 70",
@@ -149,7 +140,8 @@ def row(fig, letter, cfg, data, y0, h):
     """
     ax_l = fig.add_axes([0.035, y0 + 0.05 * h, 0.44, 0.80 * h])
     ax_r = fig.add_axes([0.585, y0 + 0.17 * h, 0.345, 0.66 * h])
-    cards(fig, ax_l, cfg["task"], [{**d, "colour": AGENT} for d in cfg["decisions"]])
+    cards(fig, ax_l, cfg["task"], [{**d, "colour": AGENT} for d in cfg["decisions"]],
+          steps=cfg.get("steps", ("Observe", "Reason", "Design")))
     panel(ax_r, cfg, data)
     top = y0 + h - 0.012
     fig.text(0.0, top, letter, fontsize=11, va="top", ha="left", **BOLD)

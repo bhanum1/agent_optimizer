@@ -5,8 +5,10 @@
 (a) How much faster each arm is than random search at turning up a top-1% candidate, over
     the five scalar tasks of the gray-box campaign, with each arm's geometric mean drawn as a
     rule across the panel. aobench.fig4a.
-(b, c) Two of those campaigns in full, in the form of Figure 3: the agent's key decisions on
-    the left, and what they bought on the right. aobench.fig4bc.
+(b) One of those campaigns in full, in the form of Figure 3: the agent's key decisions on the
+    left, and what they bought on the right. Its middle step is named "Reason from chemistry",
+    which is the point of the panel -- the agent observes scores, but what it infers from them
+    is domain knowledge, and that is what picks the next design. aobench.fig4bc.
 
 The three panels share their colours: whatever is grey in the bar chart is a classical
 baseline wherever it appears, vermillion is the agent without the variable descriptions, and
