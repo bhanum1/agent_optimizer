@@ -63,12 +63,12 @@ CAMPAIGNS = {
                  observe="A separable quadratic fits all 47 points.",
                  reason="Its minimum can be computed, not searched.",
                  design="Jump to the fitted minimum, then refine locally."),
-            dict(after=126, branch="lq_126", instead="Trust region continued", label_at=(240, -4.35),
+            dict(after=126, branch="lq_126", instead="Trust region continued", label_at=(256, -5.72),
                  observe=r"The trust region stalled; repeats agree to $5{\times}10^{-7}$.",
                  reason="Noise is negligible, so slopes can be measured.",
                  design="Write its own finite-difference Newton method."),
         ],
-        agent_label=(104, -5.1), base_label=(172, 0.95)),
+        agent_label=(104, -5.1), base_label=(160, 0.6)),
 }
 
 
